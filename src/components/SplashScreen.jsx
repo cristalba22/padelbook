@@ -1,85 +1,32 @@
-import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useState } from "react";
 
-export default function SplashScreen({ show, onFinish }) {
-  // cuando la animación terminó, avisamos al padre para esconderlo
+export default function SplashScreen() {
+  const [visible, setVisible] = useState(true);
+
   useEffect(() => {
-    if (!show) return;
-    const t = setTimeout(() => {
-      onFinish();
-    }, 1800); // dura ~1.8s total
-    return () => clearTimeout(t);
-  }, [show, onFinish]);
+    // Mostrar por 2 segundos y luego desaparecer
+    const timer = setTimeout(() => setVisible(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
 
   return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.5 } }}
-        >
-          {/* Glow radial detrás del logo */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{
-              opacity: [0, 1, 1, 0],
-              scale: [0.6, 1, 1.1, 1.2],
-            }}
-            transition={{
-              duration: 1.4,
-              times: [0, 0.3, 0.6, 1],
-              ease: "easeOut",
-            }}
-            className="absolute w-[280px] h-[280px] rounded-full bg-[radial-gradient(circle_at_center,rgba(163,230,53,0.3)_0%,rgba(0,0,0,0)_70%)] blur-2xl"
-          />
-
-          {/* Tarjeta/loguito */}
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{
-              scale: [0.7, 1, 1],
-              opacity: [0, 1, 1],
-              boxShadow: [
-                "0 0 0 rgba(163,230,53,0)",
-                "0 0 40px rgba(163,230,53,0.6)",
-                "0 0 20px rgba(163,230,53,0.3)",
-              ],
-            }}
-            transition={{
-              duration: 1.2,
-              ease: "easeOut",
-              times: [0, 0.4, 1],
-            }}
-            className="relative bg-neutral-900 border border-lime-400/40 rounded-xl px-5 py-4 flex flex-col items-center text-center"
-          >
-            <div className="flex items-baseline gap-2">
-              <div className="bg-lime-400 text-neutral-900 font-bold text-[11px] leading-none rounded-md px-2 py-1 shadow-[0_0_20px_rgba(163,230,53,0.6)]">
-                BK
-              </div>
-              <div className="bg-lime-400 text-neutral-900 font-bold text-[11px] leading-none rounded-md px-2 py-1 shadow-[0_0_20px_rgba(163,230,53,0.6)]">
-                PDL
-              </div>
-            </div>
-
-            <div className="mt-3 text-white font-semibold text-sm leading-none">
-              Book Padel
-            </div>
-            <div className="text-neutral-500 text-[10px] mt-1">
-              Gestión de turnos
-            </div>
-
-            {/* Barra de carga fake abajo */}
-            <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 1.2, ease: "easeInOut", delay: 0.3 }}
-              className="h-[3px] w-full bg-lime-400 rounded-full mt-4 shadow-[0_0_15px_rgba(163,230,53,0.8)]"
-            />
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 bg-black transition-opacity duration-700"
+      style={{ opacity: visible ? 1 : 0 }}
+    >
+      <div className="text-center">
+        <div className="p-6 rounded-xl bg-neutral-900 border border-lime-400/10 shadow-[0_0_20px_rgba(163,230,53,0.2)]">
+          <div className="flex justify-center gap-2 mb-2">
+            <div className="bg-lime-400 text-black font-bold rounded-md px-3 py-1">BK</div>
+            <div className="bg-lime-400 text-black font-bold rounded-md px-3 py-1">PDL</div>
+          </div>
+          <h1 className="text-lime-400 font-semibold text-lg">Book Padel</h1>
+          <p className="text-neutral-400 text-xs mb-3">Gestión de turnos</p>
+          <div className="h-[3px] w-20 mx-auto bg-lime-400 rounded-full animate-pulse"></div>
+        </div>
+      </div>
+    </div>
   );
 }

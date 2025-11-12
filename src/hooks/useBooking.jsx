@@ -1,67 +1,51 @@
+// src/hooks/useBooking.jsx
 import React, { createContext, useContext, useState } from "react";
 
-const BookingContext = createContext(null);
+const BookingCtx = createContext(null);
 
 export function BookingProvider({ children }) {
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, "0");
-    const d = String(today.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  });
+  // todas las reservas hechas desde este front (mock)
+  const [bookings, setBookings] = useState([]);
+  // turno seleccionado en la pantalla de reservar
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
-  const [selectedCourt, setSelectedCourt] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  // cuando el usuario confirma en el modal
+  function addBooking(bookingData) {
+    const withId = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now(),
+      status: "pendiente",
+      ...bookingData,
+    };
+    setBookings((prev) => [...prev, withId]);
+    return withId;
+  }
 
-  // guarda una reserva pendiente en localStorage
-  const savePendingBooking = (bookingObj) => {
-    const prev = JSON.parse(localStorage.getItem("pendingBookings") || "[]");
-    prev.push({
-      ...bookingObj,
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem("pendingBookings", JSON.stringify(prev));
-  };
-
-  // lee todas las reservas pendientes
-  const getPendingBookings = () => {
-    return JSON.parse(localStorage.getItem("pendingBookings") || "[]");
-  };
-
-  // elimina una reserva por índice
-  const removeBooking = (idxToRemove) => {
-    const prev = JSON.parse(localStorage.getItem("pendingBookings") || "[]");
-    const updated = prev.filter((_, i) => i !== idxToRemove);
-    localStorage.setItem("pendingBookings", JSON.stringify(updated));
-    return updated;
-  };
+  // cancelar desde "mis turnos"
+  function cancelBooking(id) {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, status: "cancelado" } : b))
+    );
+  }
 
   return (
-    <BookingContext.Provider
+    <BookingCtx.Provider
       value={{
-        selectedDate,
-        setSelectedDate,
-        selectedCourt,
-        setSelectedCourt,
-        selectedTime,
-        setSelectedTime,
-        savePendingBooking,
-        getPendingBookings,
-        removeBooking,
+        bookings,
+        selectedBooking,
+        setSelectedBooking,
+        addBooking,
+        cancelBooking,
       }}
     >
       {children}
-    </BookingContext.Provider>
+    </BookingCtx.Provider>
   );
 }
 
 export function useBooking() {
-  const ctx = useContext(BookingContext);
+  const ctx = useContext(BookingCtx);
   if (!ctx) {
-    throw new Error(
-      "useBooking debe usarse dentro de <BookingProvider>"
-    );
+    throw new Error("useBooking debe usarse dentro de <BookingProvider>");
   }
   return ctx;
 }

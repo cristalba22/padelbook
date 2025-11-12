@@ -1,60 +1,49 @@
+// src/hooks/useAuth.jsx
 import React, { createContext, useContext, useState } from "react";
-
-/*
-  Este hook simula autenticación local SIN backend.
-  Guarda el usuario en memoria de la app.
-  Más adelante cuando hagamos backend + JWT, este archivo va a cambiar.
-*/
 
 const AuthCtx = createContext(null);
 
+// usuario inicial opcionalmente null
+const initialUser = null;
+// si quisieras arrancar como admin por defecto:
+// const initialUser = { name: "Admin Club", email: "admin@club.com", role: "admin" };
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(initialUser);
 
-  // Login fake: email + password
-  // - Si el email incluye "admin", role = admin
-  // - Si no, role = player
-  function login({ email, password }) {
-    if (!email) return;
-
-    const role = email.toLowerCase().includes("admin")
-      ? "admin"
-      : "player";
-
-    // Para que funcione el saludo en el navbar,
-    // si ya había una cuenta creada con name, la mantenemos.
-    setUser((prev) => {
-      // si ya había usuario creado con ese email, conservar name
-      if (prev && prev.email === email && prev.name) {
-        return {
-          ...prev,
-          email,
-          role,
-        };
-      }
-
-      // si no había, creamos uno genérico
-      return {
-        name: "Jugador",
+  function login({ name, email, password }) {
+    // mock súper simple
+    // si es el admin:
+    if (email === "admin@club.com" && password === "admin123") {
+      setUser({
+        name: name || "Admin Club",
         email,
-        phone: "+54 11 5555-0000",
-        role,
-      };
+        role: "admin",
+        phone: "54 11 5555-0000",
+        category: "admin",
+      });
+      return;
+    }
+
+    // jugador normal
+    setUser({
+      name: name || email.split("@")[0],
+      email,
+      role: "player",
+      phone: "",
+      category: "6ta",
     });
   }
 
-  // Registro fake: creamos cuenta con nombre, teléfono, etc
-  function register({ name, email, phone, password }) {
-    if (!email || !name) return;
-    const role = email.toLowerCase().includes("admin")
-      ? "admin"
-      : "player";
-
+  function register({ name, email, password, phone, category }) {
+    // por ahora el register es igual que loguear, pero
+    // queda separado para que después lo mandemos al backend
     setUser({
-      name,
+      name: name || email.split("@")[0],
       email,
-      phone: phone || "+54 11 5555-0000",
-      role,
+      role: "player",
+      phone: phone || "",
+      category: category || "6ta",
     });
   }
 
@@ -62,14 +51,11 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const value = {
-    user,
-    login,
-    register,
-    logout,
-  };
-
-  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+  return (
+    <AuthCtx.Provider value={{ user, login, register, logout }}>
+      {children}
+    </AuthCtx.Provider>
+  );
 }
 
 export function useAuth() {

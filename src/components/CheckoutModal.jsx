@@ -1,89 +1,58 @@
+// src/components/CheckoutModal.jsx
 import React from "react";
-import { motion } from "framer-motion";
-import { useBooking } from "../hooks/useBooking.jsx";
 
-export default function CheckoutModal({ booking, onClose }) {
-  const { savePendingBooking } = useBooking();
-
-  if (!booking) return null;
-
-  const confirmAndStore = (metodo) => {
-    // armamos objeto reserva para guardar
-    const bookingToStore = {
-      ...booking,
-      metodoPago: metodo,
-      estadoPago:
-        metodo === "pagar_todo"
-          ? "pagado"
-          : metodo === "senal"
-          ? "seña pendiente"
-          : "pagar en el club",
-      estadoTurno:
-        metodo === "pagar_todo"
-          ? "confirmado"
-          : "pendiente de pago",
-    };
-
-    savePendingBooking(bookingToStore);
-
-    alert(
-      "Reserva confirmada ✅\nSe guardó en tus turnos.\n(En producción se integra el pago)"
-    );
-
-    onClose();
-  };
+export default function CheckoutModal({ open, onClose, selected }) {
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.25 }}
-        className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 w-full max-w-sm text-sm text-neutral-300 shadow-[0_0_40px_rgba(163,230,53,0.3)]"
-      >
-        <h3 className="text-lg font-bold text-white mb-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[2000]">
+      <div className="bg-[#111] border border-lime-500/20 rounded-xl w-full max-w-md p-6 shadow-2xl">
+        <h2 className="text-white text-lg font-semibold mb-4">
           Confirmar Reserva
-        </h3>
+        </h2>
 
-        <p className="text-sm text-neutral-400 mb-1">
-          Cancha / Clase:{" "}
-          <span className="text-white font-semibold">
-            {booking.courtName || booking.lessonName || "—"}
-          </span>
-        </p>
-        <p className="text-sm text-neutral-400 mb-1">
-          Fecha:{" "}
-          <span className="text-white font-semibold">{booking.date}</span>
-        </p>
-        <p className="text-sm text-neutral-400 mb-1">
-          Horario:{" "}
-          <span className="text-lime-400 font-semibold">{booking.time} hs</span>
-        </p>
-        <p className="text-sm text-neutral-400 mb-4">
-          Total:{" "}
-          <span className="text-lime-400 font-semibold">
-            ${booking.price}
-          </span>
-        </p>
+        <div className="bg-black/20 rounded-lg p-4 mb-5 text-sm text-white/80 space-y-1">
+          <p>
+            <strong>Cancha / Clase:</strong> {selected?.courtName}
+          </p>
+          <p>
+            <strong>Fecha:</strong> {selected?.date}
+          </p>
+          <p>
+            <strong>Horario:</strong> {selected?.time}
+          </p>
+          <p className="text-lime-400 font-semibold pt-2">
+            Total: ${selected?.price}
+          </p>
+        </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="space-y-3">
           <button
-            onClick={() => confirmAndStore("senal")}
-            className="bg-lime-400 text-neutral-900 font-semibold py-2 rounded-lg hover:scale-[1.03] active:scale-[0.97] transition"
+            className="w-full bg-lime-500 hover:bg-lime-400 text-black font-semibold py-2 rounded-lg transition"
+            onClick={() => {
+              alert("Simular Mercado Pago (50%)");
+              onClose();
+            }}
           >
             Pagar seña (50%)
           </button>
 
           <button
-            onClick={() => confirmAndStore("pagar_todo")}
-            className="bg-lime-600/90 text-white font-semibold py-2 rounded-lg hover:bg-lime-500/90 transition"
+            className="w-full bg-lime-600/20 hover:bg-lime-500/40 text-white font-semibold py-2 rounded-lg transition border border-lime-500/30"
+            onClick={() => {
+              alert("Simular Mercado Pago (total)");
+              onClose();
+            }}
           >
             Pagar todo ahora
           </button>
 
           <button
-            onClick={() => confirmAndStore("pagar_en_club")}
-            className="bg-neutral-800 border border-neutral-700 text-neutral-300 font-semibold py-2 rounded-lg hover:bg-neutral-700 transition"
+            className="w-full bg-black/30 hover:bg-black/50 text-white font-semibold py-2 rounded-lg transition border border-white/5"
+            onClick={() => {
+              alert("Se paga en el club 👌");
+              onClose();
+            }}
           >
             Pagar en el club (efectivo / transferencia)
           </button>
@@ -91,11 +60,11 @@ export default function CheckoutModal({ booking, onClose }) {
 
         <button
           onClick={onClose}
-          className="text-neutral-500 text-xs mt-4 hover:text-neutral-300"
+          className="mt-4 text-sm text-white/40 hover:text-white/70 transition"
         >
           Cerrar
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 }

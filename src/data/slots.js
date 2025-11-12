@@ -1,19 +1,29 @@
-// Disponibilidad mock
+// src/data/slots.js
+
+// horarios disponibles por cancha
 export const mockSlots = [
+  // cancha 1
   { courtId: 1, time: "18:00", isAvailable: false, price: 5000 },
-  { courtId: 1, time: "19:00", isAvailable: true,  price: 5000 },
-  { courtId: 1, time: "20:00", isAvailable: true,  price: 5000 },
+  { courtId: 1, time: "19:00", isAvailable: true, price: 5000 },
+  { courtId: 1, time: "20:00", isAvailable: true, price: 5000 },
 
-  { courtId: 2, time: "18:00", isAvailable: true,  price: 5500 },
-  { courtId: 2, time: "19:00", isAvailable: false, price: 5500 },
-  { courtId: 2, time: "20:00", isAvailable: true,  price: 5500 },
+  // cancha 2
+  { courtId: 2, time: "18:00", isAvailable: true, price: 5500 },
+  { courtId: 2, time: "19:00", isAvailable: true, price: 5500 },
+  { courtId: 2, time: "20:00", isAvailable: true, price: 5500 },
 
-  { courtId: 3, time: "18:00", isAvailable: true,  price: 6000 },
-  { courtId: 3, time: "19:00", isAvailable: true,  price: 6000 },
-  { courtId: 3, time: "20:00", isAvailable: false, price: 6000 }
+  // cancha 3
+  { courtId: 3, time: "18:00", isAvailable: true, price: 5900 },
+  { courtId: 3, time: "19:00", isAvailable: true, price: 5900 },
+  { courtId: 3, time: "20:00", isAvailable: false, price: 5900 },
+
+  // clases (id 4)
+  { courtId: 4, time: "09:00", isAvailable: true, price: 12000 },
+  { courtId: 4, time: "10:00", isAvailable: true, price: 12000 },
+  { courtId: 4, time: "11:00", isAvailable: true, price: 8000 },
 ];
 
-// Reservas mock para el panel admin
+// si tu Admin.jsx todavía espera esto, lo dejamos
 export const mockBookings = [
   {
     id: 101,
@@ -23,7 +33,7 @@ export const mockBookings = [
     price: 5500,
     playerName: "Laura Lencina",
     phone: "+54 11 5555-1111",
-    status: "confirmado"
+    status: "confirmado",
   },
   {
     id: 102,
@@ -33,16 +43,16 @@ export const mockBookings = [
     price: 5000,
     playerName: "Cristian Alba",
     phone: "+54 11 5555-2222",
-    status: "pendiente"
+    status: "pendiente",
   },
   {
     id: 103,
     date: "2025-10-30",
     time: "21:00",
     courtName: "Cancha 3 - Techada",
-    price: 6000,
+    price: 5900,
     playerName: "Mila Dog",
     phone: "+54 11 5555-3333",
-    status: "confirmado"
-  }
+    status: "confirmado",
+  },
 ];
