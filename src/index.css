@@ -1,0 +1,1115 @@
+/* =========================
+   Tailwind
+========================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   Base y colores
+========================= */
+:root{
+  --bg:#050814;
+  --bg-soft:#070C1D;
+  --bg-surface:#0B1326;
+  --border:#1E293B;
+  --accent:#3DF7A8;
+  --accent-soft:#A6FFE0;
+  --text:#F9FAFB;
+  --muted:#9CA3AF;
+}
+
+html,body{
+  margin:0;
+  padding:0;
+  min-height:100%;
+  background:
+    radial-gradient(circle at top, rgba(61,247,168,0.16) 0%, transparent 45%),
+    radial-gradient(circle at bottom, #020617 0%, #020617 55%, #000 100%);
+  color:var(--text);
+  font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+*{
+  -webkit-tap-highlight-color:transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea{
+  transition:border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease, opacity .18s ease;
+}
+
+button:active,
+a:active{
+  transform:translateY(1px) scale(.99);
+}
+
+:focus-visible{
+  outline:2px solid rgba(190,242,100,.95);
+  outline-offset:3px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,
+  *::before,
+  *::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+    transition-duration:.01ms !important;
+  }
+}
+
+/* App shell */
+.app-shell{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  background:
+    radial-gradient(circle at top, rgba(61,247,168,0.14) 0%, transparent 40%),
+    radial-gradient(circle at bottom, #020617 0%, #020617 55%, #000 100%);
+  color:var(--text);
+}
+
+.main-container{
+  flex:1;
+  width:100%;
+  max-width:1360px;
+  margin:0 auto;
+  /* Ajuste de padding para mobile en el @media de abajo */
+  padding:32px 20px 64px;
+}
+
+/* Page titles genéricos (para otras páginas) */
+.page-title{
+  font-family:"Poppins",system-ui,sans-serif;
+  font-size:1.8rem;
+  letter-spacing:-0.03em;
+  font-weight:600;
+}
+.page-subtitle{
+  font-size:0.9rem;
+  color:var(--muted);
+}
+
+/* Ajustes de tipografía para títulos en móviles */
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 1.5rem; /* Hacemos el título un poco más chico */
+    }
+    .page-subtitle {
+        font-size: 0.85rem; /* Subtítulo ligeramente más pequeño */
+    }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:#020617;}
+::-webkit-scrollbar-thumb{background:#4b5563;border-radius:999px;}
+::-webkit-scrollbar-thumb:hover{background:#3DF7A8;}
+
+/* =========================
+   Botones genéricos
+========================= */
+
+.btn-primary{
+  @apply inline-flex items-center justify-center px-5 py-2 rounded-full text-sm font-semibold;
+  background:linear-gradient(135deg,#3DF7A8,#A6FFE0);
+  color:#020617;
+  box-shadow:0 0 24px rgba(61,247,168,0.55);
+  transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+.btn-primary:hover{
+  filter:brightness(1.04);
+  transform:translateY(-1px);
+  box-shadow:0 0 34px rgba(61,247,168,0.8);
+}
+
+.btn-primary:disabled,
+.btn-outline:disabled{
+  cursor:not-allowed;
+  filter:saturate(.6);
+  opacity:.55;
+  transform:none;
+  box-shadow:none;
+}
+
+.btn-outline{
+  @apply inline-flex items-center justify-center px-5 py-2 rounded-full text-sm font-semibold border;
+  border-color:rgba(148,163,184,0.6);
+  background:rgba(7,12,29,0.9);
+  color:#E5E7EB;
+  transition:background .15s ease,border-color .15s ease,color .15s ease, transform .15s ease;
+}
+.btn-outline:hover{
+  border-color:var(--accent);
+  color:var(--accent-soft);
+  transform:translateY(-1px);
+}
+
+/* Pill para iconitos */
+.icon-pill{
+  width:40px;
+  height:40px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:radial-gradient(circle at top, rgba(61,247,168,0.4), rgba(15,23,42,1));
+  box-shadow:0 0 18px rgba(61,247,168,0.35);
+  font-size:1.1rem;
+}
+
+/* =========================
+   HOME (landing)
+========================= */
+
+.home-wrapper{
+  max-width:1360px;
+  margin:0 auto;
+  /* Ajuste de padding para mobile en el @media de abajo */
+  padding:70px 20px 72px;
+}
+
+/* HERO principal – compacto, pro */
+.home-hero{
+  display:grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap:2rem;
+  align-items:center;
+  padding:2.1rem 2.2rem;
+  border-radius:26px;
+  background:
+    radial-gradient(circle at top left, rgba(61,247,168,0.12), rgba(10,16,36,1) 40%, rgba(5,8,20,1) 100%);
+  border:1px solid rgba(61,247,168,0.28);
+  box-shadow:
+    0 18px 40px rgba(3,7,18,0.9);
+}
+
+/* izquierda */
+.hero-text{
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+}
+
+.hero-kicker{
+  font-size:.72rem;
+  font-weight:600;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--accent-soft);
+}
+
+.hero-title{
+  font-family:"Poppins",system-ui,sans-serif;
+  font-weight:700;
+  font-size:2.25rem;
+  line-height:1.2;
+  letter-spacing:-0.045em;
+  color:#F9FAFB;
+}
+.hero-title span{
+  color:var(--accent);
+  text-shadow:0 0 18px rgba(61,247,168,0.8);
+}
+
+.hero-sub{
+  font-size:0.95rem;
+  color:#CBD5F5;
+  max-width:430px;
+  line-height:1.6;
+}
+
+.hero-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.8rem;
+}
+
+.hero-pill{
+  margin-top:.4rem;
+  padding:.55rem 1.1rem;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.6);
+  background:rgba(5,8,20,0.9);
+  font-size:.78rem;
+  color:var(--muted);
+}
+
+/* derecha */
+.hero-player{
+  position:relative;
+  border-radius:22px;
+  padding:0.18rem;
+  background:
+    radial-gradient(circle at top right, rgba(61,247,168,0.22), rgba(3,7,18,1));
+  box-shadow:
+    0 18px 40px rgba(3,7,18,0.9);
+}
+
+.hero-img-box{
+  position:relative;
+  overflow:hidden;
+  border-radius:18px;
+  background:#020617;
+}
+.hero-img-box img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  object-position:60% 40%;
+  filter:brightness(1.05) saturate(1.25);
+  transition:transform .35s ease, filter .35s ease;
+}
+.hero-player::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:
+    radial-gradient(circle at top right, rgba(61,247,168,0.22), transparent 55%);
+  pointer-events:none;
+}
+.hero-player:hover img{
+  transform:scale(1.02);
+  filter:brightness(1.1) saturate(1.35);
+}
+
+/* burbuja informativa */
+.hero-meta{
+  position:absolute;
+  left:1.2rem;
+  bottom:1.1rem;
+  padding:.45rem .85rem;
+  border-radius:999px;
+  background:rgba(3,7,18,0.92);
+  border:1px solid rgba(148,163,184,0.7);
+  font-size:.7rem;
+  color:#E5E7EB;
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+}
+
+/* Responsive hero (media query existente) */
+@media (max-width:1024px){
+  .home-wrapper{
+    padding-top:80px;
+  }
+  .home-hero{
+    grid-template-columns:1fr;
+    padding:1.8rem 1.4rem 2.1rem;
+    gap:1.6rem;
+  }
+  /* Ajuste: Ocultar la burbuja informativa en tablets/móviles para ahorrar espacio */
+  .hero-meta {
+      display: none;
+  }
+}
+
+/* =========================
+   Secciones tipo Adelux
+========================= */
+
+.section-block{
+  margin-top:3.5rem;
+}
+
+.section-header{
+  margin-bottom:1.5rem;
+}
+.section-eyebrow{
+  font-size:0.7rem;
+  text-transform:uppercase;
+  letter-spacing:0.28em;
+  color:#9CA3AF;
+}
+.section-title{
+  font-size:1.8rem;
+  font-weight:600;
+  letter-spacing:-0.03em;
+}
+.section-subtitle{
+  font-size:0.9rem;
+  color:#9CA3AF;
+  max-width:38rem;
+}
+
+/* Ajustes de tipografía para secciones en móviles */
+@media (max-width: 768px) {
+    .section-block {
+        margin-top: 2.5rem; /* Margen superior más compacto */
+    }
+    .section-title {
+        font-size: 1.5rem; /* Título de sección más pequeño */
+    }
+    .section-subtitle {
+        font-size: 0.85rem;
+    }
+}
+
+/* grid de features (ya es responsive con 1024px) */
+.feature-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1.1rem;
+}
+@media (max-width:1024px){
+  .feature-grid{grid-template-columns:1fr;}
+}
+
+.feature-card{
+  background:var(--bg-surface);
+  border-radius:20px;
+  border:1px solid rgba(51,65,85,0.95);
+  padding:1.1rem 1.2rem;
+  box-shadow:0 18px 38px rgba(3,7,18,0.9);
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.feature-card:hover{
+  transform:translateY(-4px);
+  border-color:rgba(61,247,168,0.75);
+  box-shadow:0 22px 60px rgba(61,247,168,0.22);
+  background:radial-gradient(circle at top left,rgba(61,247,168,0.10),var(--bg-surface));
+}
+.feature-title{
+  margin-top:.5rem;
+  font-size:0.98rem;
+  font-weight:600;
+}
+.feature-text{
+  margin-top:.3rem;
+  font-size:0.8rem;
+  color:rgba(226,232,240,0.9);
+}
+
+/* stats fila */
+.stats-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.2rem;
+  margin-top:1.2rem;
+}
+.stat-item{
+  /* min-width:120px; */ /* Eliminado para permitir mayor flexibilidad en móvil */
+  flex: 1 1 auto; /* Permite que los ítems se ajusten y crezcan */
+  min-width: 45%; /* Asegura que al menos dos ítems quepan por fila en la mayoría de los móviles */
+}
+.stat-number{
+  font-size:1.3rem;
+  font-weight:600;
+}
+.stat-label{
+  font-size:0.78rem;
+  color:#9CA3AF;
+}
+
+/* CTA final */
+.cta-block{
+  margin-top:3.5rem;
+  border-radius:22px;
+  padding:1.9rem 1.6rem;
+  background:
+    radial-gradient(circle at top left, rgba(61,247,168,0.16), rgba(7,12,29,1));
+  border:1px solid rgba(61,247,168,0.4);
+  display:flex;
+  flex-direction:column;
+  gap:0.9rem;
+}
+@media (min-width:768px){
+  .cta-block{
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+  }
+}
+.cta-text-main{
+  font-size:1.25rem;
+  font-weight:600;
+  letter-spacing:-0.03em;
+}
+.cta-text-sub{
+  font-size:0.85rem;
+  color:#cbd5f5;
+}
+
+/* =========================
+   Genéricos que usan otros módulos
+========================= */
+
+.card{
+  background-color:var(--bg-surface);
+  border-radius:1rem;
+  border:1px solid rgba(51,65,85,0.9);
+  padding:1rem;
+}
+
+/* Tabla general */
+.table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:0.78rem;
+}
+.table th,
+.table td{
+  padding:0.5rem 0.6rem;
+  border-bottom:1px solid rgba(30,41,59,0.95);
+}
+.table th{
+  text-align:left;
+  font-weight:500;
+  font-size:0.72rem;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  color:#a1a1aa;
+}
+.table tr:hover td{
+  background-color:rgba(15,23,42,0.95);
+}
+
+/* Para mejorar la experiencia de las tablas en móviles (haciéndolas scrollables) */
+.responsive-table-container {
+    overflow-x: auto; /* Permite el scroll horizontal */
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Contenedor wrapper para tablas si se usan en layouts */
+@media (max-width: 768px) {
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .table {
+        /* Evita que la tabla se haga más pequeña que su contenido mínimo */
+        min-width: 600px; 
+    }
+}
+
+
+.form-group{
+  display:flex;
+  flex-direction:column;
+  gap:0.25rem;
+  margin-bottom:0.75rem;
+}
+.form-label{
+  font-size:0.78rem;
+  color:#d4d4d8;
+}
+.form-input,
+.form-select{
+  border-radius:999px;
+  border:1px solid rgba(63,63,70,0.9);
+  background-color:rgba(3,7,18,0.98);
+  padding:0.5rem 0.9rem;
+  font-size:0.8rem;
+  color:#e5e7eb;
+}
+.form-input:focus,
+.form-select:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px rgba(61,247,168,0.5);
+}
+
+/* Mis turnos / listas */
+.mybookings-list{
+  display:flex;
+  flex-direction:column;
+  gap:0.6rem;
+}
+.mybookings-item{
+  background-color:var(--bg-surface);
+  border-radius:0.9rem;
+  border:1px solid rgba(63,63,70,0.95);
+  padding:0.7rem 0.8rem;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:0.8rem;
+}
+
+/* Ajuste de lista de reservas en móvil */
+@media (max-width: 480px) {
+    .mybookings-item {
+        /* Permite que el contenido se apile si es necesario */
+        flex-direction: column; 
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.8rem;
+    }
+}
+
+/* =========================
+   Footer
+========================= */
+
+.footer{
+  border-top:1px solid rgba(31,41,55,0.95);
+  background-color:rgba(3,7,18,0.98);
+  font-size:0.75rem;
+  color:#9CA3AF;
+}
+.footer-inner{
+  max-width:1360px;
+  margin:0 auto;
+  padding:0.9rem 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:0.75rem;
+  flex-wrap:wrap;
+}
+
+/* WhatsApp / cancelar (por si los usás) */
+.btn-wa{
+  display:inline-flex;
+  align-items:center;
+  gap:0.4rem;
+  padding:0.45rem 0.9rem;
+  border-radius:999px;
+  font-size:0.78rem;
+  font-weight:500;
+  background-color:#16a34a;
+  color:#ecfeff;
+}
+.btn-wa:hover{
+  background-color:#22c55e;
+}
+.btn-cancel{
+  background-color:#450a0a;
+  color:#fecaca;
+}
+.btn-cancel:hover{
+  background-color:#b91c1c;
+}
+
+/* =========================
+   Layout club / badges / extra
+========================= */
+
+.club-layout{
+  display:grid;
+  grid-template-columns: minmax(0,1.4fr) minmax(0,1fr);
+  gap:1.8rem;
+  margin-top:3.5rem;
+}
+@media (max-width:1024px){
+  .club-layout{
+    grid-template-columns:1fr;
+    gap:1.5rem; /* Pequeño ajuste en el gap */
+    margin-top:2.5rem; /* Margen más compacto */
+  }
+}
+
+.club-copy{
+  display:flex;
+  flex-direction:column;
+  gap:1.2rem;
+}
+
+.badge-list{
+  margin-top:.3rem;
+  padding-left:1.1rem;
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  font-size:.82rem;
+  color:#e5e7eb;
+}
+.badge-list li::marker{
+  color:var(--accent);
+}
+
+/* bloque visual a la derecha del club */
+.club-image-block{
+  border-radius:20px;
+  padding:1rem 1.1rem;
+  background:
+    radial-gradient(circle at top left, rgba(61,247,168,0.22), rgba(7,12,29,1));
+  border:1px solid rgba(61,247,168,0.4);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:1.2rem;
+  min-height:180px;
+}
+.club-tag{
+  font-size:.8rem;
+  font-weight:500;
+  color:#ecfdf3;
+}
+.club-metrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.5rem;
+}
+/* Ajuste para que las métricas se vean bien en móvil */
+@media (max-width: 480px) {
+    .club-metrics {
+        gap: 1.2rem;
+    }
+    .club-metric-number {
+        font-size: 1.2rem;
+    }
+    .club-metric-label {
+        font-size: 0.75rem;
+    }
+}
+.club-metric-number{
+  font-size:1.3rem;
+  font-weight:600;
+}
+.club-metric-label{
+  font-size:.8rem;
+  color:#d4d4d8;
+}
+
+/* =========================
+   Admin – tabla de reservas
+========================= */
+
+.bookings-card{
+  margin-top:1.75rem;
+}
+
+/* Tabla específica del Admin de reservas */
+.mybookings-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:12px;
+  color:#e5e7eb;
+}
+
+.mybookings-table thead{
+  background:rgba(15,23,42,0.98);
+}
+
+.mybookings-table thead th{
+  padding:10px 12px;
+  text-align:left;
+  font-weight:500;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.14em;
+  color:rgba(156,163,175,0.95);
+  border-bottom:1px solid rgba(148,163,184,0.4);
+}
+
+.mybookings-table tbody tr{
+  background:
+    radial-gradient(circle at top left, rgba(56,189,248,0.06), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(190,242,100,0.06), transparent 55%);
+  border-bottom:1px solid rgba(30,41,59,0.95);
+  transition:background 0.18s ease, transform 0.12s ease;
+}
+
+.mybookings-table tbody tr:nth-child(even){
+  background-color:rgba(15,23,42,0.96);
+}
+
+.mybookings-table tbody tr:last-child{
+  border-bottom:none;
+}
+
+.mybookings-table tbody tr:hover{
+  background-color:rgba(37,99,235,0.16);
+}
+
+/* celdas */
+.mybookings-table tbody td{
+  padding:10px 12px;
+  vertical-align:middle;
+  font-size:12px;
+}
+
+.mybookings-table .cell-strong{
+  font-weight:500;
+}
+
+.mybookings-table .cell-sub{
+  font-size:11px;
+  color:rgba(156,163,175,0.9);
+}
+
+.mybookings-table .cell-price{
+  white-space:nowrap;
+  font-weight:600;
+}
+
+/* alineaciones */
+.mybookings-table .td-right{
+  text-align:right;
+}
+.mybookings-table .td-center{
+  text-align:center;
+}
+
+/* acciones */
+.booking-actions{
+  display:inline-flex;
+  gap:0.4rem;
+  justify-content:flex-end;
+}
+
+/* Pills de estado */
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 10px;
+  border-radius:999px;
+  font-size:11px;
+  text-transform:capitalize;
+  border:1px solid transparent;
+}
+
+.status-confirmado{
+  background:rgba(16,185,129,0.15);
+  border-color:rgba(16,185,129,0.7);
+  color:#a7f3d0;
+}
+
+.status-pendiente{
+  background:rgba(234,179,8,0.15);
+  border-color:rgba(234,179,8,0.7);
+  color:#facc15;
+}
+
+.status-cancelado{
+  background:rgba(239,68,68,0.12);
+  border-color:rgba(239,68,68,0.7);
+  color:#fecaca;
+}
+
+/* Mejorar tabla de reservas admin en móvil */
+@media (max-width: 768px) {
+    /* Envolvemos la tabla en un div con overflow-x: auto; en el HTML,
+       o la forzamos a tener un ancho mínimo si es muy compleja */
+    .mybookings-table {
+        min-width: 800px; /* Asegura que no se rompa en móvil, forzando el scroll horizontal */
+    }
+}
+
+/* ==========================
+   SELECT FIX – Panel Admin
+   Estilo visible en dark mode
+========================== */
+
+.admin-select {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.admin-select:focus {
+  border-color: #a3e635; /* lime-400 */
+  box-shadow: 0 0 0 2px rgba(163, 230, 53, 0.3);
+}
+
+.admin-select option {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9;
+}
+
+/* ==========================
+   NUEVO: filtros admin (inputs de arriba)
+========================== */
+
+.filter-label{
+  font-size:0.7rem;
+  text-transform:uppercase;
+  letter-spacing:0.16em;
+  color:rgba(148,163,184,0.9);
+  margin-bottom:0.25rem;
+}
+
+.filter-input{
+  width:100%;
+  border-radius:0.75rem;
+  border:1px solid rgba(148,163,184,0.7);
+  background-color:rgba(15,23,42,0.98);
+  padding:0.5rem 0.8rem;
+  font-size:0.8rem;
+  color:#e5e7eb;
+}
+
+.filter-input::placeholder{
+  color:rgba(148,163,184,0.7);
+}
+
+.filter-input:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px rgba(61,247,168,0.45);
+}
+
+/* ==========================
+   NUEVO: responsive general (admin + resto) en mobile
+========================== */
+
+@media (max-width:768px){
+  .home-wrapper{
+    padding:76px 16px 64px;
+  }
+
+  .main-container{
+    padding:24px 16px 56px;
+  }
+
+  /* cualquier layout principal que esté en fila
+     (admin, reservas, torneos…) pasa a columna */
+  .main-container > .flex{
+    flex-direction:column;
+  }
+
+  /* grids principales dentro de main → 1 columna */
+  .main-container > .grid{
+    grid-template-columns:1fr !important;
+  }
+
+  /* footer apilado */
+  .footer-inner{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+}
+
+/* un poquito más compacto en teléfonos chicos */
+@media (max-width:480px){
+  .hero-title{
+    font-size:1.9rem;
+  }
+  .hero-sub{
+    font-size:0.85rem;
+  }
+  .cta-text-main{
+    font-size:1.1rem;
+  }
+  /* Ajuste: Forzar a los botones a ser de ancho completo en CTA si se apilan */
+  .cta-block .btn-primary,
+  .cta-block .btn-outline {
+      width: 100%;
+      margin-top: 0.4rem;
+  }
+}
+/* =========================
+   NAVBAR & MENU HAMBURGUESA (CORREGIDO PARA DESKTOP)
+========================= */
+
+/* Estilo de la cabecera (Header) - CLASE: main-header */
+.main-header{
+    background-color: var(--bg); 
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    /* backdrop-filter: blur(8px); // Opcional */
+}
+
+/* Contenedor interno que centra el contenido - CLASE: header-inner */
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.9rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-box {
+    cursor: pointer;
+}
+
+/* --- ESTILOS DE ESCRITORIO (BASE) --- */
+
+/* Contenedor principal de enlaces y acciones */
+.header-links { 
+    display: flex; 
+    align-items: center;
+    /* ⬅️ CLAVE: Separa los dos grupos (enlaces y acciones) al máximo */
+    justify-content: space-between; 
+    width: 100%; /* Ocupa el espacio entre el logo y el borde */
+}
+
+/* ⬅️ NUEVO: Contenedor para los NavLinks */
+.nav-links-group {
+    display: flex; 
+    align-items: center;
+    gap: 1.5rem; /* Espacio entre los NavLinks */
+}
+
+/* Contenedor de botones (Ingresar / EMPEZAR / salir) */
+.header-actions { 
+    display: flex; 
+    align-items: center;
+    gap: 0.75rem; 
+}
+
+/* Ocultar el botón hamburguesa por defecto en Desktop */
+.menu-toggle {
+    display: none; 
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+/* Estilos de las líneas del botón hamburguesa */
+.menu-toggle span {
+    display: block;
+    width: 28px;
+    height: 2px;
+    margin: 4px 0;
+    background: var(--lime);
+    border-radius: 999px;
+    transition: all 0.3s ease-in-out;
+}
+
+/* --- Responsive del Navbar (Móviles < 768px) --- */
+
+@media (max-width: 768px) {
+    .header-inner {
+        padding: 0.8rem 1rem;
+    }
+
+    /* Mostrar el botón hamburguesa */
+    .menu-toggle {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+    }
+
+    /* Ocultar la navegación de escritorio y preparar para desplegar */
+    .header-links {
+        position: absolute;
+        top: 100%; 
+        left: 0;
+        width: 100%;
+        background-color: var(--bg);
+        border-top: 1px solid rgba(255,255,255,.06);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+        
+        /* Comportamiento de menú móvil */
+        flex-direction: column; 
+        align-items: flex-start;
+        justify-content: flex-start; /* Reseteo */
+        max-height: 0; 
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out;
+    }
+
+    /* El nuevo grupo debe apilarse en móvil */
+    .nav-links-group {
+        flex-direction: column; 
+        gap: 0;
+        width: 100%;
+        order: 1; /* Para que aparezca primero */
+    }
+    
+    /* Estilo de los NavLinks en modo móvil (apilados) */
+    .nav-links-group a {
+        padding: 0.8rem 1.5rem; 
+        border-bottom: 1px solid rgba(255,255,255,.05);
+        width: 100%;
+        display: block;
+        background: transparent !important; 
+        border-radius: 0 !important;
+        font-weight: 400 !important;
+    }
+    
+    .header-links a.activeClass {
+        color: var(--lime) !important;
+        background-color: rgba(190,254,41,0.08) !important;
+    }
+
+    /* Clase que se activa con JS para mostrar el menú */
+    .header-links.is-open {
+        max-height: 500px;
+    }
+    
+    /* Contenedor de botones en móvil: apilarlos */
+    .header-actions {
+        width: 100%;
+        display: flex;
+        flex-direction: column; 
+        gap: 0.6rem; 
+        padding: 1rem 1.5rem;
+        border-top: 1px solid rgba(255,255,255,.08);
+        order: 2; /* Para que aparezca después de los links */
+        
+        & button { width: 100%; } 
+        & span { width: 100%; text-align: left; margin-bottom: 0.5rem;}
+    }
+
+    /* Efecto hamburguesa a X */
+    .menu-toggle.is-active span:nth-child(1) {
+        transform: translateY(6px) rotate(45deg);
+    }
+    .menu-toggle.is-active span:nth-child(2) {
+        opacity: 0;
+    }
+    .menu-toggle.is-active span:nth-child(3) {
+        transform: translateY(-6px) rotate(-45deg);
+    }
+}
+/* Admin enhanced controls */
+.field{
+  width:100%;
+  border-radius:1rem;
+  border:1px solid rgba(148,163,184,.35);
+  background:rgba(2,6,23,.85);
+  padding:.7rem .9rem;
+  font-size:.875rem;
+  color:#f8fafc;
+  outline:none;
+}
+.field:focus{
+  border-color:rgba(190,242,100,.75);
+  box-shadow:0 0 0 3px rgba(190,242,100,.12);
+}
+.action-btn{
+  border-width:1px;
+  border-radius:9999px;
+  padding:.42rem .7rem;
+  font-size:.75rem;
+  font-weight:700;
+  transition:background-color .2s ease,border-color .2s ease,color .2s ease;
+}
+
+.mini-field {
+  display: block;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.24);
+  border-radius: 1rem;
+  padding: .75rem 1rem;
+}
+.mini-field span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+.mini-field input {
+  margin-top: .25rem;
+  width: 100%;
+  background: transparent;
+  outline: none;
+  color: white;
+  font-weight: 900;
+}

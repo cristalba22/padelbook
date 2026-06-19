@@ -1,0 +1,45 @@
+// src/data/bookingConfig.js
+export const COURTS = [
+  {
+    id: "court1",
+    name: "Cancha 1 - Césped sintético",
+    description: "Outdoor · Césped sintético · LED",
+    tag: "Muy elegida para partidos nocturnos",
+  },
+  {
+    id: "court2",
+    name: "Cancha 2 - Blindex Premium",
+    description: "Indoor · Blindex · Tech / LED",
+    tag: "Ideal para viento o lluvia",
+  },
+  {
+    id: "court3",
+    name: "Cancha 3 - Techada",
+    description: "Outdoor tech · Césped fibrilado · LED",
+    tag: "Perfecta para clases y torneos",
+  },
+];
+
+export const CLASS_HOURS = ["09:00", "10:00", "11:00", "12:00"];
+export const COURT_HOURS = ["13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
+
+export const PAYMENT_OPTIONS = [
+  {
+    id: "deposit",
+    label: "Seña online (30%) · Mercado Pago",
+    subtitle: "Pagás una seña ahora y el resto en el club.",
+    badge: "Recomendado",
+  },
+  {
+    id: "full",
+    label: "Pagar todo ahora · Mercado Pago",
+    subtitle: "Dejás el turno totalmente pago desde la web.",
+    badge: "Pago completo",
+  },
+  {
+    id: "cash",
+    label: "Pagar en el club",
+    subtitle: "Reservás ahora y abonás en efectivo o QR al llegar.",
+    badge: "Efectivo / QR",
+  },
+];
