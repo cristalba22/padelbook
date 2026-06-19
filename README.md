@@ -94,7 +94,8 @@ npm run build
 ![Reserva](image-2.png)
 ![Panel jugador](image-3.png)
 ![Admin](image-4.png)
-![Torneos](image-5.png)
+![Finanzas](image-5.png)
+![Torneos](image-6.png)
 
 ## Estado actual
 
