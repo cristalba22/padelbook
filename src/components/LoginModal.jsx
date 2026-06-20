@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-const CATEGORIES = ["Sin categoria", "7ma", "6ta", "5ta", "4ta", "3ra", "2da"];
+const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da"];
 
 const DEMO_PROFILES = [
   {
@@ -55,7 +55,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
       setEmail("");
       setPassword("");
       setPhone("");
-      setCategory("Sin categoria");
+      setCategory("Sin categoría");
     } else {
       setEmail("crisalba@test.com");
       setPassword("player123");
@@ -136,7 +136,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
                 <Field label="Telefono">
                   <input value={phone} onChange={(e) => setPhone(e.target.value)} className="field" placeholder="+54 9..." autoComplete="tel" />
                 </Field>
-                <Field label="Categoria">
+                <Field label="Categoría">
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className="field">
                     {CATEGORIES.map((item) => <option key={item}>{item}</option>)}
                   </select>

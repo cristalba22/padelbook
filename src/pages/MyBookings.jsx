@@ -111,8 +111,8 @@ export default function MyBookings() {
       time: registration.tournamentHour || "20:00",
       courtName: registration.tournamentName,
       price: registration.pricePerPlayer,
-      paymentMethod: registration.paymentStatus === "pagado" ? "Inscripcion pagada" : "Inscripcion pendiente",
-      description: `Torneo - ${registration.category || "Sin categoria"}`,
+      paymentMethod: registration.paymentStatus === "pagado" ? "Inscripción pagada" : "Inscripción pendiente",
+      description: `Torneo - ${registration.category || "Sin categoría"}`,
       partnerName: registration.partnerName,
     }));
   }, [user, prices.tournamentPrice]);

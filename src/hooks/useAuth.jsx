@@ -7,7 +7,7 @@ const AUTH_KEY = "padel_auth_user";
 const USERS_KEY = "padel_registered_users";
 
 const DEFAULT_USERS = [
-  { id: "admin-1", name: "Admin Club", email: "admin@club.com", password: "admin123", role: "admin", phone: "+5493510000000", category: "Gestion" },
+  { id: "admin-1", name: "Admin Club", email: "admin@club.com", password: "admin123", role: "admin", phone: "+5493510000000", category: "Gestión" },
   { id: "teacher-1", name: "Lucio Profe", email: "lucio@club.com", password: "profe123", role: "teacher", phone: "+5493511111111", category: "Profesor" },
   { id: "player-1", name: "Cristian Alba", email: "crisalba@test.com", password: "player123", role: "player", phone: "+5493512222222", category: "6ta" },
 ];
@@ -85,7 +85,7 @@ export function AuthProvider({ children }) {
     return profile;
   }
 
-  async function register({ name, email, password, phone = "", category = "Sin categoria" }) {
+  async function register({ name, email, password, phone = "", category = "Sin categoría" }) {
     if (apiOnline) {
       const { user: profile, token } = await apiRequest("/auth/register", {
         method: "POST",

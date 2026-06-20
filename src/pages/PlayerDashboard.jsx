@@ -101,7 +101,7 @@ export default function PlayerDashboard() {
       date: registration.tournamentDate,
       time: registration.tournamentHour || "20:00",
       title: registration.tournamentName,
-      detail: `Torneo - ${registration.category || "Sin categoria"}`,
+      detail: `Torneo - ${registration.category || "Sin categoría"}`,
       status: registration.status,
       price: registration.pricePerPlayer,
       registration,

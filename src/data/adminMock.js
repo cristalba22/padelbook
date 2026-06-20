@@ -8,7 +8,7 @@ const addDays = (days) => {
 };
 
 export const courts = [
-  { id: 1, name: "Cancha 1 - Cesped sintetico" },
+  { id: 1, name: "Cancha 1 - Césped sintético" },
   { id: 2, name: "Cancha 2 - Blindex Premium" },
   { id: 3, name: "Cancha 3 - Techada" },
 ];
@@ -63,11 +63,11 @@ export const tournaments = [
   },
   {
     id: 2,
-    name: "Relampago nocturno",
+    name: "Relámpago nocturno",
     status: "abierto",
     date: addDays(5),
     category: "Mixto hasta 7ma",
-    surface: "Cesped sintetico",
+    surface: "Césped sintético",
     pricePerPlayer: 25000,
     currentPlayers: 12,
     maxPlayers: 16,
@@ -105,7 +105,7 @@ export const bookings = [
     date: addDays(0),
     time: "19:00",
     type: "cancha",
-    courtOrClass: "Cancha 1 - Cesped sintetico",
+    courtOrClass: "Cancha 1 - Césped sintético",
     playerOrGroup: "Laura Lencina",
     note: "Turno regular de los viernes",
     phone: "+5493511111111",
@@ -118,8 +118,8 @@ export const bookings = [
     time: "21:00",
     type: "cancha",
     courtOrClass: "Cancha 3 - Techada",
-    playerOrGroup: "Bruno Perez",
-    note: "Pidio pagar en el club",
+    playerOrGroup: "Bruno Pérez",
+    note: "Pidió pagar en el club",
     phone: "+5493512222222",
     price: 24000,
     status: "pendiente",
