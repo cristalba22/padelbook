@@ -194,7 +194,7 @@ export default function Home() {
 }
 
 function HeroMetric({ value, label }) {
-  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="whitespace-nowrap text-[clamp(0.78rem,3.3vw,1rem)] font-black leading-tight text-lime-100 sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
+  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="text-[clamp(0.78rem,3.1vw,1rem)] font-black leading-tight text-lime-100 sm:whitespace-nowrap sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
 }
 function LiveSlot({ slot }) {
   const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";

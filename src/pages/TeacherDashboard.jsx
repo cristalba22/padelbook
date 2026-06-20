@@ -20,10 +20,6 @@ function formatDateLabel(value) {
   return date.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 }
 
-function classRangeLabel() {
-  return `${CLASS_HOURS[0]} a ${CLASS_HOURS[CLASS_HOURS.length - 1]}`;
-}
-
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const { bookings } = useBooking();
@@ -95,7 +91,7 @@ export default function TeacherDashboard() {
             <div>
               <h1 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">Agenda de clases</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Visualizá alumnos, horarios y disponibilidad. Los bloqueos que cargues acá se reflejan en Reservar.
+                Visualiza alumnos, horarios y disponibilidad. Los bloqueos que cargues aca se reflejan en Reservar.
               </p>
             </div>
             <span className="w-fit rounded-full border border-lime-300/30 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-100">
@@ -104,7 +100,7 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="Clases" value={classBookings.length} detail="en el día" />
+            <Kpi label="Clases" value={classBookings.length} detail="en el dia" />
             <Kpi label="Confirmadas" value={confirmed.length} detail="listas" />
             <Kpi label="Pendientes" value={pending.length} detail="a revisar" warn />
             <Kpi label="Ingresos" value={money(revenue)} detail="estimado" />
@@ -146,7 +142,7 @@ export default function TeacherDashboard() {
         <section className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Clases del día</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Clases del dia</p>
               <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">Alumnos y horarios</h2>
             </div>
             <span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">{teacherName}</span>
@@ -188,9 +184,9 @@ export default function TeacherDashboard() {
         </section>
 
         <aside className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Disponibilidad del día</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Disponibilidad del dia</p>
           <h2 className="mt-2 text-xl font-black text-white">{selectedDateLabel}</h2>
-          <p className="mt-1 text-xs text-slate-500">Clases de {classRangeLabel()}</p>
+          <p className="mt-1 text-xs text-slate-500">Horarios editables para clases</p>
           <div className="mt-4 space-y-3">
             {COURTS.map((court) => (
               <div key={court.id} className="rounded-2xl border border-white/10 bg-black/25 p-3">
