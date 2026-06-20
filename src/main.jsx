@@ -32,3 +32,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+const loader = document.getElementById("app-loader");
+if (loader) {
+  window.setTimeout(() => {
+    loader.classList.add("app-loader--hidden");
+    window.setTimeout(() => loader.remove(), 320);
+  }, 650);
+}
