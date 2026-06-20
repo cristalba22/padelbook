@@ -163,7 +163,7 @@ export default function AdminFinance() {
 
   return (
     <AdminLayout title="Finanzas del club" subtitle="Ingresos, egresos, comisiones de profesores y rentabilidad por período.">
-      <section className="mb-6 grid gap-4 xl:grid-cols-4">
+      <section className="mobile-snap-row compact mb-6 grid gap-4 xl:grid-cols-4">
         <FinanceMetric label="Hoy" data={summary.byPeriod.day} />
         <FinanceMetric label="Semana" data={summary.byPeriod.week} />
         <FinanceMetric label="Mes" data={summary.byPeriod.month} featured />

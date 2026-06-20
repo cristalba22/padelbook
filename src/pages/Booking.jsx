@@ -134,7 +134,7 @@ export default function Booking() {
   return (
     <main className="main-container pt-24 text-white">
       {/* Encabezado */}
-      <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">
             Reservas · Paso 2
@@ -172,9 +172,9 @@ export default function Booking() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] gap-8">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] lg:gap-8">
         {/* Columna izquierda: Canchas y horarios */}
-        <div className="space-y-5">
+        <div className="mobile-snap-row wide lg:block lg:space-y-5">
           {COURTS.map((court) => (
             <article
               key={court.id}
@@ -319,6 +319,7 @@ export default function Booking() {
             </article>
           ))}
         </div>
+        <p className="mobile-scroll-hint lg:hidden">Deslizá para cambiar de cancha</p>
 
         {/* Columna derecha: resumen + pago */}
         <aside className="space-y-4">

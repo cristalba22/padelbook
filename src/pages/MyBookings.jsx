@@ -258,7 +258,7 @@ export default function MyBookings() {
         </div>
 
         {/* Mini resumen */}
-        <div className="grid grid-cols-2 gap-3 text-xs md:text-sm">
+        <div className="mobile-snap-row compact grid grid-cols-2 gap-3 text-xs md:text-sm">
           <div className="rounded-2xl border border-lime-400/40 bg-lime-400/10 px-4 py-3 shadow-lg shadow-lime-400/20">
             <p className="uppercase tracking-[0.18em] text-lime-200/80 text-[0.65rem]">
               Próximos

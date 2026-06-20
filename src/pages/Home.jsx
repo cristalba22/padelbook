@@ -70,8 +70,8 @@ export default function Home() {
         <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
         <div className="absolute bottom-16 right-16 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
 
-        <div className="relative grid min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="flex flex-col justify-center px-5 py-12 sm:px-8 lg:px-12">
+        <div className="relative grid min-h-[560px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="flex flex-col justify-center px-5 py-8 sm:px-8 sm:py-12 lg:px-12">
             <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">
               <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,242,100,0.95)]" />
               {settings.clubStatus}
@@ -101,7 +101,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative min-h-[520px] overflow-hidden lg:min-h-full">
+          <div className="relative min-h-[300px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
             <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-95" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030611] via-[#030611]/25 to-transparent lg:bg-gradient-to-r lg:from-[#030611] lg:via-[#030611]/15 lg:to-transparent" />
 
@@ -126,12 +126,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-8 grid gap-4 lg:grid-cols-3">
+      <section className="mobile-snap-row compact mt-8 grid gap-4 lg:grid-cols-3">
         {experience.map((item, index) => <ExperienceCard key={item.title} index={index + 1} {...item} />)}
       </section>
+      <p className="mobile-scroll-hint">Deslizá para ver más</p>
 
 
-      <section className="mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="mobile-tight-section mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="relative overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-lime-300/20 blur-3xl" />
           <p className="section-eyebrow">Experiencia del jugador</p>
@@ -145,7 +146,7 @@ export default function Home() {
           <Link to={ROUTES.PLAYER} className="btn-primary mt-7">Abrir mi panel</Link>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="mobile-snap-row compact grid gap-3 md:grid-cols-3">
           {courtAvailability.map((court) => (
             <article key={court.id} className="group rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-[#101B32]">
               <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cancha</p>
@@ -160,11 +161,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
+      <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
         <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-6 shadow-xl">
           <p className="section-eyebrow">Ranking competitivo</p>
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">Jugadores del torneo</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mobile-snap-row compact mt-5 grid gap-3 sm:grid-cols-2">
             {tournamentRanking.map((player, index) => (
               <div key={player.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
                 <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-lime-300 text-sm font-black text-black">{index + 1}</span><div><p className="font-bold text-white">{player.name}</p><p className="text-xs text-slate-500">{player.category}</p></div></div>
