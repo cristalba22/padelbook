@@ -115,7 +115,7 @@ export default function Home() {
             <div className="absolute bottom-4 left-4 right-4 rounded-[1.45rem] border border-white/15 bg-black/60 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-5 sm:right-5 sm:rounded-[1.8rem] sm:p-4 md:left-auto md:w-[410px]">
               <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Disponibilidad rápida</p>
+                  <p className="hidden text-[11px] uppercase tracking-[0.22em] text-slate-400 sm:block">Disponibilidad rápida</p>
                   <h2 className="text-base font-black text-white sm:text-lg">Horarios destacados</h2>
                 </div>
                 <span className="rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black">En vivo</span>
@@ -194,7 +194,7 @@ export default function Home() {
 }
 
 function HeroMetric({ value, label }) {
-  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2.5 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="truncate text-[1.05rem] font-black leading-tight text-lime-100 sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
+  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="whitespace-nowrap text-[clamp(0.78rem,3.3vw,1rem)] font-black leading-tight text-lime-100 sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
 }
 function LiveSlot({ slot }) {
   const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";
