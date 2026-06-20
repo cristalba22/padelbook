@@ -3,16 +3,19 @@ import { safeRead, safeWrite } from "./storage.js";
 export const CLUB_SETTINGS_KEY = "padel_club_settings";
 
 export const DEFAULT_CLUB_SETTINGS = Object.freeze({
-  clubName: import.meta.env.VITE_CLUB_NAME || "Arena Norte Pádel Club",
+  clubName: import.meta.env.VITE_CLUB_NAME || "Arena Norte Padel Club",
   clubShortName: import.meta.env.VITE_CLUB_SHORT_NAME || "PadelBook",
-  address: import.meta.env.VITE_CLUB_ADDRESS || "Edmundo Mariotte 5308 · Córdoba Capital",
-  mapsQuery: import.meta.env.VITE_CLUB_MAPS_QUERY || "Edmundo Mariotte 5308, Córdoba, Argentina",
+  address: import.meta.env.VITE_CLUB_ADDRESS || "Edmundo Mariotte 5308 - Cordoba Capital",
+  mapsQuery: import.meta.env.VITE_CLUB_MAPS_QUERY || "Edmundo Mariotte 5308, Cordoba, Argentina",
   whatsapp: import.meta.env.VITE_CLUB_WHATSAPP || "5493510000000",
+  instagram: import.meta.env.VITE_CLUB_INSTAGRAM || "padelbook.club",
   openingHours: import.meta.env.VITE_CLUB_OPENING_HOURS || "09:00 a 22:00",
-  homeHeadline: import.meta.env.VITE_HOME_HEADLINE || "Tu próximo partido empieza antes de llegar a la cancha.",
-  homeSubtitle: import.meta.env.VITE_HOME_SUBTITLE || "Reservá, pagá seña, consultá tus turnos, buscá jugadores por categoría y entrá a torneos desde una experiencia simple, rápida y pensada para jugadores de pádel.",
-  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9ª reserva bonificada",
-  clubStatus: import.meta.env.VITE_CLUB_STATUS || "Club abierto · reservas online",
+  homeHeadline: import.meta.env.VITE_HOME_HEADLINE || "Tu proximo partido empieza antes de llegar a la cancha.",
+  homeSubtitle:
+    import.meta.env.VITE_HOME_SUBTITLE ||
+    "Reserva, paga sena, consulta tus turnos, busca jugadores por categoria y entra a torneos desde una experiencia simple, rapida y pensada para jugadores de padel.",
+  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9a reserva bonificada",
+  clubStatus: import.meta.env.VITE_CLUB_STATUS || "Club abierto - reservas online",
 });
 
 function normalizeSettings(input = {}) {
@@ -22,6 +25,7 @@ function normalizeSettings(input = {}) {
     address: String(input.address || DEFAULT_CLUB_SETTINGS.address),
     mapsQuery: String(input.mapsQuery || input.address || DEFAULT_CLUB_SETTINGS.mapsQuery),
     whatsapp: String(input.whatsapp || DEFAULT_CLUB_SETTINGS.whatsapp).replace(/\D/g, ""),
+    instagram: String(input.instagram || DEFAULT_CLUB_SETTINGS.instagram).replace(/^@/, "").trim(),
     openingHours: String(input.openingHours || DEFAULT_CLUB_SETTINGS.openingHours),
     homeHeadline: String(input.homeHeadline || DEFAULT_CLUB_SETTINGS.homeHeadline),
     homeSubtitle: String(input.homeSubtitle || DEFAULT_CLUB_SETTINGS.homeSubtitle),
