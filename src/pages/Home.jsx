@@ -65,38 +65,38 @@ export default function Home() {
   }, [tournaments]);
   return (
     <main className="home-wrapper text-white">
-      <section className="relative isolate overflow-hidden rounded-[2.5rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)]">
-        <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-30 lg:hidden" />
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
+        <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[66%_center] opacity-45 lg:hidden" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(163,230,53,0.28),transparent_32%),radial-gradient(circle_at_92%_20%,rgba(45,212,191,0.16),transparent_30%),linear-gradient(135deg,rgba(2,6,23,0.1),rgba(2,6,23,0.75))]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/80 via-[#030611]/70 to-[#030611]/95 lg:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/72 via-[#030611]/58 to-[#030611]/92 lg:hidden" />
         <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
         <div className="absolute bottom-16 right-16 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
 
         <div className="relative z-10 grid min-h-[560px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="flex flex-col justify-center px-5 py-8 sm:px-8 sm:py-12 lg:px-12">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">
+          <div className="flex flex-col justify-center px-4 py-6 sm:px-8 sm:py-12 lg:px-12">
+            <div className="mb-4 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-lime-100 backdrop-blur sm:mb-5 sm:text-[11px] sm:tracking-[0.24em]">
               <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,242,100,0.95)]" />
               {settings.clubStatus}
             </div>
 
-            <h1 className="max-w-4xl text-4xl font-black leading-[0.95] tracking-[-0.075em] text-white sm:text-6xl xl:text-7xl">
+            <h1 className="max-w-[18rem] text-[2rem] font-black leading-[1] tracking-[-0.045em] text-white sm:max-w-4xl sm:text-6xl sm:leading-[0.95] sm:tracking-[-0.075em] xl:text-7xl">
               {settings.homeHeadline}
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+            <p className="mt-5 max-w-[19rem] text-sm leading-6 text-slate-200 sm:mt-6 sm:max-w-2xl sm:text-lg sm:leading-8">
               {settings.homeSubtitle}
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to={ROUTES.BOOKING} className="btn-primary px-7 py-3 text-sm">
+            <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
+              <Link to={ROUTES.BOOKING} className="btn-primary px-5 py-2.5 text-sm sm:px-7 sm:py-3">
                 Reservar ahora
               </Link>
-              <Link to={ROUTES.COMMUNITY} className="btn-outline px-7 py-3 text-sm">
+              <Link to={ROUTES.COMMUNITY} className="btn-outline px-5 py-2.5 text-sm sm:px-7 sm:py-3">
                 Buscar partido
               </Link>
             </div>
 
-            <div className="mobile-snap-row compact mt-7 grid max-w-3xl gap-3 sm:grid-cols-3 lg:mt-9">
+            <div className="mt-6 grid max-w-3xl grid-cols-3 gap-2 sm:mt-9 sm:gap-3">
               <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" />
               <HeroMetric value={settings.openingHours} label="agenda del club" />
               <HeroMetric value={settings.promoText} label="beneficio activo" />
@@ -104,7 +104,7 @@ export default function Home() {
           </div>
 
           <div className="relative min-h-[250px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
-            <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-60 lg:opacity-95" />
+            <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 hidden h-full w-full scale-105 object-cover object-center opacity-95 lg:block" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030611] via-[#030611]/25 to-transparent lg:bg-gradient-to-r lg:from-[#030611] lg:via-[#030611]/15 lg:to-transparent" />
 
             <div className="absolute right-5 top-5 hidden rounded-[1.4rem] border border-white/15 bg-black/55 px-4 py-3 backdrop-blur md:block">
@@ -112,11 +112,11 @@ export default function Home() {
               <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black text-lime-100">{availableCount}</span><span className="pb-1 text-xs text-slate-400">canchas con turno</span></div>
             </div>
 
-            <div className="absolute bottom-5 left-5 right-5 rounded-[1.8rem] border border-white/15 bg-black/70 p-4 shadow-2xl backdrop-blur md:left-auto md:w-[410px]">
+            <div className="absolute bottom-4 left-4 right-4 rounded-[1.45rem] border border-white/15 bg-black/60 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-5 sm:right-5 sm:rounded-[1.8rem] sm:p-4 md:left-auto md:w-[410px]">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Disponibilidad rápida</p>
-                  <h2 className="text-lg font-black text-white">Horarios destacados</h2>
+                  <h2 className="text-base font-black text-white sm:text-lg">Horarios destacados</h2>
                 </div>
                 <span className="rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black">En vivo</span>
               </div>
@@ -194,7 +194,7 @@ export default function Home() {
 }
 
 function HeroMetric({ value, label }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 backdrop-blur"><p className="text-2xl font-black text-lime-100">{value}</p><p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p></div>;
+  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2.5 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="truncate text-[1.05rem] font-black leading-tight text-lime-100 sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[9px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
 }
 function LiveSlot({ slot }) {
   const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";
