@@ -18,6 +18,10 @@ export async function apiRequest(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("La API no devolvio una respuesta JSON valida.");
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload.message || "No se pudo completar la operacion.");
@@ -31,7 +35,8 @@ export async function apiRequest(path, options = {}) {
 export async function checkApiHealth() {
   try {
     const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1200) });
-    return response.ok;
+    const contentType = response.headers.get("content-type") || "";
+    return response.ok && contentType.includes("application/json");
   } catch {
     return false;
   }
