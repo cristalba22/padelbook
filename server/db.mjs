@@ -148,19 +148,19 @@ async function seedDatabase() {
   if (await User.countDocuments()) return;
 
   await User.insertMany([
-    { name: "Admin Club", email: "admin@club.com", passwordHash: bcrypt.hashSync("admin123", 10), role: "admin", phone: "+5493510000000", category: "Gestion" },
+    { name: "Admin Club", email: "admin@club.com", passwordHash: bcrypt.hashSync("admin123", 10), role: "admin", phone: "+5493510000000", category: "Gestión" },
     { name: "Lucio Profe", email: "lucio@club.com", passwordHash: bcrypt.hashSync("profe123", 10), role: "teacher", phone: "+5493511111111", category: "Profesor" },
     { name: "Cristian Alba", email: "crisalba@test.com", passwordHash: bcrypt.hashSync("player123", 10), role: "player", phone: "+5493512222222", category: "6ta" },
   ]);
 
   await Booking.insertMany([
-    { date: addDays(0), time: "19:00", courtId: "1", courtName: "Cancha 1 - Cesped sintetico", type: "court", playerName: "Laura Lencina", userEmail: "laura@test.com", phone: "+5493511111111", price: 24000, paymentOption: "full", paymentStatus: "pagado", status: "confirmado" },
-    { date: addDays(0), time: "21:00", courtId: "3", courtName: "Cancha 3 - Techada", type: "court", playerName: "Bruno Perez", userEmail: "bruno@test.com", phone: "+5493512222222", price: 24000, paymentOption: "cash", paymentStatus: "a_pagar_en_club", status: "pendiente" },
+    { date: addDays(0), time: "19:00", courtId: "1", courtName: "Cancha 1 - Césped sintético", type: "court", playerName: "Laura Lencina", userEmail: "laura@test.com", phone: "+5493511111111", price: 24000, paymentOption: "full", paymentStatus: "pagado", status: "confirmado" },
+    { date: addDays(0), time: "21:00", courtId: "3", courtName: "Cancha 3 - Techada", type: "court", playerName: "Bruno Pérez", userEmail: "bruno@test.com", phone: "+5493512222222", price: 24000, paymentOption: "cash", paymentStatus: "a_pagar_en_club", status: "pendiente" },
     { date: addDays(0), time: "09:00", courtId: "1", courtName: "Clase con profesor (Lucio)", type: "class", teacherId: "teacher-1", teacherName: "Lucio Profe", playerName: "Grupo intermedio", userEmail: "grupo@test.com", phone: "+5493513333333", price: 30000, paymentOption: "deposit", paymentStatus: "pendiente_pago", status: "confirmado" },
   ]);
 
   await Tournament.insertMany([
-    { name: "Relampago nocturno", status: "abierto", date: addDays(5), hour: "20:00", category: "Mixto hasta 7ma", surface: "Cesped sintetico", pricePerPlayer: 25000, seededPlayers: 12, currentPlayers: 12, maxPlayers: 16, prize: "Paletas + turno gratis", description: "Formato rapido con fase de grupos y finales.", registrations: [] },
+    { name: "Relámpago nocturno", status: "abierto", date: addDays(5), hour: "20:00", category: "Mixto hasta 7ma", surface: "Césped sintético", pricePerPlayer: 25000, seededPlayers: 12, currentPlayers: 12, maxPlayers: 16, prize: "Paletas + turno gratis", description: "Formato rápido con fase de grupos y finales.", registrations: [] },
     { name: "Ranking interno", status: "en_curso", date: addDays(12), hour: "18:00", category: "Caballeros 5ta/6ta", surface: "Mixta", pricePerPlayer: 0, seededPlayers: 40, currentPlayers: 40, maxPlayers: 64, prize: "Puntos ranking", description: "Liga interna mensual para socios.", registrations: [] },
   ]);
 
