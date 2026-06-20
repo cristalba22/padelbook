@@ -65,12 +65,14 @@ export default function Home() {
   }, [tournaments]);
   return (
     <main className="home-wrapper text-white">
-      <section className="relative overflow-hidden rounded-[2.5rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)]">
+      <section className="relative isolate overflow-hidden rounded-[2.5rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)]">
+        <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-30 lg:hidden" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(163,230,53,0.28),transparent_32%),radial-gradient(circle_at_92%_20%,rgba(45,212,191,0.16),transparent_30%),linear-gradient(135deg,rgba(2,6,23,0.1),rgba(2,6,23,0.75))]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/80 via-[#030611]/70 to-[#030611]/95 lg:hidden" />
         <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
         <div className="absolute bottom-16 right-16 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
 
-        <div className="relative grid min-h-[560px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid min-h-[560px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
           <div className="flex flex-col justify-center px-5 py-8 sm:px-8 sm:py-12 lg:px-12">
             <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">
               <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,242,100,0.95)]" />
@@ -94,15 +96,15 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="mt-9 grid max-w-3xl gap-3 sm:grid-cols-3">
+            <div className="mobile-snap-row compact mt-7 grid max-w-3xl gap-3 sm:grid-cols-3 lg:mt-9">
               <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" />
               <HeroMetric value={settings.openingHours} label="agenda del club" />
               <HeroMetric value={settings.promoText} label="beneficio activo" />
             </div>
           </div>
 
-          <div className="relative min-h-[300px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
-            <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-95" />
+          <div className="relative min-h-[250px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
+            <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 h-full w-full scale-105 object-cover object-center opacity-60 lg:opacity-95" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030611] via-[#030611]/25 to-transparent lg:bg-gradient-to-r lg:from-[#030611] lg:via-[#030611]/15 lg:to-transparent" />
 
             <div className="absolute right-5 top-5 hidden rounded-[1.4rem] border border-white/15 bg-black/55 px-4 py-3 backdrop-blur md:block">
@@ -162,14 +164,20 @@ export default function Home() {
       </section>
 
       <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
-        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-6 shadow-xl">
+        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl sm:p-6">
           <p className="section-eyebrow">Ranking competitivo</p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">Jugadores del torneo</h2>
-          <div className="mobile-snap-row compact mt-5 grid gap-3 sm:grid-cols-2">
+          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Jugadores del torneo</h2>
+          <div className="mt-4 grid gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-3">
             {tournamentRanking.map((player, index) => (
-              <div key={player.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3">
-                <div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-lime-300 text-sm font-black text-black">{index + 1}</span><div><p className="font-bold text-white">{player.name}</p><p className="text-xs text-slate-500">{player.category}</p></div></div>
-                <span className="text-sm font-black text-lime-100">{player.points} pts</span>
+              <div key={player.name} className={`${index > 2 ? "hidden sm:flex" : "flex"} items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3`}>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-lime-300 text-sm font-black text-black sm:h-9 sm:w-9">{index + 1}</span>
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-white">{player.name}</p>
+                    <p className="truncate text-xs text-slate-500">{player.category}</p>
+                  </div>
+                </div>
+                <span className="shrink-0 pl-3 text-sm font-black text-lime-100">{player.points} pts</span>
               </div>
             ))}
           </div>
