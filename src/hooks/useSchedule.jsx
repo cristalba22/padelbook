@@ -16,6 +16,13 @@ function normalizeHour(hour = "") {
   return raw;
 }
 
+function minutesFromHour(hour = "") {
+  const normalized = normalizeHour(hour);
+  const [hh = "0", mm = "0"] = normalized.split(":");
+  const total = Number(hh) * 60 + Number(mm);
+  return Number.isFinite(total) ? total : 0;
+}
+
 function normalizeBlock(block = {}) {
   const date = block.date;
   const courtId = String(block.courtId ?? block.court ?? "");
@@ -43,7 +50,10 @@ export function sameSlot(booking, date, courtId, hour) {
   const bookingDate = booking?.date;
   const bookingCourt = String(booking?.courtId ?? booking?.court ?? "");
   const bookingHour = normalizeHour(booking?.time ?? booking?.hour ?? "");
-  return bookingDate === date && bookingCourt === String(courtId) && bookingHour === normalizeHour(hour) && isActiveStatus(booking?.status);
+  const bookingStart = minutesFromHour(bookingHour);
+  const bookingEnd = bookingStart + Number(booking?.durationMinutes || 60);
+  const slotStart = minutesFromHour(hour);
+  return bookingDate === date && bookingCourt === String(courtId) && slotStart >= bookingStart && slotStart < bookingEnd && isActiveStatus(booking?.status);
 }
 
 export function ScheduleProvider({ children }) {

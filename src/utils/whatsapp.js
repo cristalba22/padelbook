@@ -2,13 +2,14 @@ export function cleanPhone(phone = "") {
   return String(phone || "").replace(/\D/g, "") || "5493510000000";
 }
 
-export function buildBookingWhatsAppUrl({ phone, player, date, time, court, status, price, mode = "admin" }) {
+export function buildBookingWhatsAppUrl({ phone, player, date, time, endTime, court, status, price, mode = "admin" }) {
+  const timeLabel = endTime ? `${time || ""} a ${endTime}` : (time || "");
   const lines = mode === "admin"
     ? [
         `Hola ${player || ""}! Te escribimos desde Padel Book por tu reserva.`,
         "",
         `Fecha: ${date || ""}`,
-        `Hora: ${time || ""}`,
+        `Hora: ${timeLabel}`,
         `Cancha/Clase: ${court || ""}`,
         `Estado: ${status || "pendiente"}`,
         price ? `Importe: $${Number(price).toLocaleString("es-AR")}` : "",
@@ -19,7 +20,7 @@ export function buildBookingWhatsAppUrl({ phone, player, date, time, court, stat
         "Hola! Quiero consultar por mi reserva.",
         "",
         `Fecha: ${date || ""}`,
-        `Hora: ${time || ""}`,
+        `Hora: ${timeLabel}`,
         `Cancha/Clase: ${court || ""}`,
         `Estado: ${status || "pendiente"}`,
       ];

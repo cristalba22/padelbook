@@ -35,6 +35,8 @@ const userSchema = new mongoose.Schema({
 const bookingSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
+  endTime: { type: String, default: "" },
+  durationMinutes: { type: Number, default: 60 },
   courtId: { type: String, required: true },
   courtName: { type: String, required: true },
   type: { type: String, default: "court" },

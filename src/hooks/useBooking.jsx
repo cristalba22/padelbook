@@ -16,6 +16,23 @@ function normalizeStatus(status) {
   return String(status || "pendiente").toLowerCase();
 }
 
+function minutesFromHour(hour = "00:00") {
+  const [hh = "0", mm = "0"] = String(hour).split(":");
+  return Number(hh) * 60 + Number(mm);
+}
+
+function overlapsBooking(a = {}, b = {}) {
+  if (normalizeStatus(a.status) === "cancelado") return false;
+  if (a.date !== b.date) return false;
+  if (String(a.courtId) !== String(b.courtId)) return false;
+
+  const aStart = minutesFromHour(a.time || a.hour);
+  const aEnd = aStart + Number(a.durationMinutes || 60);
+  const bStart = minutesFromHour(b.time || b.hour);
+  const bEnd = bStart + Number(b.durationMinutes || 60);
+  return aStart < bEnd && bStart < aEnd;
+}
+
 function readBookings() {
   return safeRead(BOOKINGS_KEY, []).map((booking) => ({ ...booking, status: normalizeStatus(booking.status) }));
 }
@@ -69,12 +86,7 @@ export function BookingProvider({ children }) {
       }
     }
 
-    const duplicated = bookings.find((b) =>
-      normalizeStatus(b.status) !== "cancelado" &&
-      b.date === bookingData.date &&
-      String(b.courtId) === String(bookingData.courtId) &&
-      String(b.time || b.hour) === String(bookingData.time || bookingData.hour)
-    );
+    const duplicated = bookings.find((b) => overlapsBooking(b, bookingData));
     if (duplicated) return { ...duplicated, duplicated: true };
 
     const withId = {
@@ -88,7 +100,7 @@ export function BookingProvider({ children }) {
     addActivity({
       type: "booking_created",
       title: "Nueva reserva",
-      detail: `${withId.playerName || withId.userName || "Jugador"} - ${withId.date} ${withId.time || withId.hour} - ${withId.courtName || withId.court || "Cancha"}`,
+      detail: `${withId.playerName || withId.userName || "Jugador"} - ${withId.date} ${withId.time || withId.hour}${withId.endTime ? ` a ${withId.endTime}` : ""} - ${withId.courtName || withId.court || "Cancha"}`,
       actor: withId.playerName || withId.userName || "Jugador",
       bookingId: withId.id,
     });
@@ -127,7 +139,7 @@ export function BookingProvider({ children }) {
       addActivity({
         type: `booking_${normalizedStatus}`,
         title: titles[normalizedStatus] || "Reserva actualizada",
-        detail: `${updated.playerName || updated.userName || "Jugador"} - ${updated.date} ${updated.time || updated.hour} - ${updated.courtName || updated.court || "Cancha"}`,
+        detail: `${updated.playerName || updated.userName || "Jugador"} - ${updated.date} ${updated.time || updated.hour}${updated.endTime ? ` a ${updated.endTime}` : ""} - ${updated.courtName || updated.court || "Cancha"}`,
         actor: extra.actor || "Club",
         bookingId: updated.id,
       });

@@ -57,6 +57,27 @@ function isCollectedBooking(booking) {
   return booking.status === "confirmado" || booking.paymentStatus === "pagado";
 }
 
+function minutesFromHour(hour = "00:00") {
+  const [hh = "0", mm = "0"] = String(hour).split(":");
+  return Number(hh) * 60 + Number(mm);
+}
+
+function addMinutesToHour(hour, minutes) {
+  const total = minutesFromHour(hour) + Number(minutes || 0);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function bookingsOverlap(existing, incoming) {
+  if (normalizeStatus(existing.status) === "cancelado") return false;
+  if (existing.date !== incoming.date) return false;
+  if (String(existing.courtId) !== String(incoming.courtId)) return false;
+  const existingStart = minutesFromHour(existing.time);
+  const existingEnd = existingStart + Number(existing.durationMinutes || 60);
+  const incomingStart = minutesFromHour(incoming.time);
+  const incomingEnd = incomingStart + Number(incoming.durationMinutes || 60);
+  return existingStart < incomingEnd && incomingStart < existingEnd;
+}
+
 app.get("/api", (_req, res) => {
   res.json({
     name: "PadelBook API",
@@ -127,6 +148,8 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     courtId: z.union([z.string(), z.number()]).transform(String),
     courtName: z.string().min(2),
     type: z.string().optional().default("court"),
+    endTime: z.string().optional().default(""),
+    durationMinutes: z.number().or(z.string()).transform(Number).optional().default(60),
     price: z.number().or(z.string()).transform(Number),
     paymentOption: z.string().optional().default("cash"),
     teacherId: z.string().nullable().optional(),
@@ -136,16 +159,22 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de reserva invalidos." });
 
-  const duplicated = await Booking.findOne({
+  const incoming = {
+    ...parsed.data,
+    durationMinutes: Number(parsed.data.durationMinutes || 60),
+    endTime: parsed.data.endTime || addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
+  };
+
+  const sameDayBookings = await Booking.find({
     date: parsed.data.date,
-    time: parsed.data.time,
     courtId: parsed.data.courtId,
     status: { $ne: "cancelado" },
   });
+  const duplicated = sameDayBookings.find((booking) => bookingsOverlap(booking, incoming));
   if (duplicated) return res.status(409).json({ message: "Ese horario ya fue reservado.", booking: duplicated.toJSON(), duplicated: true });
 
   const booking = await Booking.create({
-    ...parsed.data,
+    ...incoming,
     status: "pendiente",
     paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
     userId: req.user.id,
@@ -153,7 +182,7 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     playerName: req.user.name,
     phone: req.user.phone || "",
   });
-  await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}`, actor: booking.playerName, bookingId: booking.id });
+  await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: booking.playerName, bookingId: booking.id });
   res.status(201).json({ booking: booking.toJSON() });
 });
 

@@ -7,10 +7,14 @@ import { buildBookingWhatsAppUrl } from "../utils/whatsapp.js";
 import { useToast } from "../components/ToastProvider.jsx";
 
 function normalizeUserBooking(booking) {
+  const time = booking.time || booking.hour;
   return {
     id: booking.id,
     date: booking.date,
-    time: booking.time || booking.hour,
+    time,
+    endTime: booking.endTime || "",
+    durationMinutes: booking.durationMinutes || 60,
+    timeLabel: booking.endTime ? `${time} a ${booking.endTime}` : time,
     type: booking.teacherId ? "clase" : "cancha",
     courtOrClass: booking.courtName || booking.court || "Turno de cancha",
     playerOrGroup: booking.playerName || booking.userName || "Jugador web",
@@ -70,7 +74,7 @@ export default function AdminBookings() {
   function handleConfirm(booking) {
     if (booking.source === "web") markAsPaid(booking.id);
     else updateLocalStatus(booking.id, "confirmado");
-    notify({ type: "success", title: "Reserva confirmada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.time}` });
+    notify({ type: "success", title: "Reserva confirmada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.timeLabel || booking.time}` });
   }
 
   function handlePending(booking) {
@@ -83,11 +87,11 @@ export default function AdminBookings() {
     if (!window.confirm("¿Seguro que querés cancelar esta reserva?")) return;
     if (booking.source === "web") cancelBooking(booking.id);
     else updateLocalStatus(booking.id, "cancelado");
-    notify({ type: "error", title: "Reserva cancelada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.time}` });
+    notify({ type: "error", title: "Reserva cancelada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.timeLabel || booking.time}` });
   }
 
   function handleWhatsApp(b) {
-    window.open(buildBookingWhatsAppUrl({ phone: b.phone, player: b.playerOrGroup, date: b.date, time: b.time, court: b.courtOrClass, status: b.status, price: b.price, mode: "admin" }), "_blank");
+    window.open(buildBookingWhatsAppUrl({ phone: b.phone, player: b.playerOrGroup, date: b.date, time: b.time, endTime: b.endTime, court: b.courtOrClass, status: b.status, price: b.price, mode: "admin" }), "_blank");
     notify({ type: "info", title: "WhatsApp preparado", message: "Se abrió el mensaje con el detalle de la reserva." });
   }
 
@@ -198,7 +202,7 @@ function BookingRow({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
   return (
     <tr className="border-t border-white/10 align-top transition hover:bg-white/[0.03]">
       <td className="px-3 py-4 font-semibold text-white">{booking.date}</td>
-      <td className="px-3 py-4 text-slate-200">{booking.time}</td>
+      <td className="px-3 py-4 text-slate-200">{booking.timeLabel || booking.time}</td>
       <td className="px-3 py-4"><p className="font-semibold text-white">{booking.courtOrClass}</p><p className="mt-1 text-xs text-slate-500">{booking.note || (booking.type === "clase" ? "Clase con profe" : "Turno de cancha")}</p></td>
       <td className="px-3 py-4"><p className="font-semibold text-white">{booking.playerOrGroup}</p><p className="mt-1 text-xs text-slate-500">{booking.phone}</p></td>
       <td className="px-3 py-4 font-bold text-white">{money(booking.price)}</td>
@@ -209,7 +213,7 @@ function BookingRow({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
 }
 
 function BookingMobileCard({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
-  return <article className="rounded-3xl border border-white/10 bg-black/35 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{booking.date} · {booking.time}</p><h3 className="mt-1 font-semibold text-white">{booking.playerOrGroup}</h3><p className="text-sm text-slate-400">{booking.courtOrClass}</p></div><StatusPill status={booking.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><Info label="Teléfono" value={booking.phone} /><Info label="Importe" value={money(booking.price)} /></div><ActionBar booking={booking} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} /></article>;
+  return <article className="rounded-3xl border border-white/10 bg-black/35 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{booking.date} · {booking.timeLabel || booking.time}</p><h3 className="mt-1 font-semibold text-white">{booking.playerOrGroup}</h3><p className="text-sm text-slate-400">{booking.courtOrClass}</p></div><StatusPill status={booking.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><Info label="Teléfono" value={booking.phone} /><Info label="Importe" value={money(booking.price)} /></div><ActionBar booking={booking} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} /></article>;
 }
 
 function ActionBar({ booking, onWhatsApp, onConfirm, onPending, onCancel, align = "start" }) {

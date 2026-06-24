@@ -17,6 +17,18 @@ const experience = [
   { title: "Jugá más, organizá menos", text: "Torneos, comunidad por categoría y clases con profes desde el mismo sistema.", icon: "🎾" },
 ];
 
+const shopProducts = [
+  { name: "Paleta control", detail: "Balance medio, ideal para jugadores que priorizan precision.", price: 185000, badge: "Mas elegida", icon: "◐" },
+  { name: "Paleta potencia", detail: "Formato diamante para salida rapida y remate fuerte.", price: 225000, badge: "Pro", icon: "◆" },
+  { name: "Pack pelotas", detail: "Tubo x3 para partido o torneo interno del club.", price: 9500, badge: "Stock club", icon: "●" },
+  { name: "Grip + protector", detail: "Accesorios rapidos para dejar la paleta lista antes de jugar.", price: 12000, badge: "Combo", icon: "▰" },
+];
+
+function whatsappShopUrl(settings, productName) {
+  const phone = String(settings.whatsapp || "").replace(/\D/g, "");
+  const text = encodeURIComponent(`Hola, quiero consultar por ${productName} en ${settings.clubName}.`);
+  return phone ? `https://wa.me/${phone}?text=${text}` : "#";
+}
 
 export default function Home() {
   const { prices } = usePricing();
@@ -132,6 +144,47 @@ export default function Home() {
         {experience.map((item, index) => <ExperienceCard key={item.title} index={index + 1} {...item} />)}
       </section>
       <p className="mobile-scroll-hint">Deslizá para ver más</p>
+
+      <section className="mobile-tight-section mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0B1326]/80 shadow-xl">
+        <div className="grid gap-0 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="relative border-b border-white/10 p-6 lg:border-b-0 lg:border-r">
+            <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
+            <div className="relative">
+              <p className="section-eyebrow">Pro shop</p>
+              <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Paletas, pelotas y accesorios para salir a jugar.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                El club puede mostrar productos destacados y recibir consultas por WhatsApp sin salir de la experiencia de reserva.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Pill>Stock del club</Pill>
+                <Pill>Consulta rapida</Pill>
+                <Pill>Retiro en cancha</Pill>
+              </div>
+            </div>
+          </div>
+
+          <div className="mobile-snap-row compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
+            {shopProducts.map((product) => (
+              <article key={product.name} className="rounded-[1.6rem] border border-white/10 bg-black/30 p-4 transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-black/40">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-lime-300/25 bg-lime-300/10 text-xl font-black text-lime-100">
+                    {product.icon}
+                  </div>
+                  <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-lime-100">{product.badge}</span>
+                </div>
+                <h3 className="mt-4 text-lg font-black text-white">{product.name}</h3>
+                <p className="mt-1 min-h-[48px] text-sm leading-6 text-slate-400">{product.detail}</p>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <p className="text-xl font-black text-lime-100">${product.price.toLocaleString("es-AR")}</p>
+                  <a className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white transition hover:border-lime-300/40 hover:text-lime-100" href={whatsappShopUrl(settings, product.name)} target="_blank" rel="noreferrer">
+                    Consultar
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
 
       <section className="mobile-tight-section mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">

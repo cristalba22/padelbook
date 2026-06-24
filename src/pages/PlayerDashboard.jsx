@@ -15,6 +15,11 @@ function isFutureBooking(booking) {
   return bookingDate(booking) >= new Date() && booking.status !== "cancelado";
 }
 
+function bookingTimeLabel(booking = {}) {
+  const start = booking.time || booking.hour || "";
+  return booking.endTime ? `${start} a ${booking.endTime}` : start;
+}
+
 function eventDate(event) {
   return new Date(`${event.date || "9999-12-31"}T${event.time || "00:00"}:00`);
 }
@@ -89,6 +94,7 @@ export default function PlayerDashboard() {
       kind: "booking",
       date: booking.date,
       time: booking.time || booking.hour,
+      displayTime: bookingTimeLabel(booking),
       title: booking.courtName || booking.court || "Reserva de cancha",
       detail: booking.description || "Turno de padel",
       status: booking.status,
@@ -240,7 +246,7 @@ export default function PlayerDashboard() {
               {lastBookings.length === 0 ? <p className="text-sm text-slate-500">Sin actividad todavía.</p> : lastBookings.map((booking) => (
                 <div key={booking.id} className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
                   <p className="text-sm font-semibold text-white">{booking.courtName || booking.court || "Reserva"}</p>
-                  <p className="text-xs text-slate-500">{booking.date} · {booking.time || booking.hour} · {statusText(booking.status)}</p>
+                  <p className="text-xs text-slate-500">{booking.date} · {bookingTimeLabel(booking)} · {statusText(booking.status)}</p>
                 </div>
               ))}
             </div>
@@ -305,7 +311,7 @@ function PlayerEventRow({ event, onCancel, onPaid }) {
   return (
     <article className="grid gap-3 rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4 transition hover:border-lime-300/40 hover:bg-lime-300/15 lg:grid-cols-[130px_1fr_auto] lg:items-center">
       <div>
-        <p className="text-2xl font-black text-white">{event.time}</p>
+        <p className="text-2xl font-black text-white">{event.displayTime || event.time}</p>
         <p className="text-xs text-lime-100">{event.date || "Fecha a confirmar"}</p>
       </div>
       <div>
@@ -327,7 +333,7 @@ function PlayerBookingRow({ booking, onCancel, onPaid }) {
   return (
     <article className="grid gap-3 rounded-3xl border border-white/10 bg-black/30 p-4 transition hover:border-lime-300/35 hover:bg-black/45 lg:grid-cols-[130px_1fr_auto] lg:items-center">
       <div>
-        <p className="text-2xl font-black text-white">{booking.time || booking.hour}</p>
+        <p className="text-2xl font-black text-white">{bookingTimeLabel(booking)}</p>
         <p className="text-xs text-slate-500">{booking.date}</p>
       </div>
       <div>

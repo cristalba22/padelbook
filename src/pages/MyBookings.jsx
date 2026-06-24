@@ -193,12 +193,16 @@ export default function MyBookings() {
   if (filter === "cancelled") listToShow = cancelled;
 
   const clubPhone = settings.whatsapp || "5493510000000";
+  const bookingTimeLabel = (booking) => {
+    const start = booking.hora || booking.time || "";
+    return booking.endTime ? `${start} a ${booking.endTime}` : (start || "Horario a confirmar");
+  };
 
   const handleWhatsApp = (booking) => {
     const text = encodeURIComponent(
       `Hola! Te escribo por mi reserva de pádel:\n\n` +
         `• Fecha: ${booking.fecha || booking.dateFormatted || booking.date || ""}\n` +
-        `• Horario: ${booking.hora || booking.time || ""}\n` +
+        `• Horario: ${bookingTimeLabel(booking)}\n` +
         `• Cancha / clase: ${
           booking.cancha || booking.court || booking.courtName || ""
         }\n\n` +
@@ -212,7 +216,7 @@ export default function MyBookings() {
     const ok = window.confirm(
       `¿Seguro que querés cancelar el turno del ${
         booking.fecha || booking.dateFormatted || booking.date || ""
-      } a las ${booking.hora || booking.time || ""}?`
+      } a las ${bookingTimeLabel(booking)}?`
     );
     if (ok) {
       cancelBooking(booking.id);
@@ -224,7 +228,7 @@ export default function MyBookings() {
       markAsPaid(booking.id);
       return;
     }
-    alert(`Pago registrado para el turno ${booking.courtName || booking.cancha || booking.court || ""} – ${booking.hora || booking.time || ""}`);
+    alert(`Pago registrado para el turno ${booking.courtName || booking.cancha || booking.court || ""} – ${bookingTimeLabel(booking)}`);
   };
 
   if (!user) {
@@ -362,9 +366,7 @@ export default function MyBookings() {
                           </span>
                           <span>•</span>
                           <span>
-                            {booking.hora ||
-                              booking.time ||
-                              "Horario a confirmar"}
+                            {bookingTimeLabel(booking)}
                           </span>
                         </div>
                         <h2 className="mt-1 text-base md:text-lg font-semibold text-zinc-50">
@@ -465,3 +467,5 @@ function FilterChip({ label, active, onClick }) {
     </button>
   );
 }
+
+

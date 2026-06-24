@@ -81,6 +81,27 @@ export function getCourtPrice(hour, date = new Date(), pricing = loadPricing()) 
   return price;
 }
 
+function addMinutesToHour(hour, minutes) {
+  const [hh = "0", mm = "0"] = String(hour).split(":");
+  const total = Number(hh) * 60 + Number(mm) + Number(minutes || 0);
+  const normalized = ((total % 1440) + 1440) % 1440;
+  const nextHour = String(Math.floor(normalized / 60)).padStart(2, "0");
+  const nextMinute = String(normalized % 60).padStart(2, "0");
+  return `${nextHour}:${nextMinute}`;
+}
+
+export function getCourtPriceForDuration(hour, date = new Date(), durationMinutes = 60, pricing = loadPricing()) {
+  const duration = Math.max(60, Number(durationMinutes || 60));
+  let total = 0;
+
+  for (let elapsed = 0; elapsed < duration; elapsed += 30) {
+    const segmentHour = addMinutesToHour(hour, elapsed);
+    total += getCourtPrice(segmentHour, date, pricing) / 2;
+  }
+
+  return Math.round(total);
+}
+
 export function getClassPrice(pricing = loadPricing()) {
   return Number(pricing.classPrice || DEFAULT_PRICING.classPrice);
 }
