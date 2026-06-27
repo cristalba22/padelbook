@@ -176,7 +176,7 @@ export default function Home() {
 
           <div className="relative mobile-snap-row mobile-fade-x compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
             {shopProducts.map((product) => (
-              <article key={product.name} className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/35 transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-black/45">
+              <article key={product.name} className="depth-card overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 transition hover:border-lime-300/35 hover:bg-black/50">
                 <div className="relative h-32 overflow-hidden border-b border-white/10 sm:h-36">
                   <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
@@ -200,8 +200,9 @@ export default function Home() {
 
 
       <section className="mobile-tight-section mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="relative overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
+        <div className="depth-card relative overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-lime-300/20 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-0 right-0 h-28 w-44 rounded-tl-full border-l border-t border-lime-300/10 bg-black/20" />
           <p className="section-eyebrow">Experiencia del jugador</p>
           <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Todo lo que importa, a un toque.</h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
@@ -215,11 +216,11 @@ export default function Home() {
 
         <div className="mobile-snap-row compact mobile-fade-x grid gap-3 md:grid-cols-3">
           {courtAvailability.map((court) => (
-            <article key={court.id} className="group rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-[#101B32]">
+            <article key={court.id} className="depth-card group rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl transition hover:border-lime-300/35 hover:bg-[#101B32]">
               <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cancha</p>
               <h3 className="mt-3 text-xl font-black text-white">{court.name}</h3>
               <p className="mt-1 text-sm text-slate-400">{court.detail}</p>
-              <div className="mt-8 rounded-2xl border border-lime-300/20 bg-lime-300/10 p-3">
+              <div className="depth-row mt-8 rounded-2xl border border-lime-300/20 bg-lime-300/10 p-3">
                 <p className="text-xs text-slate-300">Próximo libre</p>
                 <p className="mt-1 inline-flex items-center gap-2 text-2xl font-black text-lime-100">
                   <StatusDot tone={court.tone} />
@@ -232,12 +233,12 @@ export default function Home() {
       </section>
 
       <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
-        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl sm:p-6">
+        <div className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl sm:p-6">
           <p className="section-eyebrow">Ranking competitivo</p>
           <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Jugadores del torneo</h2>
           <div className="mt-4 grid gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-3">
             {tournamentRanking.map((player, index) => (
-              <div key={player.name} className={`${index > 2 ? "hidden sm:flex" : "flex"} items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-3 py-2.5 sm:px-4 sm:py-3`}>
+              <div key={player.name} className={`${index > 2 ? "hidden sm:flex" : "flex"} depth-row items-center justify-between rounded-2xl border border-white/10 px-3 py-2.5 sm:px-4 sm:py-3`}>
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-lime-300 text-sm font-black text-black sm:h-9 sm:w-9">{index + 1}</span>
                   <div className="min-w-0">
@@ -250,7 +251,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <div className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
+        <div className="depth-card rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
           <p className="section-eyebrow">Beneficio activo</p>
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">{settings.promoText}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-300">El jugador puede consultar sus turnos, cancelar cuando corresponda y contactar al club con el detalle armado por WhatsApp.</p>
@@ -273,6 +274,6 @@ function StatusDot({ tone = "lime" }) {
   return <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />;
 }
 function ExperienceCard({ icon, title, text, index }) {
-  return <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/90 p-6 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35 hover:shadow-[0_22px_70px_rgba(61,247,168,0.12)]"><div className="flex items-center justify-between"><span className="text-3xl">{icon}</span><span className="text-xs font-black text-lime-200">0{index}</span></div><h3 className="mt-7 text-xl font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></article>;
+  return <article className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/90 p-6 shadow-xl transition hover:border-lime-300/35"><div className="flex items-center justify-between"><span className="depth-icon text-3xl">{icon}</span><span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2 py-1 text-xs font-black text-lime-200">0{index}</span></div><h3 className="mt-7 text-xl font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></article>;
 }
 function Pill({ children }) { return <span className="rounded-full border border-lime-300/20 bg-black/25 px-3 py-1 text-xs font-bold text-lime-100">{children}</span>; }
