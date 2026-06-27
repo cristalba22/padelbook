@@ -128,6 +128,17 @@ a:active{
   transform:translateY(-1px);
   box-shadow:0 0 34px rgba(61,247,168,0.8);
 }
+.btn-primary:active,
+.btn-outline:active,
+.tap-action:active{
+  transform:translateY(0) scale(.985);
+}
+.btn-primary:focus-visible,
+.btn-outline:focus-visible,
+.tap-action:focus-visible{
+  outline:2px solid rgba(190,242,100,.85);
+  outline-offset:3px;
+}
 
 .btn-primary:disabled,
 .btn-outline:disabled{
@@ -149,6 +160,34 @@ a:active{
   border-color:var(--accent);
   color:var(--accent-soft);
   transform:translateY(-1px);
+}
+
+.tap-action{
+  transition:
+    transform .16s ease,
+    border-color .16s ease,
+    background-color .16s ease,
+    box-shadow .16s ease,
+    color .16s ease,
+    filter .16s ease;
+}
+
+.mini-spinner{
+  width:.8rem;
+  height:.8rem;
+  border-radius:999px;
+  border:2px solid rgba(255,255,255,.32);
+  border-top-color:#BEF264;
+  animation:spin .72s linear infinite;
+}
+
+.mini-spinner-dark{
+  border-color:rgba(2,6,23,.25);
+  border-top-color:#020617;
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg);}
 }
 
 /* Pill para iconitos */

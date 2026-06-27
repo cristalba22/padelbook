@@ -41,6 +41,7 @@ export default function Booking() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formattedDate = useMemo(() => {
     try {
@@ -106,7 +107,7 @@ export default function Booking() {
   };
 
   const handleConfirm = async () => {
-    if (!selectedSlot || !paymentOption) return;
+    if (!selectedSlot || !paymentOption || isSubmitting) return;
     if (!user) {
       openLogin();
       setConfirmationMsg("Ingresá para confirmar la reserva y guardarla en tu cuenta.");
@@ -122,37 +123,42 @@ export default function Booking() {
       return;
     }
 
-    const payload = {
-      ...selectedSlot,
-      paymentOption,
-      date: selectedDate,
-      createdAt: new Date().toISOString(),
-      userEmail: user.email,
-      playerName: user.name,
-      paymentMethod: paymentOption === "cash" ? "Paga en el club" : "Mercado Pago",
-    };
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        ...selectedSlot,
+        paymentOption,
+        date: selectedDate,
+        createdAt: new Date().toISOString(),
+        userEmail: user.email,
+        playerName: user.name,
+        paymentMethod: paymentOption === "cash" ? "Paga en el club" : "Mercado Pago",
+      };
 
-    const savedBooking = await addBooking(payload);
-    if (savedBooking?.duplicated) {
-      setConfirmationMsg("Ese horario ya fue reservado. Elegí otro turno disponible.");
-      notify({ type: "warning", title: "Reserva duplicada", message: "Proba con otro horario disponible." });
-      return;
+      const savedBooking = await addBooking(payload);
+      if (savedBooking?.duplicated) {
+        setConfirmationMsg("Ese horario ya fue reservado. Elegí otro turno disponible.");
+        notify({ type: "warning", title: "Reserva duplicada", message: "Probá con otro horario disponible." });
+        return;
+      }
+
+      setSelectedBooking(savedBooking);
+
+      let message = "";
+      if (paymentOption === "deposit") {
+        const deposit = Math.round(selectedSlot.price * 0.3);
+        message = `Reserva guardada en tu cuenta. Se registró la seña de $${deposit.toLocaleString("es-AR")}.`;
+      } else if (paymentOption === "full") {
+        message = "Reserva guardada en tu cuenta. El turno quedó registrado con pago total.";
+      } else {
+        message = "Reserva guardada como 'paga en el club'. El administrador la verá como pendiente hasta registrar el pago.";
+      }
+
+      setConfirmationMsg(message);
+      notify({ type: "success", title: "Reserva guardada", message });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSelectedBooking(savedBooking);
-
-    let message = "";
-    if (paymentOption === "deposit") {
-      const deposit = Math.round(selectedSlot.price * 0.3);
-      message = `Reserva guardada en tu cuenta. Se registró la seña de $${deposit.toLocaleString("es-AR")}.`;
-    } else if (paymentOption === "full") {
-      message = "Reserva guardada en tu cuenta. El turno quedo registrado con pago total.";
-    } else {
-      message = "Reserva guardada como 'paga en el club'. El administrador la verá como pendiente hasta registrar el pago.";
-    }
-
-    setConfirmationMsg(message);
-    notify({ type: "success", title: "Reserva guardada", message });
   };
 
   const depositAmount = useMemo(() => selectedSlot ? Math.round(selectedSlot.price * 0.3) : 0, [selectedSlot]);
@@ -354,12 +360,13 @@ export default function Booking() {
 
                 <button
                   onClick={handleConfirm}
-                  disabled={!selectedSlot || !paymentOption}
-                  className={`mt-4 w-full rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                    !selectedSlot || !paymentOption ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-lime-300 text-black shadow-lg shadow-lime-500/30 hover:bg-lime-200"
+                  disabled={!selectedSlot || !paymentOption || isSubmitting}
+                  className={`tap-action mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                    !selectedSlot || !paymentOption || isSubmitting ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-lime-300 text-black shadow-lg shadow-lime-500/30 hover:bg-lime-200"
                   }`}
                 >
-                  {paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Continuar con Mercado Pago"}
+                  {isSubmitting && <span className="mini-spinner mini-spinner-dark" aria-hidden="true" />}
+                  {isSubmitting ? "Guardando reserva" : paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Continuar con Mercado Pago"}
                 </button>
 
                 {confirmationMsg && <p className="mt-3 text-[11px] text-white/60">{confirmationMsg}</p>}

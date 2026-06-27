@@ -1,5 +1,5 @@
 ﻿// src/pages/Home.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import heroImg from "../assets/hero-padel.webp";
 import shopProductsImg from "../assets/shop-padel-products.jpg";
@@ -16,6 +16,7 @@ import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule, sameSlot } from "../hooks/useSchedule.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { loadTournaments } from "../utils/tournamentsStorage.js";
+import { useToast } from "../components/ToastProvider.jsx";
 
 const experience = [
   { title: "Reservá en 30 segundos", text: "Ves disponibilidad real, elegís cancha y confirmás sin esperar respuesta por WhatsApp.", icon: "⚡" },
@@ -41,6 +42,8 @@ export default function Home() {
   const { settings } = useClubSettings();
   const { bookings } = useBooking();
   const { getBlock } = useSchedule();
+  const { notify } = useToast();
+  const [consultingProduct, setConsultingProduct] = useState("");
   const tournaments = useMemo(() => loadTournaments(prices.tournamentPrice), [prices.tournamentPrice]);
   const openTournaments = tournaments.filter((t) => t.status === "abierto").length;
   const courtPrice = getCourtPrice("15:00", new Date(), prices);
@@ -60,6 +63,16 @@ export default function Home() {
   });
   const liveSlots = courtAvailability.slice(0, 3).map((court) => ({ hour: court.free, court: court.name, status: court.status, tone: court.tone }));
   const availableCount = courtAvailability.filter((court) => court.free !== "Completa").length;
+  const handleShopConsult = (product) => {
+    setConsultingProduct(product.name);
+    notify({
+      type: "info",
+      title: "Consulta preparada",
+      message: `Se abre WhatsApp con el mensaje de ${product.name}.`,
+      duration: 2400,
+    });
+    window.setTimeout(() => setConsultingProduct(""), 1400);
+  };
   const tournamentRanking = useMemo(() => {
     const registeredPlayers = tournaments
       .flatMap((tournament) => tournament.registrations || [])
@@ -107,23 +120,23 @@ export default function Home() {
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
-              <Link to={ROUTES.BOOKING} className="btn-primary px-5 py-2.5 text-sm sm:px-7 sm:py-3">
+              <Link to={ROUTES.BOOKING} className="btn-primary tap-action px-5 py-2.5 text-sm sm:px-7 sm:py-3">
                 Reservar ahora
               </Link>
-              <Link to={ROUTES.COMMUNITY} className="btn-outline px-5 py-2.5 text-sm sm:px-7 sm:py-3">
+              <Link to={ROUTES.COMMUNITY} className="btn-outline tap-action px-5 py-2.5 text-sm sm:px-7 sm:py-3">
                 Buscar partido
               </Link>
             </div>
 
             <div className="mt-6 grid max-w-3xl grid-cols-3 gap-2 sm:mt-9 sm:gap-3">
-              <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" />
+              <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" featured />
               <HeroMetric value={settings.openingHours} label="agenda del club" />
               <HeroMetric value={settings.promoText} label="beneficio activo" />
             </div>
           </div>
 
           <div className="relative min-h-[250px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
-            <img src={heroImg} alt="Jugador de pádel" className="absolute inset-0 hidden h-full w-full scale-105 object-cover object-center opacity-95 lg:block" />
+            <img src={heroImg} alt="Jugador de pádel en cancha iluminada" className="absolute inset-0 hidden h-full w-full scale-105 object-cover object-center opacity-95 lg:block" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#030611] via-[#030611]/25 to-transparent lg:bg-gradient-to-r lg:from-[#030611] lg:via-[#030611]/15 lg:to-transparent" />
 
             <div className="absolute right-5 top-5 hidden rounded-[1.4rem] border border-white/15 bg-black/55 px-4 py-3 backdrop-blur md:block">
@@ -158,7 +171,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(190,242,100,0.2),transparent_28%),linear-gradient(110deg,rgba(3,6,17,0.78),rgba(3,6,17,0.6),rgba(3,6,17,0.9))]" />
           <div className="relative border-b border-white/10 p-5 sm:p-6 lg:border-b-0 lg:border-r">
             <div className="overflow-hidden rounded-[1.6rem] border border-lime-300/20 bg-black/35 shadow-2xl">
-              <img src={shopProductsImg} alt="Paletas, pelotas y accesorios de padel" className="h-56 w-full object-cover object-center sm:h-72 lg:h-80" />
+              <img src={shopProductsImg} alt="Paletas, pelotas, grips y accesorios de pádel" className="h-56 w-full object-cover object-center sm:h-72 lg:h-80" />
             </div>
             <div className="relative mt-5">
               <p className="section-eyebrow">Pro shop</p>
@@ -178,17 +191,25 @@ export default function Home() {
             {shopProducts.map((product) => (
               <article key={product.name} className="depth-card overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 transition hover:border-lime-300/35 hover:bg-black/50">
                 <div className="relative h-32 overflow-hidden border-b border-white/10 sm:h-36">
-                  <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                  <img src={product.image} alt={`${product.name} disponible en el pro shop del club`} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
                   <span className="absolute right-3 top-3 rounded-full border border-lime-300/25 bg-black/55 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-lime-100 backdrop-blur">{product.badge}</span>
                 </div>
-                <div className="p-4">
+                <div className="p-5">
                 <h3 className="text-lg font-black text-white">{product.name}</h3>
                 <p className="mt-1 min-h-[48px] text-sm leading-6 text-slate-400">{product.detail}</p>
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <p className="text-xl font-black text-lime-100">${product.price.toLocaleString("es-AR")}</p>
-                  <a className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white transition hover:border-lime-300/40 hover:text-lime-100" href={whatsappShopUrl(settings, product.name)} target="_blank" rel="noreferrer">
-                    Consultar
+                  <a
+                    className="tap-action inline-flex min-w-[92px] items-center justify-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-100"
+                    href={whatsappShopUrl(settings, product.name)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Consultar por ${product.name} en WhatsApp`}
+                    onClick={() => handleShopConsult(product)}
+                  >
+                    {consultingProduct === product.name && <span className="mini-spinner" aria-hidden="true" />}
+                    {consultingProduct === product.name ? "Abriendo" : "Consultar"}
                   </a>
                 </div>
                 </div>
@@ -211,7 +232,7 @@ export default function Home() {
           <div className="mt-6 flex flex-wrap gap-2">
             <Pill>{`Turno desde $${courtPrice.toLocaleString("es-AR")}`}</Pill><Pill>{`Clase $${classPrice.toLocaleString("es-AR")}`}</Pill><Pill>{settings.openingHours}</Pill><Pill>{nextTournament?.name || "Torneos"}</Pill>
           </div>
-          <Link to={ROUTES.PLAYER} className="btn-primary mt-7">Abrir mi panel</Link>
+          <Link to={ROUTES.PLAYER} className="btn-primary tap-action mt-7">Abrir mi panel</Link>
         </div>
 
         <div className="mobile-snap-row compact mobile-fade-x grid gap-3 md:grid-cols-3">
@@ -255,15 +276,18 @@ export default function Home() {
           <p className="section-eyebrow">Beneficio activo</p>
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">{settings.promoText}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-300">El jugador puede consultar sus turnos, cancelar cuando corresponda y contactar al club con el detalle armado por WhatsApp.</p>
-          <Link to={ROUTES.MY_BOOKINGS} className="btn-primary mt-6">Ver mi agenda</Link>
+          <Link to={ROUTES.MY_BOOKINGS} className="btn-primary tap-action mt-6">Ver mi agenda</Link>
         </div>
       </section>
     </main>
   );
 }
 
-function HeroMetric({ value, label }) {
-  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="text-[clamp(0.78rem,2vw,1.45rem)] font-black leading-tight text-lime-100">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-300 sm:text-[11px]">{label}</p></div>;
+function HeroMetric({ value, label, featured = false }) {
+  const featuredClass = featured
+    ? "border-lime-300/35 bg-lime-300/10 shadow-[0_0_34px_rgba(190,242,100,0.12)]"
+    : "border-white/10 bg-black/25 sm:bg-white/[0.045]";
+  return <div className={`min-w-0 rounded-2xl border px-2 py-2 backdrop-blur sm:px-4 sm:py-3 ${featuredClass}`}><p className="text-[clamp(0.78rem,2vw,1.45rem)] font-black leading-tight text-lime-100">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-300 sm:text-[11px]">{label}</p></div>;
 }
 function LiveSlot({ slot }) {
   const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";
