@@ -1,8 +1,9 @@
 // src/components/Layout.jsx
 import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 import LoginModal from "./LoginModal.jsx";
+import Padel3DScene from "./Padel3DScene.jsx";
 import { ROUTES, routeForRole } from "../constants/routes.js";
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
 export default function Layout({ children }) {
   const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -73,6 +75,12 @@ export default function Layout({ children }) {
   return (
     <>
       <div className="app-shell">
+        {location.pathname !== ROUTES.HOME && (
+          <Padel3DScene
+            variant="ambient"
+            className="fixed inset-0 z-0 opacity-[0.18] mix-blend-screen"
+          />
+        )}
         {/* HEADER */}
         <header className="sticky top-0 z-40 border-b border-black/60 bg-black/95 backdrop-blur">
           <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -129,6 +137,7 @@ export default function Layout({ children }) {
               onClick={() => setMobileOpen((v) => !v)}
               className="inline-flex items-center justify-center rounded-full border border-slate-700 p-2 text-slate-100 hover:border-lime-400 hover:text-lime-300 md:hidden"
               aria-label="Abrir menú"
+              aria-expanded={mobileOpen}
             >
               <svg
                 className="h-4 w-4"
@@ -188,7 +197,7 @@ export default function Layout({ children }) {
         </header>
 
         {/* CONTENIDO */}
-        <main className="main-container">{children}</main>
+        <main className="main-container relative z-10">{children}</main>
       </div>
 
       {/* MODAL LOGIN */}

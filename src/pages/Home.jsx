@@ -7,6 +7,7 @@ import shopControlImg from "../assets/shop-paleta-control.jpg";
 import shopPowerImg from "../assets/shop-paleta-potencia.jpg";
 import shopBallsImg from "../assets/shop-pack-pelotas.jpg";
 import shopGripImg from "../assets/shop-grip-protector.jpg";
+import Padel3DScene from "../components/Padel3DScene.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
@@ -23,10 +24,10 @@ const experience = [
 ];
 
 const shopProducts = [
-  { name: "Paleta control", detail: "Balance medio, ideal para jugadores que priorizan precision.", price: 185000, badge: "Mas elegida", image: shopControlImg },
-  { name: "Paleta potencia", detail: "Formato diamante para salida rapida y remate fuerte.", price: 225000, badge: "Pro", image: shopPowerImg },
+  { name: "Paleta control", detail: "Balance medio, ideal para jugadores que priorizan precisión.", price: 185000, badge: "Más elegida", image: shopControlImg },
+  { name: "Paleta potencia", detail: "Formato diamante para salida rápida y remate fuerte.", price: 225000, badge: "Pro", image: shopPowerImg },
   { name: "Pack pelotas", detail: "Tubo x3 para partido o torneo interno del club.", price: 9500, badge: "Stock club", image: shopBallsImg },
-  { name: "Grip + protector", detail: "Accesorios rapidos para dejar la paleta lista antes de jugar.", price: 12000, badge: "Combo", image: shopGripImg },
+  { name: "Grip + protector", detail: "Accesorios rápidos para dejar la paleta lista antes de jugar.", price: 12000, badge: "Combo", image: shopGripImg },
 ];
 
 function whatsappShopUrl(settings, productName) {
@@ -84,6 +85,7 @@ export default function Home() {
     <main className="home-wrapper text-white">
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
         <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[66%_center] opacity-45 lg:hidden" />
+        <Padel3DScene variant="hero" className="absolute inset-0 z-[1] opacity-45 mix-blend-screen" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(163,230,53,0.28),transparent_32%),radial-gradient(circle_at_92%_20%,rgba(45,212,191,0.16),transparent_30%),linear-gradient(135deg,rgba(2,6,23,0.1),rgba(2,6,23,0.75))]" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/72 via-[#030611]/58 to-[#030611]/92 lg:hidden" />
         <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
@@ -135,7 +137,7 @@ export default function Home() {
                   <p className="hidden text-[11px] uppercase tracking-[0.22em] text-slate-400 sm:block">Disponibilidad rápida</p>
                   <h2 className="text-base font-black text-white sm:text-lg">Horarios destacados</h2>
                 </div>
-                <span className="rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black">En vivo</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black"><span className="h-1.5 w-1.5 rounded-full bg-black/70" />En vivo</span>
               </div>
               <div className="space-y-2">
                 {liveSlots.map((slot) => <LiveSlot key={`${slot.hour}-${slot.court}`} slot={slot} />)}
@@ -145,7 +147,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mobile-snap-row compact mt-8 grid gap-4 lg:grid-cols-3">
+      <section className="mobile-snap-row mobile-fade-x compact mt-8 grid gap-4 lg:grid-cols-3">
         {experience.map((item, index) => <ExperienceCard key={item.title} index={index + 1} {...item} />)}
       </section>
       <p className="mobile-scroll-hint">Deslizá para ver más</p>
@@ -166,13 +168,13 @@ export default function Home() {
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Pill>Stock del club</Pill>
-                <Pill>Consulta rapida</Pill>
+                <Pill>Consulta rápida</Pill>
                 <Pill>Retiro en cancha</Pill>
               </div>
             </div>
           </div>
 
-          <div className="relative mobile-snap-row compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
+          <div className="relative mobile-snap-row mobile-fade-x compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
             {shopProducts.map((product) => (
               <article key={product.name} className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/35 transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-black/45">
                 <div className="relative h-32 overflow-hidden border-b border-white/10 sm:h-36">
@@ -211,15 +213,18 @@ export default function Home() {
           <Link to={ROUTES.PLAYER} className="btn-primary mt-7">Abrir mi panel</Link>
         </div>
 
-        <div className="mobile-snap-row compact grid gap-3 md:grid-cols-3">
+        <div className="mobile-snap-row compact mobile-fade-x grid gap-3 md:grid-cols-3">
           {courtAvailability.map((court) => (
             <article key={court.id} className="group rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35 hover:bg-[#101B32]">
               <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cancha</p>
               <h3 className="mt-3 text-xl font-black text-white">{court.name}</h3>
               <p className="mt-1 text-sm text-slate-400">{court.detail}</p>
               <div className="mt-8 rounded-2xl border border-lime-300/20 bg-lime-300/10 p-3">
-                <p className="text-xs text-slate-400">Próximo libre</p>
-                <p className="text-2xl font-black text-lime-100">{court.free}</p>
+                <p className="text-xs text-slate-300">Próximo libre</p>
+                <p className="mt-1 inline-flex items-center gap-2 text-2xl font-black text-lime-100">
+                  <StatusDot tone={court.tone} />
+                  {court.free}
+                </p>
               </div>
             </article>
           ))}
@@ -257,13 +262,17 @@ export default function Home() {
 }
 
 function HeroMetric({ value, label }) {
-  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="text-[clamp(0.78rem,3.1vw,1rem)] font-black leading-tight text-lime-100 sm:whitespace-nowrap sm:text-2xl">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-400 sm:text-[11px] sm:text-slate-500">{label}</p></div>;
+  return <div className="min-w-0 rounded-2xl border border-white/10 bg-black/25 px-2 py-2 backdrop-blur sm:bg-white/[0.045] sm:px-4 sm:py-3"><p className="text-[clamp(0.78rem,2vw,1.45rem)] font-black leading-tight text-lime-100">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-300 sm:text-[11px]">{label}</p></div>;
 }
 function LiveSlot({ slot }) {
   const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";
-  return <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 transition hover:bg-white/[0.07]"><div><p className="text-sm font-black text-white">{slot.hour}</p><p className="text-xs text-slate-400">{slot.court}</p></div><span className={`rounded-full border px-3 py-1 text-xs font-bold ${cls}`}>{slot.status}</span></div>;
+  return <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 transition hover:bg-white/[0.09]"><div><p className="text-sm font-black text-white">{slot.hour}</p><p className="text-xs text-slate-300">{slot.court}</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${cls}`}><StatusDot tone={slot.tone} />{slot.status}</span></div>;
+}
+function StatusDot({ tone = "lime" }) {
+  const color = tone === "amber" ? "bg-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.75)]" : "bg-lime-300 shadow-[0_0_14px_rgba(190,242,100,0.8)]";
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />;
 }
 function ExperienceCard({ icon, title, text, index }) {
-  return <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-6 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35"><div className="flex items-center justify-between"><span className="text-3xl">{icon}</span><span className="text-xs font-black text-lime-200">0{index}</span></div><h3 className="mt-7 text-xl font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></article>;
+  return <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/90 p-6 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35 hover:shadow-[0_22px_70px_rgba(61,247,168,0.12)]"><div className="flex items-center justify-between"><span className="text-3xl">{icon}</span><span className="text-xs font-black text-lime-200">0{index}</span></div><h3 className="mt-7 text-xl font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></article>;
 }
 function Pill({ children }) { return <span className="rounded-full border border-lime-300/20 bg-black/25 px-3 py-1 text-xs font-bold text-lime-100">{children}</span>; }

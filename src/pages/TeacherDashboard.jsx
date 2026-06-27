@@ -91,7 +91,7 @@ export default function TeacherDashboard() {
             <div>
               <h1 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">Agenda de clases</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                Visualiza alumnos, horarios y disponibilidad. Los bloqueos que cargues aca se reflejan en Reservar.
+                Visualizá alumnos, horarios y disponibilidad. Los bloqueos que cargues acá se reflejan en Reservar.
               </p>
             </div>
             <span className="w-fit rounded-full border border-lime-300/30 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-100">
@@ -100,7 +100,7 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi label="Clases" value={classBookings.length} detail="en el dia" />
+            <Kpi label="Clases" value={classBookings.length} detail="en el día" />
             <Kpi label="Confirmadas" value={confirmed.length} detail="listas" />
             <Kpi label="Pendientes" value={pending.length} detail="a revisar" warn />
             <Kpi label="Ingresos" value={money(revenue)} detail="estimado" />
@@ -142,7 +142,7 @@ export default function TeacherDashboard() {
         <section className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Clases del dia</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Clases del día</p>
               <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">Alumnos y horarios</h2>
             </div>
             <span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">{teacherName}</span>
@@ -184,7 +184,7 @@ export default function TeacherDashboard() {
         </section>
 
         <aside className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Disponibilidad del dia</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Disponibilidad del día</p>
           <h2 className="mt-2 text-xl font-black text-white">{selectedDateLabel}</h2>
           <p className="mt-1 text-xs text-slate-500">Horarios editables para clases</p>
           <div className="mt-4 space-y-3">
@@ -196,7 +196,8 @@ export default function TeacherDashboard() {
                     const block = getBlock(selectedDate, court.id, hour);
                     const reserved = classBookings.find((booking) => sameSlot(booking, selectedDate, court.id, hour));
                     return (
-                      <span key={hour} className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${reserved ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-100" : block ? "border-orange-300/40 bg-orange-400/10 text-orange-100" : "border-white/10 text-slate-300"}`}>
+                      <span key={hour} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${reserved ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-100" : block ? "border-orange-300/40 bg-orange-400/10 text-orange-100" : "border-white/10 text-slate-200"}`}>
+                        <StatusDot tone={reserved ? "green" : block ? "orange" : "slate"} />
                         {hour} {reserved ? "Reservado" : block ? "Bloq." : "Libre"}
                       </span>
                     );
@@ -213,7 +214,16 @@ export default function TeacherDashboard() {
 }
 
 function Kpi({ label, value, detail, warn = false }) {
-  return <div className={`rounded-3xl border p-3 sm:p-4 ${warn ? "border-amber-300/30 bg-amber-300/10" : "border-white/10 bg-black/25"}`}><p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{label}</p><p className="mt-1 truncate text-xl font-black text-white sm:text-2xl">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>;
+  return <div className={`rounded-3xl border p-3 sm:p-4 ${warn ? "border-amber-300/30 bg-amber-300/10" : "border-white/10 bg-black/25"}`}><p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{label}</p><p className="mt-1 truncate text-xl font-black text-white sm:text-2xl">{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
+}
+
+function StatusDot({ tone }) {
+  const colors = {
+    green: "bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,.75)]",
+    orange: "bg-orange-300 shadow-[0_0_12px_rgba(253,186,116,.75)]",
+    slate: "bg-slate-400",
+  };
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${colors[tone] || colors.slate}`} />;
 }
 
 function ClassCard({ booking }) {

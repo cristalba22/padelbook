@@ -17,7 +17,7 @@ const DEMO_PROFILES = [
     label: "Profe",
     email: "lucio@club.com",
     password: "profe123",
-    detail: "Clases del dia y disponibilidad.",
+    detail: "Clases del día y disponibilidad.",
     tone: "border-sky-300/30 text-sky-100",
   },
   {
@@ -25,7 +25,7 @@ const DEMO_PROFILES = [
     label: "Admin",
     email: "admin@club.com",
     password: "admin123",
-    detail: "Reservas, calendario, staff y metricas.",
+    detail: "Reservas, calendario, staff y métricas.",
     tone: "border-emerald-300/30 text-emerald-100",
   },
 ];
@@ -62,8 +62,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError("");
     try {
       const profile = mode === "register"
@@ -98,8 +98,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
         <aside className="hidden border-r border-white/10 bg-white/[0.03] p-7 md:block">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">PadelBook</p>
           <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Acceso al club</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            Una entrada clara para mostrar el producto completo: jugador, profe y administracion.
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            Una entrada clara para mostrar el producto completo: jugador, profe y administración.
           </p>
 
           <div className="mt-7 space-y-3">
@@ -114,7 +114,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
             {mode === "login" ? "Ingresar" : "Crear cuenta"}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
+          <p className="mt-2 text-sm leading-6 text-slate-300">
             {mode === "login"
               ? "Usá un perfil de prueba o ingresá con una cuenta registrada."
               : "Creá un perfil de jugador con datos útiles para reservas, torneos y comunidad."}
@@ -131,13 +131,13 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             {mode === "register" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nombre">
-                  <input value={name} onChange={(e) => setName(e.target.value)} className="field" placeholder="Tu nombre" autoComplete="name" required />
+                  <input value={name} onChange={(event) => setName(event.target.value)} className="field" placeholder="Tu nombre" autoComplete="name" required />
                 </Field>
-                <Field label="Telefono">
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} className="field" placeholder="+54 9..." autoComplete="tel" />
+                <Field label="Teléfono">
+                  <input value={phone} onChange={(event) => setPhone(event.target.value)} className="field" placeholder="+54 9..." autoComplete="tel" />
                 </Field>
                 <Field label="Categoría">
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="field">
+                  <select value={category} onChange={(event) => setCategory(event.target.value)} className="field">
                     {CATEGORIES.map((item) => <option key={item}>{item}</option>)}
                   </select>
                 </Field>
@@ -148,10 +148,10 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             )}
 
             <Field label="Email">
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="field" placeholder="tu@email.com" autoComplete="email" required />
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="field" placeholder="tu@email.com" autoComplete="email" required />
             </Field>
-            <Field label="Contrasena">
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="field" placeholder="********" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
+            <Field label="Contraseña">
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field" placeholder="********" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
             </Field>
 
             <button type="submit" className="btn-primary w-full justify-center py-3">
@@ -161,8 +161,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
 
           <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Perfiles de prueba</p>
-              <span className="text-[10px] text-slate-500">Click y entrar</span>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Perfiles de prueba</p>
+              <span className="text-[10px] text-slate-400">Click y entrar</span>
             </div>
             <div className="grid gap-2">
               {DEMO_PROFILES.map((profile) => (
@@ -174,9 +174,9 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-black">{profile.label}</span>
-                    <span className="text-[10px] text-slate-500">{profile.email}</span>
+                    <span className="text-[10px] text-slate-400">{profile.email}</span>
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-400">{profile.detail}</p>
+                  <p className="mt-1 text-[11px] text-slate-300">{profile.detail}</p>
                 </button>
               ))}
             </div>
@@ -188,14 +188,14 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
 }
 
 function Field({ label, children }) {
-  return <label className="block"><span className="mb-1 block text-xs text-slate-400">{label}</span>{children}</label>;
+  return <label className="block"><span className="mb-1 block text-xs text-slate-300">{label}</span>{children}</label>;
 }
 
 function SidePoint({ value, label }) {
   return (
     <div className="rounded-2xl border border-lime-300/15 bg-lime-300/10 px-4 py-3">
       <p className="text-2xl font-black text-lime-100">{value}</p>
-      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-xs text-slate-300">{label}</p>
     </div>
   );
 }

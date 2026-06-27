@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
     const lower = cleanEmail(email);
     const account = getUsers().find((u) => cleanEmail(u.email) === lower);
     if (!account) throw new Error("No existe una cuenta con ese email. Usa un perfil de prueba o registrate como jugador.");
-    if (account.password && account.password !== password) throw new Error("La contrasena ingresada no coincide con la cuenta.");
+    if (account.password && account.password !== password) throw new Error("La contraseña ingresada no coincide con la cuenta.");
     const profile = publicProfile(account);
     setUser(profile);
     safeWrite(AUTH_KEY, profile);
@@ -101,7 +101,7 @@ export function AuthProvider({ children }) {
     const lower = cleanEmail(email);
     if (!name?.trim()) throw new Error("Ingresa tu nombre.");
     if (!lower.includes("@")) throw new Error("Ingresa un email valido.");
-    if (!password || password.length < 4) throw new Error("La contrasena debe tener al menos 4 caracteres.");
+    if (!password || password.length < 4) throw new Error("La contraseña debe tener al menos 4 caracteres.");
     const users = getUsers();
     if (users.some((u) => cleanEmail(u.email) === lower)) throw new Error("Ya existe una cuenta con ese email.");
     const account = { id: `user-${Date.now()}`, name: name.trim(), email: lower, password, role: "player", phone, category };

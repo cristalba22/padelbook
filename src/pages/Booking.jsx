@@ -100,7 +100,7 @@ export default function Booking() {
       type,
       teacherId: type === "class" ? primaryTeacher?.id : null,
       teacherName: type === "class" ? primaryTeacher?.name : "",
-      description: type === "class" ? "Clase con profesor" : `Turno de padel de ${formatDuration(durationMinutes)}`,
+      description: type === "class" ? "Clase con profesor" : `Turno de pádel de ${formatDuration(durationMinutes)}`,
     });
     setConfirmationMsg("");
   };
@@ -109,15 +109,15 @@ export default function Booking() {
     if (!selectedSlot || !paymentOption) return;
     if (!user) {
       openLogin();
-      setConfirmationMsg("Ingresa para confirmar la reserva y guardarla en tu cuenta.");
-      notify({ type: "info", title: "Ingresa para reservar", message: "Despues de iniciar sesion volves al flujo con el horario seleccionado." });
+      setConfirmationMsg("Ingresá para confirmar la reserva y guardarla en tu cuenta.");
+      notify({ type: "info", title: "Ingresá para reservar", message: "Después de iniciar sesión volvés al flujo con el horario seleccionado." });
       return;
     }
 
     if (isSlotTaken(selectedSlot.courtId, selectedSlot.hour, selectedSlot.type, selectedSlot.durationMinutes)) {
       setSelectedSlot(null);
       setPaymentOption(null);
-      setConfirmationMsg("Ese horario ya no esta disponible. Elegi otro turno para continuar.");
+      setConfirmationMsg("Ese horario ya no está disponible. Elegí otro turno para continuar.");
       notify({ type: "warning", title: "Horario ocupado", message: "Ese turno acaba de dejar de estar disponible." });
       return;
     }
@@ -134,7 +134,7 @@ export default function Booking() {
 
     const savedBooking = await addBooking(payload);
     if (savedBooking?.duplicated) {
-      setConfirmationMsg("Ese horario ya fue reservado. Elegi otro turno disponible.");
+      setConfirmationMsg("Ese horario ya fue reservado. Elegí otro turno disponible.");
       notify({ type: "warning", title: "Reserva duplicada", message: "Proba con otro horario disponible." });
       return;
     }
@@ -144,11 +144,11 @@ export default function Booking() {
     let message = "";
     if (paymentOption === "deposit") {
       const deposit = Math.round(selectedSlot.price * 0.3);
-      message = `Reserva guardada en tu cuenta. Se registro la sena de $${deposit.toLocaleString("es-AR")}.`;
+      message = `Reserva guardada en tu cuenta. Se registró la seña de $${deposit.toLocaleString("es-AR")}.`;
     } else if (paymentOption === "full") {
       message = "Reserva guardada en tu cuenta. El turno quedo registrado con pago total.";
     } else {
-      message = "Reserva guardada como 'paga en el club'. El administrador la vera como pendiente hasta registrar el pago.";
+      message = "Reserva guardada como 'paga en el club'. El administrador la verá como pendiente hasta registrar el pago.";
     }
 
     setConfirmationMsg(message);
@@ -164,7 +164,7 @@ export default function Booking() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">Reservas - Paso 2</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Reservar turno</h1>
-          <p className="mt-1 max-w-xl text-sm text-white/60">Elegi dia, cancha o clase, selecciona la forma de pago y confirma tu turno en pocos pasos.</p>
+          <p className="mt-1 max-w-xl text-sm text-white/70">Elegí día, cancha o clase, seleccioná la forma de pago y confirmá tu turno en pocos pasos.</p>
         </div>
 
         <div className="text-right">
@@ -183,16 +183,16 @@ export default function Booking() {
               className="rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-lime-300/60"
             />
           </div>
-          <p className="mt-1 text-[11px] text-white/40">Podes cambiarla desde aca sin volver al paso 1.</p>
+          <p className="mt-1 text-[11px] text-white/55">Podés cambiarla desde acá sin volver al paso 1.</p>
         </div>
       </header>
 
       <section className="mb-5 rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4 shadow-xl">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-lime-100">Duracion del partido</p>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-lime-100">Duración del partido</p>
             <h2 className="mt-1 text-xl font-black text-white">Reserva el tiempo que necesita tu grupo</h2>
-            <p className="mt-1 text-sm text-slate-300">Ideal para partidos de 4 o mas jugadores: 1:30, 2 hs o 2:30 hs.</p>
+            <p className="mt-1 text-sm text-slate-200">Ideal para partidos de 4 o más jugadores: 1:30, 2 hs o 2:30 hs.</p>
           </div>
           <div className="grid grid-cols-4 gap-2 md:min-w-[360px]">
             {DURATION_OPTIONS.map((option) => {
@@ -264,7 +264,7 @@ export default function Booking() {
               </div>
 
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/45">Turnos de padel - elegi {formatDuration(selectedDuration)}</p>
+                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Turnos de pádel - elegí {formatDuration(selectedDuration)}</p>
                 <div className="flex flex-wrap gap-2">
                   {COURT_HOURS.map((hour) => {
                     const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, prices);
@@ -295,14 +295,14 @@ export default function Booking() {
             <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-white/40">Tu reserva</p>
 
             {!selectedSlot ? (
-              <div className="text-sm text-white/60">Todavia no seleccionaste un horario.<br />Elegi una clase o turno de padel a la izquierda para ver el detalle aca.</div>
+              <div className="text-sm text-white/70">Todavía no seleccionaste un horario.<br />Elegí una clase o turno de pádel a la izquierda para ver el detalle acá.</div>
             ) : (
               <>
                 <div className="mb-3 space-y-1">
                   <h3 className="text-base font-semibold">{selectedSlot.courtName}</h3>
                   <p className="text-xs text-white/60">{formattedDate} - {selectedSlot.hour} a {selectedSlot.endTime}</p>
                   <p className="text-[11px] text-lime-300/90">
-                    {selectedSlot.type === "class" ? "Clase con profesor" : `Turno de padel - ${formatDuration(selectedSlot.durationMinutes)}`}
+                    {selectedSlot.type === "class" ? "Clase con profesor" : `Turno de pádel - ${formatDuration(selectedSlot.durationMinutes)}`}
                   </p>
                 </div>
 
@@ -318,7 +318,7 @@ export default function Booking() {
                 </div>
 
                 <div className="mt-4">
-                  <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/40">Como queres pagar</p>
+                  <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cómo querés pagar</p>
                   <div className="space-y-2">
                     {PAYMENT_OPTIONS.map((opt) => {
                       const isActive = paymentOption === opt.id;
@@ -369,7 +369,7 @@ export default function Booking() {
 
           <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4 text-[11px] text-lime-50/85">
             <p className="mb-1 font-semibold text-white">Reserva segura</p>
-            <p>El turno queda guardado en tu cuenta y el club lo visualiza al instante en su panel de gestion.</p>
+            <p>El turno queda guardado en tu cuenta y el club lo visualiza al instante en su panel de gestión.</p>
           </div>
         </aside>
       </section>
@@ -387,6 +387,11 @@ function PriceLine({ label, value }) {
 }
 
 function SlotChoice({ disabled, selected, title, onClick, main, side }) {
+  const dotClass = disabled
+    ? "bg-orange-300 shadow-[0_0_10px_rgba(253,186,116,.72)]"
+    : selected
+      ? "bg-black/70"
+      : "bg-lime-300 shadow-[0_0_10px_rgba(190,242,100,.78)]";
   return (
     <button
       onClick={onClick}
@@ -400,7 +405,7 @@ function SlotChoice({ disabled, selected, title, onClick, main, side }) {
             : "border-white/15 bg-black/40 text-white hover:bg-white/10"
       }`}
     >
-      <span className="font-medium">{main}</span>
+      <span className="inline-flex items-center gap-2 font-medium"><span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />{main}</span>
       <span className={`text-[11px] font-semibold ${disabled ? "text-orange-100/80" : selected ? "text-black/80" : "text-lime-300 group-hover:text-lime-200"}`}>{side}</span>
     </button>
   );

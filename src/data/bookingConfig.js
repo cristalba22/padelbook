@@ -2,8 +2,8 @@
 export const COURTS = [
   {
     id: "court1",
-    name: "Cancha 1 - Cesped sintetico",
-    description: "Outdoor - Cesped sintetico - LED",
+    name: "Cancha 1 - Césped sintético",
+    description: "Outdoor - Césped sintético - LED",
     tag: "Muy elegida para partidos nocturnos",
   },
   {
@@ -15,7 +15,7 @@ export const COURTS = [
   {
     id: "court3",
     name: "Cancha 3 - Techada",
-    description: "Outdoor tech - Cesped fibrilado - LED",
+    description: "Outdoor tech - Césped fibrilado - LED",
     tag: "Perfecta para clases y torneos",
   },
 ];
@@ -35,7 +35,7 @@ export const PAYMENT_OPTIONS = [
   {
     id: "deposit",
     label: "Sena online (30%) - Mercado Pago",
-    subtitle: "Pagas una sena ahora y el resto en el club.",
+    subtitle: "Pagás una seña ahora y el resto en el club.",
     badge: "Recomendado",
   },
   {

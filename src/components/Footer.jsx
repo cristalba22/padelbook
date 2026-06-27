@@ -30,7 +30,7 @@ export default function Footer() {
               </div>
               <div>
                 <p className="text-sm font-black text-white">{settings.clubShortName}</p>
-                <p className="text-xs text-slate-400">Reservas, torneos y comunidad de padel</p>
+                <p className="text-xs text-slate-300">Reservas, torneos y comunidad de pádel</p>
               </div>
             </div>
 
@@ -52,7 +52,7 @@ export default function Footer() {
                     Instagram
                   </a>
                   <a className="btn-outline px-4 py-2 text-xs" href={`https://www.google.com/maps?q=${mapsQuery}`} target="_blank" rel="noreferrer">
-                    Como llegar
+                    Cómo llegar
                   </a>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">@{instagram.replace(/^@/, "")}</p>
@@ -64,7 +64,7 @@ export default function Footer() {
         <section className="overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 shadow-xl">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-lime-100">Ubicacion</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-lime-100">Ubicación</p>
               <p className="text-sm font-bold text-white">{settings.clubName}</p>
             </div>
             <a

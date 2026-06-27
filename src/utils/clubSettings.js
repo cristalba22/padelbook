@@ -5,16 +5,16 @@ export const CLUB_SETTINGS_KEY = "padel_club_settings";
 export const DEFAULT_CLUB_SETTINGS = Object.freeze({
   clubName: import.meta.env.VITE_CLUB_NAME || "Arena Norte Padel Club",
   clubShortName: import.meta.env.VITE_CLUB_SHORT_NAME || "PadelBook",
-  address: import.meta.env.VITE_CLUB_ADDRESS || "Edmundo Mariotte 5308 - Cordoba Capital",
-  mapsQuery: import.meta.env.VITE_CLUB_MAPS_QUERY || "Edmundo Mariotte 5308, Cordoba, Argentina",
+  address: import.meta.env.VITE_CLUB_ADDRESS || "Edmundo Mariotte 5308 - Córdoba Capital",
+  mapsQuery: import.meta.env.VITE_CLUB_MAPS_QUERY || "Edmundo Mariotte 5308, Córdoba, Argentina",
   whatsapp: import.meta.env.VITE_CLUB_WHATSAPP || "5493510000000",
   instagram: import.meta.env.VITE_CLUB_INSTAGRAM || "padelbook.club",
   openingHours: import.meta.env.VITE_CLUB_OPENING_HOURS || "09:00 a 22:00",
-  homeHeadline: import.meta.env.VITE_HOME_HEADLINE || "Tu proximo partido empieza antes de llegar a la cancha.",
+  homeHeadline: import.meta.env.VITE_HOME_HEADLINE || "Tu próximo partido empieza antes de llegar a la cancha.",
   homeSubtitle:
     import.meta.env.VITE_HOME_SUBTITLE ||
-    "Reserva, paga sena, consulta tus turnos, busca jugadores por categoria y entra a torneos desde una experiencia simple, rapida y pensada para jugadores de padel.",
-  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9a reserva bonificada",
+    "Reservá, pagá seña, consultá tus turnos, buscá jugadores por categoría y entrá a torneos desde una experiencia simple, rápida y pensada para jugadores de pádel.",
+  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9ª reserva bonificada",
   clubStatus: import.meta.env.VITE_CLUB_STATUS || "Club abierto - reservas online",
 });
 
