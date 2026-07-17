@@ -28,6 +28,10 @@ function formatDuration(minutes) {
   return `${hours}:${String(rest).padStart(2, "0")} h`;
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function Booking() {
   const { user, openLogin } = useAuth();
   const { bookings, addBooking, setSelectedBooking } = useBooking();
@@ -108,6 +112,11 @@ export default function Booking() {
 
   const handleConfirm = async () => {
     if (!selectedSlot || !paymentOption || isSubmitting) return;
+    if (selectedDate < todayISO()) {
+      setConfirmationMsg("No se pueden confirmar reservas en fechas pasadas.");
+      notify({ type: "warning", title: "Fecha no disponible", message: "Elegí una fecha desde hoy en adelante." });
+      return;
+    }
     if (!user) {
       openLogin();
       setConfirmationMsg("Ingresá para confirmar la reserva y guardarla en tu cuenta.");
@@ -168,7 +177,7 @@ export default function Booking() {
     <main className="main-container pt-24 text-white">
       <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">Reservas - Paso 2</p>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">Reservas online</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Reservar turno</h1>
           <p className="mt-1 max-w-xl text-sm text-white/70">Elegí día, cancha o clase, seleccioná la forma de pago y confirmá tu turno en pocos pasos.</p>
         </div>
@@ -180,7 +189,7 @@ export default function Booking() {
             <input
               type="date"
               value={selectedDate}
-              min={new Date().toISOString().slice(0, 10)}
+              min={todayISO()}
               onChange={(e) => {
                 setSelectedDate(e.target.value);
                 setSelectedSlot(null);

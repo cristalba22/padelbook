@@ -9,6 +9,10 @@ import { getUserTournamentRegistrations, TOURNAMENTS_EVENT } from "../utils/tour
 
 const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "Profesor"];
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function Account() {
   const { user, login, register, updateProfile } = useAuth();
   const { bookings } = useBooking();
@@ -169,7 +173,8 @@ export default function Account() {
 function splitTournamentRegistrations(registrations = []) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const ordered = [...registrations].sort((a, b) => `${a.tournamentDate || "9999-12-31"}T${a.tournamentHour || "00:00"}`.localeCompare(`${b.tournamentDate || "9999-12-31"}T${b.tournamentHour || "00:00"}`));
+  const fallbackDate = todayISO();
+  const ordered = [...registrations].sort((a, b) => `${a.tournamentDate || fallbackDate}T${a.tournamentHour || "00:00"}`.localeCompare(`${b.tournamentDate || fallbackDate}T${b.tournamentHour || "00:00"}`));
   const isPast = (item) => {
     const tournamentStatus = String(item.statusTournament || "").toLowerCase();
     if (["finalizado", "cancelado"].includes(tournamentStatus)) return true;

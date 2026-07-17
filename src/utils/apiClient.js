@@ -24,6 +24,10 @@ export async function apiRequest(path, options = {}) {
   }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      setAuthToken(null);
+      window.dispatchEvent(new CustomEvent("padel:auth-expired", { detail: payload }));
+    }
     const error = new Error(payload.message || "No se pudo completar la operacion.");
     error.status = response.status;
     error.payload = payload;

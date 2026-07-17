@@ -15,7 +15,7 @@ function normalizeUserBooking(booking) {
     endTime: booking.endTime || "",
     durationMinutes: booking.durationMinutes || 60,
     timeLabel: booking.endTime ? `${time} a ${booking.endTime}` : time,
-    type: booking.teacherId ? "clase" : "cancha",
+    type: booking.type === "class" || booking.teacherId || booking.teacherName ? "clase" : "cancha",
     courtOrClass: booking.courtName || booking.court || "Turno de cancha",
     playerOrGroup: booking.playerName || booking.userName || "Jugador web",
     note: booking.description || "Reserva registrada desde el sitio",
@@ -35,13 +35,14 @@ function money(value) {
 }
 
 export default function AdminBookings() {
-  const { bookings: userBookings = [], markAsPaid, markAsPending, cancelBooking, updateBookingStatus } = useBooking();
+  const { bookings: userBookings = [], updateBookingStatus } = useBooking();
   const { notify } = useToast();
   const [localBookings, setLocalBookings] = useState(initialBookings);
   const [dateFilter, setDateFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [search, setSearch] = useState("");
+  const [busyId, setBusyId] = useState("");
 
   const bookings = useMemo(() => {
     const webBookings = userBookings.map(normalizeUserBooking);
@@ -71,23 +72,40 @@ export default function AdminBookings() {
     setLocalBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
   }
 
+  async function setBookingStatus(booking, status) {
+    setBusyId(`${booking.id}-${status}`);
+    try {
+      if (booking.source === "web") {
+        await updateBookingStatus(booking.id, status);
+      } else {
+        updateLocalStatus(booking.id, status);
+      }
+
+      const labels = {
+        confirmado: "Reserva confirmada",
+        pendiente: "Reserva pendiente",
+        cancelado: "Reserva cancelada",
+      };
+      const type = status === "cancelado" ? "error" : status === "pendiente" ? "warning" : "success";
+      notify({ type, title: labels[status] || "Reserva actualizada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.timeLabel || booking.time}` });
+    } catch (error) {
+      notify({ type: "error", title: "No se pudo actualizar", message: error.message || "Revisá la conexión con la API." });
+    } finally {
+      setBusyId("");
+    }
+  }
+
   function handleConfirm(booking) {
-    if (booking.source === "web") markAsPaid(booking.id);
-    else updateLocalStatus(booking.id, "confirmado");
-    notify({ type: "success", title: "Reserva confirmada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.timeLabel || booking.time}` });
+    setBookingStatus(booking, "confirmado");
   }
 
   function handlePending(booking) {
-    if (booking.source === "web") markAsPending(booking.id);
-    else updateLocalStatus(booking.id, "pendiente");
-    notify({ type: "warning", title: "Reserva pendiente", message: "Quedó marcada para seguimiento." });
+    setBookingStatus(booking, "pendiente");
   }
 
   function handleCancel(booking) {
     if (!window.confirm("¿Seguro que querés cancelar esta reserva?")) return;
-    if (booking.source === "web") cancelBooking(booking.id);
-    else updateLocalStatus(booking.id, "cancelado");
-    notify({ type: "error", title: "Reserva cancelada", message: `${booking.playerOrGroup} - ${booking.date} ${booking.timeLabel || booking.time}` });
+    setBookingStatus(booking, "cancelado");
   }
 
   function handleWhatsApp(b) {
@@ -155,14 +173,14 @@ export default function AdminBookings() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((booking) => <BookingRow key={booking.id} booking={booking} onWhatsApp={handleWhatsApp} onConfirm={handleConfirm} onPending={handlePending} onCancel={handleCancel} />)}
+                {filtered.map((booking) => <BookingRow key={booking.id} booking={booking} busyId={busyId} onWhatsApp={handleWhatsApp} onConfirm={handleConfirm} onPending={handlePending} onCancel={handleCancel} />)}
                 {filtered.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-sm text-slate-500">No hay reservas con esos filtros.</td></tr>}
               </tbody>
             </table>
           </div>
 
           <div className="grid gap-3 lg:hidden">
-            {filtered.map((booking) => <BookingMobileCard key={booking.id} booking={booking} onWhatsApp={handleWhatsApp} onConfirm={handleConfirm} onPending={handlePending} onCancel={handleCancel} />)}
+            {filtered.map((booking) => <BookingMobileCard key={booking.id} booking={booking} busyId={busyId} onWhatsApp={handleWhatsApp} onConfirm={handleConfirm} onPending={handlePending} onCancel={handleCancel} />)}
             {filtered.length === 0 && <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">No hay reservas con esos filtros.</p>}
           </div>
         </div>
@@ -198,7 +216,7 @@ function Metric({ label, value, tone = "slate" }) {
   return <div className={`rounded-2xl border px-3 py-3 ${tones[tone]}`}><p className="text-[10px] uppercase tracking-[0.16em] opacity-70">{label}</p><p className="mt-1 text-lg font-black">{value}</p></div>;
 }
 
-function BookingRow({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
+function BookingRow({ booking, busyId, onWhatsApp, onConfirm, onPending, onCancel }) {
   return (
     <tr className="border-t border-white/10 align-top transition hover:bg-white/[0.03]">
       <td className="px-3 py-4 font-semibold text-white">{booking.date}</td>
@@ -207,17 +225,18 @@ function BookingRow({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
       <td className="px-3 py-4"><p className="font-semibold text-white">{booking.playerOrGroup}</p><p className="mt-1 text-xs text-slate-500">{booking.phone}</p></td>
       <td className="px-3 py-4 font-bold text-white">{money(booking.price)}</td>
       <td className="px-3 py-4"><StatusPill status={booking.status} /></td>
-      <td className="px-3 py-4"><ActionBar booking={booking} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} align="end" /></td>
+      <td className="px-3 py-4"><ActionBar booking={booking} busyId={busyId} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} align="end" /></td>
     </tr>
   );
 }
 
-function BookingMobileCard({ booking, onWhatsApp, onConfirm, onPending, onCancel }) {
-  return <article className="rounded-3xl border border-white/10 bg-black/35 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{booking.date} · {booking.timeLabel || booking.time}</p><h3 className="mt-1 font-semibold text-white">{booking.playerOrGroup}</h3><p className="text-sm text-slate-400">{booking.courtOrClass}</p></div><StatusPill status={booking.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><Info label="Teléfono" value={booking.phone} /><Info label="Importe" value={money(booking.price)} /></div><ActionBar booking={booking} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} /></article>;
+function BookingMobileCard({ booking, busyId, onWhatsApp, onConfirm, onPending, onCancel }) {
+  return <article className="rounded-3xl border border-white/10 bg-black/35 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{booking.date} · {booking.timeLabel || booking.time}</p><h3 className="mt-1 font-semibold text-white">{booking.playerOrGroup}</h3><p className="text-sm text-slate-400">{booking.courtOrClass}</p></div><StatusPill status={booking.status} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><Info label="Teléfono" value={booking.phone} /><Info label="Importe" value={money(booking.price)} /></div><ActionBar booking={booking} busyId={busyId} onWhatsApp={onWhatsApp} onConfirm={onConfirm} onPending={onPending} onCancel={onCancel} /></article>;
 }
 
-function ActionBar({ booking, onWhatsApp, onConfirm, onPending, onCancel, align = "start" }) {
-  return <div className={`mt-0 flex flex-wrap gap-2 ${align === "end" ? "justify-end" : "mt-4"}`}><button onClick={() => onWhatsApp(booking)} className="action-btn border-emerald-400/35 text-emerald-200 hover:bg-emerald-400/10">WhatsApp</button>{booking.status === "pendiente" && <button onClick={() => onConfirm(booking)} className="action-btn border-sky-400/35 text-sky-200 hover:bg-sky-400/10">Confirmar</button>}{booking.status === "confirmado" && <button onClick={() => onPending(booking)} className="action-btn border-amber-400/35 text-amber-200 hover:bg-amber-400/10">Pendiente</button>}{booking.status !== "cancelado" && <button onClick={() => onCancel(booking)} className="action-btn border-rose-400/35 text-rose-200 hover:bg-rose-400/10">Cancelar</button>}</div>;
+function ActionBar({ booking, busyId, onWhatsApp, onConfirm, onPending, onCancel, align = "start" }) {
+  const isBusy = String(busyId || "").startsWith(`${booking.id}-`);
+  return <div className={`mt-0 flex flex-wrap gap-2 ${align === "end" ? "justify-end" : "mt-4"}`}><button disabled={isBusy} onClick={() => onWhatsApp(booking)} className="action-btn border-emerald-400/35 text-emerald-200 hover:bg-emerald-400/10">WhatsApp</button>{booking.status === "pendiente" && <button disabled={isBusy} onClick={() => onConfirm(booking)} className="action-btn border-sky-400/35 text-sky-200 hover:bg-sky-400/10">{busyId === `${booking.id}-confirmado` ? "Guardando..." : "Confirmar"}</button>}{booking.status === "confirmado" && <button disabled={isBusy} onClick={() => onPending(booking)} className="action-btn border-amber-400/35 text-amber-200 hover:bg-amber-400/10">{busyId === `${booking.id}-pendiente` ? "Guardando..." : "Pendiente"}</button>}{booking.status !== "cancelado" && <button disabled={isBusy} onClick={() => onCancel(booking)} className="action-btn border-rose-400/35 text-rose-200 hover:bg-rose-400/10">{busyId === `${booking.id}-cancelado` ? "Cancelando..." : "Cancelar"}</button>}</div>;
 }
 
 function Info({ label, value }) {

@@ -20,8 +20,12 @@ function bookingTimeLabel(booking = {}) {
   return booking.endTime ? `${start} a ${booking.endTime}` : start;
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function eventDate(event) {
-  return new Date(`${event.date || "9999-12-31"}T${event.time || "00:00"}:00`);
+  return new Date(`${event.date || todayISO()}T${event.time || "00:00"}:00`);
 }
 
 function money(value) {
@@ -71,8 +75,9 @@ export default function PlayerDashboard() {
   }, [myBookings]);
 
   const tournamentData = useMemo(() => {
+    const fallbackDate = todayISO();
     const registrations = getUserTournamentRegistrations(user, prices.tournamentPrice)
-      .sort((a, b) => `${a.tournamentDate || "9999-12-31"}T${a.tournamentHour || "00:00"}`.localeCompare(`${b.tournamentDate || "9999-12-31"}T${b.tournamentHour || "00:00"}`));
+      .sort((a, b) => `${a.tournamentDate || fallbackDate}T${a.tournamentHour || "00:00"}`.localeCompare(`${b.tournamentDate || fallbackDate}T${b.tournamentHour || "00:00"}`));
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isPast = (item) => {

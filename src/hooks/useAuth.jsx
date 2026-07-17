@@ -58,6 +58,16 @@ export function AuthProvider({ children }) {
       .catch(() => setAuthToken(null));
   }, []);
 
+  useEffect(() => {
+    const handleExpired = () => {
+      setUser(null);
+      safeRemove(AUTH_KEY);
+      setShowLogin(true);
+    };
+    window.addEventListener("padel:auth-expired", handleExpired);
+    return () => window.removeEventListener("padel:auth-expired", handleExpired);
+  }, []);
+
   function openLogin() { setShowLogin(true); }
   function closeLogin() { setShowLogin(false); }
 

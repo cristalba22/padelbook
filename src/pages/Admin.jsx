@@ -8,6 +8,7 @@ import { useSchedule } from "../hooks/useSchedule.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { buildAdminMetrics, money, todayISO, normalizeBooking } from "../utils/businessMetrics.js";
 import { readActivity } from "../utils/activityLog.js";
+import { apiRequest } from "../utils/apiClient.js";
 
 const HOURS = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
 
@@ -33,11 +34,21 @@ export default function AdminDashboard() {
   const date = todayISO();
 
   useEffect(() => {
-    const sync = () => setActivity(readActivity(8));
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const payload = await apiRequest("/activity");
+        if (!cancelled) setActivity((payload.activity || []).slice(0, 8));
+      } catch {
+        if (!cancelled) setActivity(readActivity(8));
+      }
+    };
+    sync();
     window.addEventListener("padel:activity-updated", sync);
     window.addEventListener("padel:bookings-updated", sync);
     window.addEventListener("padel:schedule-updated", sync);
     return () => {
+      cancelled = true;
       window.removeEventListener("padel:activity-updated", sync);
       window.removeEventListener("padel:bookings-updated", sync);
       window.removeEventListener("padel:schedule-updated", sync);

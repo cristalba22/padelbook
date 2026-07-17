@@ -250,8 +250,12 @@ app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
 });
 
 app.get("/api/settings", async (_req, res) => {
-  const settings = await Setting.findOne().sort({ createdAt: 1 });
-  res.json({ settings: settings?.toJSON() || {} });
+  const settings = await Setting.findOneAndUpdate(
+    {},
+    { $setOnInsert: {} },
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
+  );
+  res.json({ settings: settings.toJSON() });
 });
 
 app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => {

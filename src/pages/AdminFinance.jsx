@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
@@ -123,7 +123,7 @@ export default function AdminFinance() {
   const [form, setForm] = useState({ date: todayISO(), concept: "", category: "operativo", amount: "", paymentMethod: "efectivo", note: "" });
   const [message, setMessage] = useState("");
 
-  async function loadSummary() {
+  const loadSummary = useCallback(async () => {
     setLoading(true);
     try {
       const payload = await apiRequest("/finance/summary");
@@ -133,11 +133,11 @@ export default function AdminFinance() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [bookings, prices]);
 
   useEffect(() => {
     loadSummary();
-  }, [bookings, prices]);
+  }, []);
 
   const maxTrend = useMemo(() => Math.max(1, ...summary.dailyTrend.map((item) => Math.max(item.income, item.expenses + item.commissions))), [summary.dailyTrend]);
   const month = summary.byPeriod.month || { income: 0, expenses: 0, commissions: 0, net: 0 };
@@ -163,6 +163,11 @@ export default function AdminFinance() {
 
   return (
     <AdminLayout title="Finanzas del club" subtitle="Ingresos, egresos, comisiones de profesores y rentabilidad por período.">
+      <div className="mb-4 flex justify-end">
+        <button type="button" onClick={loadSummary} disabled={loading} className="btn-outline px-4 py-2 text-xs">
+          {loading ? "Actualizando..." : "Actualizar datos"}
+        </button>
+      </div>
       <section className="mobile-snap-row compact mb-6 grid gap-4 xl:grid-cols-4">
         <FinanceMetric label="Hoy" data={summary.byPeriod.day} />
         <FinanceMetric label="Semana" data={summary.byPeriod.week} />
