@@ -73,7 +73,7 @@ function loadLastBooking() {
         paymentMethod:
           data.paymentOption === "cash"
             ? "Paga en el club"
-            : "Mercado Pago",
+            : "Pago coordinado",
         description:
           data.type === "class"
             ? "Clase con profesor"
@@ -410,7 +410,7 @@ export default function MyBookings() {
                             onClick={() => handlePayNow(booking)}
                             className="rounded-full bg-gradient-to-r from-lime-400 to-lime-300 px-4 py-2 font-semibold text-zinc-950 shadow-lg shadow-lime-400/40 hover:shadow-lime-400/60 transition"
                           >
-                            Pagar ahora con Mercado Pago
+                            Coordinar pago
                           </button>
                         )}
 

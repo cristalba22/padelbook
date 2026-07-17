@@ -30,21 +30,21 @@ export default function CheckoutModal({ open, onClose, selected }) {
           <button
             className="w-full bg-lime-500 hover:bg-lime-400 text-black font-semibold py-2 rounded-lg transition"
             onClick={() => {
-              alert("Simular Mercado Pago (50%)");
+              alert("Seña pendiente de coordinación con el club");
               onClose();
             }}
           >
-            Pagar seña (50%)
+            Coordinar seña (50%)
           </button>
 
           <button
             className="w-full bg-lime-600/20 hover:bg-lime-500/40 text-white font-semibold py-2 rounded-lg transition border border-lime-500/30"
             onClick={() => {
-              alert("Simular Mercado Pago (total)");
+              alert("Pago total pendiente de coordinación con el club");
               onClose();
             }}
           >
-            Pagar todo ahora
+            Coordinar pago total
           </button>
 
           <button

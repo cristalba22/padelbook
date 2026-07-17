@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
+import { apiRequest } from "../utils/apiClient.js";
 
 const CONFIG_FIELDS = [
   { key: "courtPrice", title: "Turno base", help: "Precio estándar de cancha." },
@@ -13,7 +14,9 @@ const CONFIG_FIELDS = [
   { key: "weekendExtra", title: "Extra fin de semana", help: "Adicional sábado y domingo." },
 ];
 
-function money(value) { return `$${Number(value || 0).toLocaleString("es-AR")}`; }
+function money(value) {
+  return `$${Number(value || 0).toLocaleString("es-AR")}`;
+}
 
 export default function AdminConfig() {
   const { prices, updatePrices } = usePricing();
@@ -21,6 +24,8 @@ export default function AdminConfig() {
   const [form, setForm] = useState(prices);
   const [clubForm, setClubForm] = useState(settings);
   const [savedAt, setSavedAt] = useState(null);
+  const [saveError, setSaveError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => setForm(prices), [prices]);
   useEffect(() => setClubForm(settings), [settings]);
@@ -34,9 +39,35 @@ export default function AdminConfig() {
     ];
   }, [form]);
 
-  function handleChange(key, value) { setForm((prev) => ({ ...prev, [key]: value.replace(/\D/g, "") })); }
-  function handleClubChange(key, value) { setClubForm((prev) => ({ ...prev, [key]: value })); }
-  function handleSave() { updatePrices(form); updateSettings(clubForm); setSavedAt(new Date()); setTimeout(() => setSavedAt(null), 3000); }
+  function handleChange(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value.replace(/\D/g, "") }));
+  }
+
+  function handleClubChange(key, value) {
+    setClubForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSave() {
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      const payload = { ...clubForm, ...form };
+      const { settings: savedSettings } = await apiRequest("/settings", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      updatePrices(savedSettings || form);
+      updateSettings(savedSettings || clubForm);
+      setSavedAt(new Date());
+      setTimeout(() => setSavedAt(null), 3000);
+    } catch {
+      updatePrices(form);
+      updateSettings(clubForm);
+      setSaveError("No se pudo guardar en MongoDB. Quedó guardado localmente en este navegador.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <AdminLayout title="Configuración comercial" subtitle="Todo lo que cargues acá se refleja en la web pública, reservas, torneos, comunidad y footer.">
@@ -46,9 +77,10 @@ export default function AdminConfig() {
           <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Valores del sistema</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Estos valores se reflejan automáticamente en reservas, clases, torneos y la vista pública del club.</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button onClick={handleSave} className="btn-primary px-6 py-3">Guardar cambios</button>
+            <button onClick={handleSave} disabled={isSaving} className="btn-primary px-6 py-3">{isSaving ? "Guardando..." : "Guardar cambios"}</button>
             <button onClick={() => setForm(prices)} className="btn-outline px-6 py-3">Deshacer edición</button>
             {savedAt && <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-2 text-xs font-bold text-lime-100">Cambios guardados ✓</span>}
+            {saveError && <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">{saveError}</span>}
           </div>
         </div>
         <aside className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-5 shadow-xl">
@@ -56,7 +88,6 @@ export default function AdminConfig() {
           <div className="mt-4 space-y-3">{preview.map((p) => <div key={p.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3"><span className="text-sm text-slate-300">{p.label}</span><strong className="text-white">{p.value}</strong></div>)}</div>
         </aside>
       </section>
-
 
       <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
         <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Datos visibles del club</p>
@@ -88,4 +119,6 @@ function ConfigCard({ field, value, onChange }) {
   return <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl transition hover:border-lime-300/30"><div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-black text-white">{field.title}</h3><p className="mt-1 text-sm text-slate-400">{field.help}</p></div><span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2.5 py-1 text-[11px] font-bold text-lime-100">{isPercent ? "%" : "ARS"}</span></div><label className="mt-5 flex items-center gap-3 rounded-2xl border border-lime-300/20 bg-black/40 px-4 py-3"><span className="text-slate-500">{isPercent ? "%" : "$"}</span><input value={value || ""} onChange={(e) => onChange(e.target.value)} inputMode="numeric" className="w-full bg-transparent text-xl font-black text-white outline-none" /></label><p className="mt-3 text-xs text-slate-500">Actual: {isPercent ? `${Number(value || 0)}%` : money(value)}</p></article>;
 }
 
-function TextField({ label, value, onChange }) { return <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</span><input value={value || ""} onChange={(e) => onChange(e.target.value)} className="field" /></label>; }
+function TextField({ label, value, onChange }) {
+  return <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</span><input value={value || ""} onChange={(e) => onChange(e.target.value)} className="field" /></label>;
+}

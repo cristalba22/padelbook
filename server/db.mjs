@@ -87,8 +87,16 @@ const tournamentSchema = new mongoose.Schema({
 
 const settingsSchema = new mongoose.Schema({
   clubName: { type: String, default: "Arena Norte Padel Club" },
+  clubShortName: { type: String, default: "PadelBook" },
+  address: { type: String, default: "Edmundo Mariotte 5308 - Córdoba Capital" },
+  mapsQuery: { type: String, default: "Edmundo Mariotte 5308, Córdoba, Argentina" },
   whatsapp: { type: String, default: "+5493510000000" },
+  instagram: { type: String, default: "padelbook.club" },
   openingHours: { type: String, default: "09:00 a 22:00" },
+  clubStatus: { type: String, default: "Club abierto - reservas online" },
+  homeHeadline: { type: String, default: "Tu próximo partido empieza antes de llegar a la cancha." },
+  homeSubtitle: { type: String, default: "Reservá, pagá seña, consultá tus turnos, buscá jugadores por categoría y entrá a torneos desde una experiencia simple, rápida y pensada para jugadores de pádel." },
+  promoText: { type: String, default: "9ª reserva bonificada" },
   courtPrice: { type: Number, default: 18000 },
   nightPrice: { type: Number, default: 24000 },
   weekendExtra: { type: Number, default: 3000 },
@@ -166,7 +174,7 @@ async function seedDatabase() {
     { name: "Ranking interno", status: "en_curso", date: addDays(12), hour: "18:00", category: "Caballeros 5ta/6ta", surface: "Mixta", pricePerPlayer: 0, seededPlayers: 40, currentPlayers: 40, maxPlayers: 64, prize: "Puntos ranking", description: "Liga interna mensual para socios.", registrations: [] },
   ]);
 
-  await Setting.create({ courtPrice: 18000, classPrice: 30000, tournamentPrice: 25000 });
+  await Setting.create({ courtPrice: 18000, nightPrice: 24000, weekendExtra: 3000, classPrice: 30000, tournamentPrice: 25000 });
   await Expense.insertMany([
     { date: addDays(0), concept: "Limpieza y mantenimiento diario", category: "mantenimiento", amount: 18000, paymentMethod: "efectivo" },
     { date: addDays(0), concept: "Pelotas y consumibles", category: "insumos", amount: 22000, paymentMethod: "transferencia" },

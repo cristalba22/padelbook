@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
 import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
 import { Activity, Booking, Expense, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
@@ -20,9 +22,22 @@ app.use(express.json());
 
 const cleanEmail = (email = "") => String(email).toLowerCase().trim();
 const normalizeStatus = (status = "pendiente") => String(status || "pendiente").toLowerCase();
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 25,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Demasiados intentos. Espera unos minutos y volve a probar." },
+});
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function isPastDate(date) {
+  return String(date || "") < todayString();
 }
 
 function addDaysString(days) {
@@ -91,7 +106,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, async (req, res) => {
   const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Email o contrasena invalidos." });
@@ -103,7 +118,7 @@ app.post("/api/auth/login", async (req, res) => {
   res.json({ user: publicUser(account), token: signToken(account) });
 });
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authLimiter, async (req, res) => {
   const schema = z.object({
     name: z.string().min(2),
     email: z.string().email(),
@@ -158,6 +173,7 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de reserva invalidos." });
+  if (isPastDate(parsed.data.date)) return res.status(400).json({ message: "No se pueden crear reservas en fechas pasadas." });
 
   const incoming = {
     ...parsed.data,
@@ -187,6 +203,7 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
 });
 
 app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
   const schema = z.object({ status: z.enum(["pendiente", "confirmado", "cancelado"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Estado invalido." });
@@ -235,6 +252,49 @@ app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
 app.get("/api/settings", async (_req, res) => {
   const settings = await Setting.findOne().sort({ createdAt: 1 });
   res.json({ settings: settings?.toJSON() || {} });
+});
+
+app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => {
+  const schema = z.object({
+    clubName: z.string().min(2).optional(),
+    clubShortName: z.string().min(2).optional(),
+    address: z.string().optional(),
+    mapsQuery: z.string().optional(),
+    whatsapp: z.string().optional(),
+    instagram: z.string().optional(),
+    openingHours: z.string().optional(),
+    clubStatus: z.string().optional(),
+    homeHeadline: z.string().optional(),
+    homeSubtitle: z.string().optional(),
+    promoText: z.string().optional(),
+    courtPrice: z.number().or(z.string()).transform(Number).optional(),
+    nightPrice: z.number().or(z.string()).transform(Number).optional(),
+    weekendExtra: z.number().or(z.string()).transform(Number).optional(),
+    classPrice: z.number().or(z.string()).transform(Number).optional(),
+    tournamentPrice: z.number().or(z.string()).transform(Number).optional(),
+    teacherCommissionPercent: z.number().or(z.string()).transform(Number).optional(),
+  }).passthrough();
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Datos de configuracion invalidos." });
+
+  const numericKeys = ["courtPrice", "nightPrice", "weekendExtra", "classPrice", "tournamentPrice", "teacherCommissionPercent"];
+  for (const key of numericKeys) {
+    if (parsed.data[key] !== undefined && (!Number.isFinite(parsed.data[key]) || Number(parsed.data[key]) < 0)) {
+      return res.status(400).json({ message: "Los precios deben ser numeros positivos." });
+    }
+  }
+
+  const patch = {
+    ...parsed.data,
+    whatsapp: parsed.data.whatsapp ? String(parsed.data.whatsapp).replace(/\D/g, "") : parsed.data.whatsapp,
+    instagram: parsed.data.instagram ? String(parsed.data.instagram).replace(/^@/, "").trim() : parsed.data.instagram,
+  };
+
+  Object.keys(patch).forEach((key) => patch[key] === undefined && delete patch[key]);
+  const settings = await Setting.findOneAndUpdate({}, { $set: patch }, { returnDocument: "after", upsert: true, setDefaultsOnInsert: true });
+  await addActivity({ type: "settings_updated", title: "Configuracion actualizada", detail: "Precios y datos del club", actor: req.user.name });
+  res.json({ settings: settings.toJSON() });
 });
 
 app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, res) => {

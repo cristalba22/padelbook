@@ -34,20 +34,20 @@ export const DURATION_OPTIONS = [
 export const PAYMENT_OPTIONS = [
   {
     id: "deposit",
-    label: "Sena online (30%) - Mercado Pago",
-    subtitle: "Pagás una seña ahora y el resto en el club.",
+    label: "Seña coordinada (30%)",
+    subtitle: "El club te confirma el medio de pago por WhatsApp o en recepción.",
     badge: "Recomendado",
   },
   {
     id: "full",
-    label: "Pagar todo ahora - Mercado Pago",
-    subtitle: "Dejas el turno totalmente pago desde la web.",
+    label: "Pago total coordinado",
+    subtitle: "Dejás el turno reservado y el club registra el pago cuando lo recibe.",
     badge: "Pago completo",
   },
   {
     id: "cash",
     label: "Pagar en el club",
-    subtitle: "Reservas ahora y abonas en efectivo o QR al llegar.",
+    subtitle: "Reservás ahora y abonás en efectivo o QR al llegar.",
     badge: "Efectivo / QR",
   },
 ];

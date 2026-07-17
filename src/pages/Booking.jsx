@@ -132,7 +132,7 @@ export default function Booking() {
         createdAt: new Date().toISOString(),
         userEmail: user.email,
         playerName: user.name,
-        paymentMethod: paymentOption === "cash" ? "Paga en el club" : "Mercado Pago",
+        paymentMethod: paymentOption === "cash" ? "Paga en el club" : "Pago coordinado con el club",
       };
 
       const savedBooking = await addBooking(payload);
@@ -180,6 +180,7 @@ export default function Booking() {
             <input
               type="date"
               value={selectedDate}
+              min={new Date().toISOString().slice(0, 10)}
               onChange={(e) => {
                 setSelectedDate(e.target.value);
                 setSelectedSlot(null);
@@ -331,7 +332,7 @@ export default function Booking() {
                       let amountLabel = "";
                       if (opt.id === "deposit") amountLabel = `$${depositAmount.toLocaleString("es-AR")} ahora`;
                       if (opt.id === "full") amountLabel = `$${totalAmount.toLocaleString("es-AR")} ahora`;
-                      if (opt.id === "cash") amountLabel = "Pagas al llegar al club";
+                      if (opt.id === "cash") amountLabel = "Pagás al llegar al club";
 
                       return (
                         <button
@@ -366,7 +367,7 @@ export default function Booking() {
                   }`}
                 >
                   {isSubmitting && <span className="mini-spinner mini-spinner-dark" aria-hidden="true" />}
-                  {isSubmitting ? "Guardando reserva" : paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Continuar con Mercado Pago"}
+                  {isSubmitting ? "Guardando reserva" : paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Confirmar reserva"}
                 </button>
 
                 {confirmationMsg && <p className="mt-3 text-[11px] text-white/60">{confirmationMsg}</p>}
