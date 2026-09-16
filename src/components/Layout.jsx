@@ -17,6 +17,7 @@ export default function Layout({ children }) {
   const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isAdminWorkspace = location.pathname.startsWith("/admin");
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -75,14 +76,14 @@ export default function Layout({ children }) {
   return (
     <>
       <div className="app-shell">
-        {location.pathname !== ROUTES.HOME && (
+        {!isAdminWorkspace && location.pathname !== ROUTES.HOME && (
           <Padel3DScene
             variant="ambient"
             className="fixed inset-0 z-0 opacity-[0.18] mix-blend-screen"
           />
         )}
         {/* HEADER */}
-        <header className="sticky top-0 z-40 border-b border-black/60 bg-black/95 backdrop-blur">
+        {!isAdminWorkspace && <header className="sticky top-0 z-40 border-b border-black/60 bg-black/95 backdrop-blur">
           <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6">
             {/* Logo */}
             <button
@@ -194,10 +195,10 @@ export default function Layout({ children }) {
               </div>
             </div>
           )}
-        </header>
+        </header>}
 
         {/* CONTENIDO */}
-        <main className="main-container relative z-10">{children}</main>
+        <main className={isAdminWorkspace ? "relative z-10 flex-1" : "main-container relative z-10"}>{children}</main>
       </div>
 
       {/* MODAL LOGIN */}
