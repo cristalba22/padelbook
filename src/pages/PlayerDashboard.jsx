@@ -43,7 +43,7 @@ function statusText(status) {
 
 export default function PlayerDashboard() {
   const { user } = useAuth();
-  const { bookings = [], cancelBooking, markAsPaid } = useBooking();
+  const { bookings = [], cancelBooking } = useBooking();
   const { prices } = usePricing();
   const [tournamentSync, setTournamentSync] = useState(0);
 
@@ -183,7 +183,7 @@ export default function PlayerDashboard() {
           ) : (
             <div className="space-y-3">
               {upcomingEvents.slice(0, 5).map((event) => (
-                <PlayerEventRow key={event.id} event={event} onCancel={cancelBooking} onPaid={markAsPaid} />
+                <PlayerEventRow key={event.id} event={event} onCancel={cancelBooking} />
               ))}
             </div>
           )}
@@ -308,9 +308,9 @@ function Panel({ kicker, title, children }) {
   return <section className="rounded-[1.8rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl"><p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">{kicker}</p><h2 className="mb-4 mt-1 text-xl font-bold text-white">{title}</h2>{children}</section>;
 }
 
-function PlayerEventRow({ event, onCancel, onPaid }) {
+function PlayerEventRow({ event, onCancel }) {
   if (event.kind === "booking") {
-    return <PlayerBookingRow booking={event.booking} onCancel={onCancel} onPaid={onPaid} />;
+    return <PlayerBookingRow booking={event.booking} onCancel={onCancel} />;
   }
 
   return (
@@ -333,7 +333,7 @@ function PlayerEventRow({ event, onCancel, onPaid }) {
   );
 }
 
-function PlayerBookingRow({ booking, onCancel, onPaid }) {
+function PlayerBookingRow({ booking, onCancel }) {
   const pending = booking.status === "pendiente";
   return (
     <article className="grid gap-3 rounded-3xl border border-white/10 bg-black/30 p-4 transition hover:border-lime-300/35 hover:bg-black/45 lg:grid-cols-[130px_1fr_auto] lg:items-center">
@@ -349,7 +349,7 @@ function PlayerBookingRow({ booking, onCancel, onPaid }) {
         <p className="mt-1 text-sm text-slate-400">{booking.description || "Turno de pádel"} · {money(booking.price || booking.total)}</p>
       </div>
       <div className="flex flex-wrap gap-2 lg:justify-end">
-        {pending && <button onClick={() => onPaid(booking.id)} className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-black hover:bg-lime-200">Marcar pagado</button>}
+        {pending && <Link to={ROUTES.MY_BOOKINGS} className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-black hover:bg-lime-200">Coordinar pago</Link>}
         {booking.status !== "cancelado" && <button onClick={() => onCancel(booking.id)} className="rounded-full border border-rose-400/40 px-3 py-1.5 text-xs font-bold text-rose-200 hover:bg-rose-500/10">Cancelar</button>}
       </div>
     </article>

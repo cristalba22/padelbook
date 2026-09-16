@@ -125,9 +125,7 @@ export function BookingProvider({ children }) {
       updated = {
         ...b,
         status: normalizedStatus,
-        paymentStatus: normalizedStatus === "confirmado" ? "pagado" : normalizedStatus === "pendiente" ? "pendiente_pago" : b.paymentStatus,
         updatedAt: new Date().toISOString(),
-        ...(normalizedStatus === "confirmado" ? { paidAt: new Date().toISOString() } : {}),
         ...(normalizedStatus === "cancelado" ? { cancelledAt: new Date().toISOString() } : {}),
         ...extra,
       };
@@ -147,12 +145,31 @@ export function BookingProvider({ children }) {
     return updated;
   }
 
+  async function updateBookingPaymentStatus(id, paymentStatus) {
+    if (user?.role !== "admin") throw new Error("Solo el club puede registrar pagos.");
+    if (apiOnline) {
+      const { booking } = await apiRequest(`/bookings/${id}/payment`, {
+        method: "PATCH",
+        body: JSON.stringify({ paymentStatus }),
+      });
+      setBookings((current) => current.map((item) => item.id === id ? booking : item));
+      window.dispatchEvent(new Event("padel:bookings-updated"));
+      return booking;
+    }
+    const next = bookings.map((booking) => booking.id === id ? {
+      ...booking,
+      paymentStatus,
+      paidAt: paymentStatus === "pagado" ? new Date().toISOString() : null,
+      updatedAt: new Date().toISOString(),
+    } : booking);
+    persist(next);
+    return next.find((booking) => booking.id === id);
+  }
+
   const cancelBooking = (id) => updateBookingStatus(id, "cancelado");
-  const markAsPaid = (id) => updateBookingStatus(id, "confirmado", { paymentStatus: "pagado" });
-  const markAsPending = (id) => updateBookingStatus(id, "pendiente", { paymentStatus: "pendiente_pago" });
 
   const value = useMemo(
-    () => ({ bookings, selectedBooking, setSelectedBooking, addBooking, cancelBooking, markAsPaid, markAsPending, updateBookingStatus }),
+    () => ({ bookings, selectedBooking, setSelectedBooking, addBooking, cancelBooking, updateBookingStatus, updateBookingPaymentStatus }),
     [bookings, selectedBooking, apiOnline, user?.role]
   );
 
