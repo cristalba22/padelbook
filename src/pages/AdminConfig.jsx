@@ -72,7 +72,7 @@ export default function AdminConfig() {
   return (
     <AdminLayout title="Configuración comercial" subtitle="Todo lo que cargues acá se refleja en la web pública, reservas, torneos, comunidad y footer.">
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
+        <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
           <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Precios activos</p>
           <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Valores del sistema</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Estos valores se reflejan automáticamente en reservas, clases, torneos y la vista pública del club.</p>
@@ -89,7 +89,7 @@ export default function AdminConfig() {
         </aside>
       </section>
 
-      <section className="mb-6 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
+      <section className="admin-panel mb-6 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
         <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Datos visibles del club</p>
         <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Información comercial y portada</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Nombre, dirección, WhatsApp y textos principales se muestran en el home, footer, comunidad y acciones de contacto.</p>

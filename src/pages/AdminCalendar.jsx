@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
-import { bookings as mockBookings } from "../data/adminMock.js";
+import { useAdminDemoBookings } from "../hooks/useAdminDemoBookings.jsx";
+import { useAuth } from "../hooks/useAuth.jsx";
 import { COURTS, CLASS_HOURS, COURT_HOURS } from "../data/bookingConfig.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
@@ -34,6 +35,8 @@ function money(value) {
 
 export default function AdminCalendar() {
   const { bookings: userBookings = [] } = useBooking();
+  const { apiOnline } = useAuth();
+  const { demoBookings } = useAdminDemoBookings();
   const { blocks, addBlocks, clearDate, getBlock, toggleBlock, removeBlocksWhere } = useSchedule();
   const today = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -43,9 +46,9 @@ export default function AdminCalendar() {
   const [rangeCourtId, setRangeCourtId] = useState("all");
 
   const allBookings = useMemo(() => {
-    const source = userBookings.length ? userBookings : mockBookings;
+    const source = !apiOnline && userBookings.length === 0 ? demoBookings : userBookings;
     return source.map(normalizeBooking);
-  }, [userBookings]);
+  }, [userBookings, demoBookings, apiOnline]);
   const dayBookings = useMemo(() => allBookings.filter((b) => b.date === selectedDate && b.status !== "cancelado"), [allBookings, selectedDate]);
   const dayBlocks = useMemo(() => blocks.filter((b) => b.date === selectedDate), [blocks, selectedDate]);
   const confirmed = dayBookings.filter((b) => b.status === "confirmado");
@@ -107,7 +110,7 @@ export default function AdminCalendar() {
   return (
     <AdminLayout title="Calendario operativo" subtitle="Bloqueá horarios y administrá la disponibilidad real que ven los jugadores al reservar.">
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_340px]">
-        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl">
+        <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Agenda del día</p>
@@ -119,8 +122,8 @@ export default function AdminCalendar() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi label="Reservas" value={dayBookings.length} detail="cancha + clases" />
             <Kpi label="Confirmadas" value={confirmed.length} detail="listas para jugar" />
-            <Kpi label="Pendientes" value={pending.length} detail="revisar pago" warn />
-            <Kpi label="Caja estimada" value={money(revenue)} detail="del día" />
+            <Kpi label="Pendientes" value={pending.length} detail="confirmar reservas" warn />
+            <Kpi label="Valor reservado" value={money(revenue)} detail="del día" />
           </div>
         </div>
 
@@ -155,7 +158,7 @@ export default function AdminCalendar() {
       <section className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           {COURTS.map((court) => (
-            <article key={court.id} className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-4 shadow-xl">
+            <article key={court.id} className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-4 shadow-xl">
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div><h3 className="text-lg font-black text-white">{court.name}</h3><p className="text-xs text-slate-500">Clases por la mañana y turnos de pádel por la tarde/noche.</p></div>
                 <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">{courtOccupancy(court, dayBookings, dayBlocks)}% ocupada</span>
@@ -180,8 +183,8 @@ export default function AdminCalendar() {
           <Side title="Bloqueos activos" kicker="Agenda">
             {dayBlocks.length === 0 ? <p className="text-sm text-slate-400">No hay bloqueos para esta fecha.</p> : dayBlocks.slice(0, 8).map((b) => <div key={b.id} className="mb-2 rounded-2xl border border-orange-300/20 bg-orange-300/10 p-3"><p className="font-bold text-white">{b.hour} · {courtName(b.courtId)}</p><p className="text-xs text-orange-100">{b.reason}</p></div>)}
           </Side>
-          <Side title="Pagos pendientes" kicker="Prioridad">
-            {pending.length === 0 ? <p className="text-sm text-slate-400">No hay pagos pendientes para esta fecha.</p> : pending.map((b) => <div key={b.id} className="mb-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3"><p className="font-bold text-white">{b.player}</p><p className="text-xs text-amber-100">{b.time} · {b.court}</p></div>)}
+          <Side title="Reservas por confirmar" kicker="Prioridad">
+            {pending.length === 0 ? <p className="text-sm text-slate-400">No hay reservas por confirmar para esta fecha.</p> : pending.map((b) => <div key={b.id} className="mb-2 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3"><p className="font-bold text-white">{b.player}</p><p className="text-xs text-amber-100">{b.time} · {b.court}</p></div>)}
           </Side>
         </aside>
       </section>
@@ -202,4 +205,4 @@ function SlotCard({ hour, booking, block, onClick }) {
   if (block) return <button onClick={onClick} className="rounded-2xl border border-orange-300/30 bg-orange-400/10 p-3 text-left transition hover:bg-orange-400/20"><p className="text-xs font-black text-white">{hour}</p><p className="mt-2 text-sm font-bold text-orange-100">{block.reason}</p><p className="text-[11px] text-orange-100/70">Liberar horario</p></button>;
   return <button onClick={onClick} className="rounded-2xl border border-white/10 bg-black/25 p-3 text-left transition hover:border-lime-300/40 hover:bg-lime-300/10"><p className="text-xs font-black text-white">{hour}</p><p className="mt-2 text-sm font-bold text-lime-100">Disponible</p><p className="text-[11px] text-slate-500">Bloquear horario</p></button>;
 }
-function Side({ kicker, title, children }) { return <section className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">{kicker}</p><h3 className="mb-4 mt-1 text-lg font-black text-white">{title}</h3>{children}</section>; }
+function Side({ kicker, title, children }) { return <section className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">{kicker}</p><h3 className="mb-4 mt-1 text-lg font-black text-white">{title}</h3>{children}</section>; }

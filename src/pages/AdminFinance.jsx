@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
+import { useAuth } from "../hooks/useAuth.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { apiRequest } from "../utils/apiClient.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
@@ -57,7 +58,7 @@ function normalizeBooking(booking) {
 }
 
 function isCollected(booking) {
-  return booking.status === "confirmado" || booking.paymentStatus === "pagado";
+  return booking.paymentStatus === "pagado";
 }
 
 function buildLocalSummary(bookings = [], pricing = {}) {
@@ -117,6 +118,7 @@ function buildLocalSummary(bookings = [], pricing = {}) {
 
 export default function AdminFinance() {
   const { bookings = [] } = useBooking();
+  const { apiOnline } = useAuth();
   const { prices } = usePricing();
   const [summary, setSummary] = useState(() => buildLocalSummary(bookings, prices));
   const [loading, setLoading] = useState(true);
@@ -137,7 +139,7 @@ export default function AdminFinance() {
 
   useEffect(() => {
     loadSummary();
-  }, []);
+  }, [loadSummary]);
 
   const maxTrend = useMemo(() => Math.max(1, ...summary.dailyTrend.map((item) => Math.max(item.income, item.expenses + item.commissions))), [summary.dailyTrend]);
   const month = summary.byPeriod.month || { income: 0, expenses: 0, commissions: 0, net: 0 };
@@ -163,6 +165,7 @@ export default function AdminFinance() {
 
   return (
     <AdminLayout title="Finanzas del club" subtitle="Ingresos, egresos, comisiones de profesores y rentabilidad por período.">
+      {!apiOnline && bookings.length === 0 && <p className="club-admin__notice">Las reservas de ejemplo del dashboard no son cobros registrados. Esta sección muestra movimientos reales guardados en este navegador.</p>}
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={loadSummary} disabled={loading} className="btn-outline px-4 py-2 text-xs">
           {loading ? "Actualizando..." : "Actualizar datos"}
@@ -243,11 +246,11 @@ export default function AdminFinance() {
 }
 
 function FinanceMetric({ label, data = {}, featured = false }) {
-  return <article className={`rounded-[1.8rem] border p-5 shadow-xl ${featured ? "border-lime-300/30 bg-lime-300/10" : "border-white/10 bg-[#0B1326]/75"}`}><p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-black text-white">{money(data.net)}</p><div className="mt-3 space-y-1 text-xs text-slate-400"><p>Ingresos: <span className="text-lime-100">{money(data.income)}</span></p><p>Egresos: <span className="text-amber-100">{money(Number(data.expenses || 0) + Number(data.commissions || 0))}</span></p></div></article>;
+  return <article className={`admin-panel rounded-[1.8rem] border p-5 shadow-xl ${featured ? "border-lime-300/30 bg-lime-300/10" : "border-white/10 bg-[#0B1326]/75"}`}><p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{label}</p><p className="mt-3 text-3xl font-black text-white">{money(data.net)}</p><div className="mt-3 space-y-1 text-xs text-slate-400"><p>Ingresos: <span className="text-lime-100">{money(data.income)}</span></p><p>Egresos: <span className="text-amber-100">{money(Number(data.expenses || 0) + Number(data.commissions || 0))}</span></p></div></article>;
 }
 
 function Panel({ kicker, title, children }) {
-  return <section className="rounded-[1.8rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">{kicker}</p><h2 className="mb-4 mt-1 text-xl font-black text-white">{title}</h2>{children}</section>;
+  return <section className="admin-panel rounded-[1.8rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">{kicker}</p><h2 className="mb-4 mt-1 text-xl font-black text-white">{title}</h2>{children}</section>;
 }
 
 function BigNumber({ label, value, tone }) {

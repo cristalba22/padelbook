@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, CircleCheck, Clock3, ClipboardList, CircleDollarSign, Plus, TrendingUp } from "lucide-react";
 import AdminLayout from "../components/AdminLayout.jsx";
-import { bookings as demoBookings } from "../data/adminMock.js";
+import { useAdminDemoBookings } from "../hooks/useAdminDemoBookings.jsx";
 import { COURTS } from "../data/bookingConfig.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
@@ -70,6 +70,7 @@ function formatDate(date) {
 
 export default function AdminDashboard() {
   const { bookings: storedBookings = [] } = useBooking();
+  const { demoBookings } = useAdminDemoBookings();
   const { apiOnline } = useAuth();
   const { blocks } = useSchedule();
   const [date, setDate] = useState(localDateString);
@@ -112,7 +113,6 @@ export default function AdminDashboard() {
           <div><p className="club-dashboard__eyebrow">{formatDate(date)}</p><h1>Todo listo para jugar.</h1><p>Tu agenda y tus reservas, en el mismo lugar.</p></div>
           <Link to={ROUTES.ADMIN_CALENDAR} className="club-dashboard__primary"><Plus size={17} aria-hidden="true" /> Gestionar agenda</Link>
         </div>
-        {isDemo && <p className="club-dashboard__demo" role="status">Vista de demostración · Los turnos de ejemplo no son reservas reales.</p>}
 
         <div className="club-dashboard__metrics" aria-label="Resumen del día">
           <Metric Icon={CircleDollarSign} label="Valor de reservas" value={money(bookedValue)} note="Reservas activas del día" />

@@ -69,7 +69,7 @@ function moneyBucket(items, from, getDate, getValue) {
 }
 
 function isCollectedBooking(booking) {
-  return booking.status === "confirmado" || booking.paymentStatus === "pagado";
+  return booking.paymentStatus === "pagado";
 }
 
 function minutesFromHour(hour = "00:00") {
@@ -210,9 +210,22 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
   booking.status = parsed.data.status;
-  if (parsed.data.status === "confirmado") booking.paymentStatus = "pagado";
   await booking.save();
   await addActivity({ type: `booking_${parsed.data.status}`, title: "Reserva actualizada", detail: `${booking.playerName} - ${booking.status}`, actor: req.user.name, bookingId: booking.id });
+  res.json({ booking: booking.toJSON() });
+});
+
+app.patch("/api/bookings/:id/payment", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
+  const schema = z.object({ paymentStatus: z.enum(["pagado", "pendiente_pago"]) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Estado de pago invalido." });
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
+  if (booking.status === "cancelado") return res.status(409).json({ message: "No se puede registrar un pago en una reserva cancelada." });
+  booking.paymentStatus = parsed.data.paymentStatus;
+  await booking.save();
+  await addActivity({ type: "booking_payment_updated", title: "Pago actualizado", detail: `${booking.playerName} - ${booking.paymentStatus}`, actor: req.user.name, bookingId: booking.id });
   res.json({ booking: booking.toJSON() });
 });
 

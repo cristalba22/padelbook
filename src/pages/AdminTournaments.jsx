@@ -52,7 +52,7 @@ export default function AdminTournaments() {
   return (
     <AdminLayout title="Torneos del club" subtitle="Gestioná eventos, cupos e inscripciones desde un solo lugar.">
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_380px]">
-        <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
+        <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
           <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Calendario competitivo</p>
           <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Eventos, cupos y jugadores</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Los jugadores pueden inscribirse desde la web pública. Acá confirmás cupos, controlás pagos y actualizás el estado del torneo.</p>
@@ -84,7 +84,7 @@ function PendingRow({ reg, onConfirm, onCancel }) {
 function TournamentCard({ tournament, onUpdate, onUpdateReg, onRemove }) {
   const progress = pct(tournament.currentPlayers, tournament.maxPlayers);
   const regs = tournament.registrations || [];
-  return <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl transition hover:border-lime-300/30">
+  return <article className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl transition hover:border-lime-300/30">
     <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><input value={tournament.name} onChange={(e) => onUpdate(tournament.id, { name: e.target.value })} className="w-full bg-transparent text-2xl font-black text-white outline-none" /><p className="mt-1 text-sm text-slate-400">{tournament.category} · {tournament.surface}</p></div><select value={tournament.status} onChange={(e) => onUpdate(tournament.id, { status: e.target.value })} className="rounded-full border border-white/10 bg-black/40 px-3 py-2 text-xs font-bold text-white"><option value="abierto">Abierto</option><option value="lleno">Lleno</option><option value="en_curso">En curso</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-3"><label className="mini-field"><span>Fecha</span><input type="date" value={tournament.date} onChange={(e) => onUpdate(tournament.id, { date: e.target.value })} /></label><label className="mini-field"><span>Hora</span><input type="time" value={tournament.hour || "20:00"} onChange={(e) => onUpdate(tournament.id, { hour: e.target.value })} /></label><label className="mini-field"><span>Cupos</span><input value={tournament.maxPlayers} onChange={(e) => onUpdate(tournament.id, { maxPlayers: Number(e.target.value.replace(/\D/g, "")) })} /></label></div>
     <div className="mt-5 grid gap-3 sm:grid-cols-3"><Mini label="Inscriptos" value={`${tournament.currentPlayers}/${tournament.maxPlayers}`} /><Mini label="Precio" value={money(tournament.pricePerPlayer)} /><Mini label="Caja" value={money(activeRegs(tournament).length * tournament.pricePerPlayer)} /></div>

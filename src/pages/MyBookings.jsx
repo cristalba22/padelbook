@@ -89,7 +89,7 @@ export default function MyBookings() {
   const { user, openLogin } = useAuth();
   const { settings } = useClubSettings();
   const { prices } = usePricing();
-  const { bookings = [], cancelBooking, markAsPaid } = useBooking();
+  const { bookings = [], cancelBooking } = useBooking();
   const [filter, setFilter] = useState("upcoming"); // upcoming | pending | history | cancelled
 
   const today = new Date();
@@ -198,7 +198,7 @@ export default function MyBookings() {
     return booking.endTime ? `${start} a ${booking.endTime}` : (start || "Horario a confirmar");
   };
 
-  const handleWhatsApp = (booking) => {
+  const handleWhatsApp = (booking, paymentQuestion = false) => {
     const text = encodeURIComponent(
       `Hola! Te escribo por mi reserva de pádel:\n\n` +
         `• Fecha: ${booking.fecha || booking.dateFormatted || booking.date || ""}\n` +
@@ -206,7 +206,7 @@ export default function MyBookings() {
         `• Cancha / clase: ${
           booking.cancha || booking.court || booking.courtName || ""
         }\n\n` +
-        `Quisiera hacer una consulta.`
+        (paymentQuestion ? `Quisiera coordinar el pago. ¿Me indican cómo hacerlo?` : `Quisiera hacer una consulta.`)
     );
     window.open(`https://wa.me/${clubPhone}?text=${text}`, "_blank");
   };
@@ -224,11 +224,7 @@ export default function MyBookings() {
   };
 
   const handlePayNow = (booking) => {
-    if (markAsPaid && booking.id) {
-      markAsPaid(booking.id);
-      return;
-    }
-    alert(`Pago registrado para el turno ${booking.courtName || booking.cancha || booking.court || ""} – ${bookingTimeLabel(booking)}`);
+    handleWhatsApp(booking, true);
   };
 
   if (!user) {
