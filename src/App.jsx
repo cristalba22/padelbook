@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout.jsx";
 import Footer from "./components/Footer.jsx";
@@ -58,6 +58,7 @@ function PlayerRoute({ children }) {
             APP
 ================================ */
 export default function App() {
+  const location = useLocation();
   return (
     <div className="app-shell">
       {/* HEADER + MODAL LOGIN */}
@@ -158,7 +159,7 @@ export default function App() {
       </Layout>
 
       {/* FOOTER GLOBAL */}
-      <Footer />
+      {!location.pathname.startsWith("/admin") && <Footer />}
     </div>
   );
 }
