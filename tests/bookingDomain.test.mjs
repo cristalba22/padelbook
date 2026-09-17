@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsOperatingHours, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
 import { COURT_HOURS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 import { applyPayment, paymentSummary, reversePayment } from "../src/utils/paymentDomain.js";
 
@@ -60,6 +60,9 @@ test("un bloqueo de media hora impide turnos que se crucen", () => {
   const block = { date: "2026-09-20", courtId: "court1", hour: "10:30", durationMinutes: 30 };
   assert.equal(blockOverlapsBooking(block, { date: block.date, courtId: "court1", time: "09:00", durationMinutes: 120 }), true);
   assert.equal(blockOverlapsBooking(block, { date: block.date, courtId: "court1", time: "11:00", durationMinutes: 60 }), false);
+  assert.equal(fitsBlockHours("09:00", 30), true);
+  assert.equal(fitsBlockHours("21:30", 30), true);
+  assert.equal(fitsBlockHours("21:30", 60), false);
 });
 
 test("la seña mantiene saldo y el segundo cobro completa el turno", () => {

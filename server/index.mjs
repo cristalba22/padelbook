@@ -5,9 +5,9 @@ import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
-import { Activity, Booking, Expense, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
+import { Activity, Booking, Expense, ScheduleBlock, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { publicUser, requireAuth, requireRole, signToken } from "./auth.mjs";
-import { argentinaDateISO, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
 import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
 import { randomUUID } from "node:crypto";
@@ -92,7 +92,7 @@ app.get("/api", (_req, res) => {
     name: "PadelBook API",
     status: "online",
     database: dbState(),
-    endpoints: ["/api/health", "/api/auth/login", "/api/bookings", "/api/tournaments", "/api/settings", "/api/finance/summary"],
+    endpoints: ["/api/health", "/api/auth/login", "/api/bookings", "/api/blocks", "/api/tournaments", "/api/settings", "/api/finance/summary"],
   });
 });
 
@@ -146,6 +146,64 @@ app.get("/api/availability", async (req, res) => {
   if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha invalida." });
   const occupied = await Booking.find({ date, status: { $ne: "cancelado" } }).select("date time durationMinutes courtId status").lean();
   res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({ date: bookingDate, time, durationMinutes, courtId: canonicalCourtId(courtId), status })) });
+});
+
+app.get("/api/blocks", async (_req, res) => {
+  const blocks = await ScheduleBlock.find().sort({ date: 1, courtId: 1, hour: 1 }).limit(5000);
+  res.json({ blocks: blocks.map((block) => block.toJSON()) });
+});
+
+const blockInput = z.object({
+  date: z.string(), courtId: z.union([z.string(), z.number()]).transform(canonicalCourtId), hour: z.string(),
+  durationMinutes: z.number().int().min(30).max(150), reason: z.string().max(120).optional().default("No disponible"),
+  type: z.enum(["block", "teacher"]).optional().default("block"),
+});
+
+app.post("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+  const parsed = z.object({ blocks: z.array(blockInput).min(1).max(120) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
+  const blocks = parsed.data.blocks.map((block) => ({ ...block, ownerId: req.user.role === "teacher" ? req.user.id : "",
+    type: req.user.role === "teacher" ? "teacher" : "block", reason: req.user.role === "teacher" ? `No disponible - ${req.user.name}` : block.reason }));
+  for (const block of blocks) {
+    if (!isValidDateISO(block.date) || isPastDate(block.date) || !COURTS.some((court) => court.id === block.courtId) ||
+      !COURT_HOURS.includes(block.hour) || !fitsBlockHours(block.hour, block.durationMinutes) ||
+      (req.user.role === "teacher" && (block.durationMinutes !== 60 || !CLASS_HOURS.includes(block.hour)))) {
+      return res.status(400).json({ message: "Cancha, fecha u horario de bloqueo invalidos." });
+    }
+  }
+  const keys = blocks.map((block) => `${block.date}|${block.courtId}|${block.hour}`);
+  if (new Set(keys).size !== keys.length) return res.status(400).json({ message: "Hay bloqueos duplicados en la solicitud." });
+  if (blocks.some((block, index) => blocks.slice(index + 1).some((other) => blockOverlapsBooking(block, { date: other.date, courtId: other.courtId, time: other.hour, durationMinutes: other.durationMinutes })))) {
+    return res.status(400).json({ message: "Los bloqueos solicitados se superponen." });
+  }
+  const dates = [...new Set(blocks.map((block) => block.date))];
+  const [bookings, existingBlocks] = await Promise.all([
+    Booking.find({ date: { $in: dates }, status: { $ne: "cancelado" } }),
+    ScheduleBlock.find({ date: { $in: dates } }),
+  ]);
+  for (const block of blocks) {
+    if (bookings.some((booking) => blockOverlapsBooking(block, booking))) return res.status(409).json({ message: "El rango contiene una reserva. No se puede bloquear." });
+    const conflict = existingBlocks.find((existing) => blockOverlapsBooking(existing, { date: block.date, courtId: block.courtId, time: block.hour, durationMinutes: block.durationMinutes }) &&
+      !(existing.date === block.date && existing.courtId === block.courtId && existing.hour === block.hour));
+    if (conflict) return res.status(409).json({ message: "El rango ya tiene un bloqueo." });
+    const same = existingBlocks.find((existing) => existing.date === block.date && existing.courtId === block.courtId && existing.hour === block.hour);
+    if (same && req.user.role === "teacher" && same.ownerId !== req.user.id) return res.status(403).json({ message: "Ese bloqueo pertenece al club o a otro profesor." });
+  }
+  try {
+    await ScheduleBlock.bulkWrite(blocks.map((block) => ({ updateOne: { filter: { date: block.date, courtId: block.courtId, hour: block.hour }, update: { $set: block }, upsert: true } })));
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "El calendario cambió. Actualizá e intentá de nuevo." });
+    throw error;
+  }
+  res.json({ blocks: (await ScheduleBlock.find({ date: { $in: dates } })).map((block) => block.toJSON()) });
+});
+
+app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+  const parsed = z.object({ keys: z.array(z.object({ date: z.string(), courtId: z.string(), hour: z.string() })).min(1).max(120) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
+  const keys = parsed.data.keys.map((item) => ({ date: item.date, courtId: canonicalCourtId(item.courtId), hour: item.hour }));
+  const result = await ScheduleBlock.deleteMany({ $or: keys, ...(req.user.role === "teacher" ? { ownerId: req.user.id, type: "teacher" } : {}) });
+  res.json({ deleted: result.deletedCount });
 });
 
 app.get("/api/bookings", requireAuth, async (req, res) => {
@@ -203,6 +261,8 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   });
   const duplicated = sameDayBookings.find((booking) => bookingsOverlap(booking, incoming));
   if (duplicated) return res.status(409).json({ message: "Ese horario ya fue reservado.", booking: duplicated.toJSON(), duplicated: true });
+  const scheduleBlocks = await ScheduleBlock.find({ date: incoming.date, courtId: incoming.courtId });
+  if (scheduleBlocks.some((block) => blockOverlapsBooking(block, incoming))) return res.status(409).json({ message: "Ese horario fue bloqueado por el club." });
 
   let booking;
   try {

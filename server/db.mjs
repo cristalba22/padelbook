@@ -130,12 +130,24 @@ const expenseSchema = new mongoose.Schema({
   note: { type: String, default: "" },
 }, baseOptions);
 
+const scheduleBlockSchema = new mongoose.Schema({
+  date: { type: String, required: true },
+  courtId: { type: String, required: true },
+  hour: { type: String, required: true },
+  durationMinutes: { type: Number, default: 30 },
+  reason: { type: String, default: "No disponible" },
+  type: { type: String, enum: ["block", "teacher"], default: "block" },
+  ownerId: { type: String, default: "" },
+}, baseOptions);
+scheduleBlockSchema.index({ date: 1, courtId: 1, hour: 1 }, { unique: true });
+
 export const User = mongoose.model("User", userSchema);
 export const Booking = mongoose.model("Booking", bookingSchema);
 export const Tournament = mongoose.model("Tournament", tournamentSchema);
 export const Setting = mongoose.model("Setting", settingsSchema);
 export const Activity = mongoose.model("Activity", activitySchema);
 export const Expense = mongoose.model("Expense", expenseSchema);
+export const ScheduleBlock = mongoose.model("ScheduleBlock", scheduleBlockSchema);
 
 export async function connectDb() {
   if (!MONGODB_URI) {
@@ -144,6 +156,7 @@ export async function connectDb() {
   await mongoose.connect(MONGODB_URI, { dbName: "padelbook" });
   await seedDatabase();
   await Booking.init();
+  await ScheduleBlock.init();
   await migrateBookingSlots();
   await migrateLegacyPayments();
 }
