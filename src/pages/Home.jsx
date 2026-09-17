@@ -1,294 +1,146 @@
-﻿// src/pages/Home.jsx
-import React, { useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ArrowDown, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Sparkles, Users, Zap } from "lucide-react";
 import heroImg from "../assets/hero-padel.webp";
-import shopProductsImg from "../assets/shop-padel-products.jpg";
-import shopControlImg from "../assets/shop-paleta-control.jpg";
-import shopPowerImg from "../assets/shop-paleta-potencia.jpg";
-import shopBallsImg from "../assets/shop-pack-pelotas.jpg";
-import shopGripImg from "../assets/shop-grip-protector.jpg";
+import shopImg from "../assets/shop-padel-products.jpg";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
-import { getCourtPrice, getClassPrice } from "../utils/pricing.js";
+import { getCourtPrice } from "../utils/pricing.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule } from "../hooks/useSchedule.jsx";
-import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { useTournaments } from "../hooks/useTournaments.jsx";
-import { useToast } from "../components/ToastProvider.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
+import "./home.css";
 
-const experience = [
-  { title: "Reservá en pocos pasos", text: "Ves los horarios, elegís cancha y confirmás desde la misma pantalla.", icon: "⚡" },
-  { title: "Tu agenda siempre clara", text: "Próximos turnos, pagos pendientes y cancelaciones quedan ordenados en tu panel.", icon: "📅" },
-  { title: "Jugá más, organizá menos", text: "Torneos, comunidad por categoría y clases con profes desde el mismo sistema.", icon: "🎾" },
-];
+const formatMoney = (amount) => `$${Number(amount).toLocaleString("es-AR")}`;
 
-const shopProducts = [
-  { name: "Paleta control", detail: "Balance medio, ideal para jugadores que priorizan precisión.", price: 185000, badge: "Más elegida", image: shopControlImg },
-  { name: "Paleta potencia", detail: "Formato diamante para salida rápida y remate fuerte.", price: 225000, badge: "Pro", image: shopPowerImg },
-  { name: "Pack pelotas", detail: "Tubo x3 para partido o torneo interno del club.", price: 9500, badge: "Stock club", image: shopBallsImg },
-  { name: "Grip + protector", detail: "Accesorios rápidos para dejar la paleta lista antes de jugar.", price: 12000, badge: "Combo", image: shopGripImg },
-];
+function useReveal() {
+  useEffect(() => {
+    const nodes = document.querySelectorAll(".home-page [data-reveal]");
+    if (!window.IntersectionObserver || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      nodes.forEach((node) => node.classList.add("is-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: "0px 0px -30px 0px" });
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+}
 
-function whatsappShopUrl(settings, productName) {
-  const phone = String(settings.whatsapp || "").replace(/\D/g, "");
-  const text = encodeURIComponent(`Hola, quiero consultar por ${productName} en ${settings.clubName}.`);
-  return phone ? `https://wa.me/${phone}?text=${text}` : "#";
+function getCourtAvailability({ today, bookings, occupied, blocks, loading, error }) {
+  return COURTS.map((court, index) => {
+    const nextHour = !loading && !error ? COURT_HOURS.find((hour) => {
+      if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
+      const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
+      return !blocks.some((block) => blockOverlapsBooking(block, candidate)) &&
+        ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
+    }) : null;
+    return {
+      ...court,
+      number: String(index + 1).padStart(2, "0"),
+      nextHour: loading ? "Consultando" : error ? "Sin datos" : nextHour || "Sin turnos",
+      available: Boolean(nextHour),
+      note: index === 0 ? "Césped sintético · Outdoor" : index === 1 ? "Blindex · Indoor" : "Césped fibrilado · Techada",
+    };
+  });
 }
 
 export default function Home() {
+  useReveal();
   const { prices } = usePricing();
   const { settings } = useClubSettings();
   const { bookings } = useBooking();
   const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
-  const { notify } = useToast();
+  const { tournaments, loading: tournamentsLoading, error: tournamentsError } = useTournaments();
   const { apiOnline } = useAuth();
-  const [consultingProduct, setConsultingProduct] = useState("");
-  const { tournaments } = useTournaments();
-  const openTournaments = tournaments.filter((t) => t.status === "abierto").length;
-  const courtPrice = getCourtPrice("15:00", new Date(), prices);
-  const classPrice = getClassPrice(prices);
-  const nextTournament = tournaments.find((t) => t.status === "abierto") || tournaments[0];
   const today = argentinaDateISO();
   const { occupied, loading: availabilityLoading, error: availabilityError } = useAvailability(today);
-  const courtAvailability = COURTS.map((court) => {
-    const freeHour = !availabilityLoading && !blocksLoading && !blocksError && !availabilityError && COURT_HOURS.find((hour) => {
-      if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
-      const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
-      return !blocks.some((block) => blockOverlapsBooking(block, candidate)) && ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
-    });
-    return {
-      id: court.id,
-      name: court.name.replace("Cancha ", ""),
-      detail: court.description,
-      free: availabilityLoading || blocksLoading ? "Consultando" : blocksError || availabilityError ? "No disponible" : freeHour || "Completa",
-      status: availabilityLoading || blocksLoading ? "Cargando" : blocksError || availabilityError ? "Sin datos" : freeHour ? "Libre" : "Sin turnos",
-      tone: freeHour ? "lime" : "amber",
-    };
-  });
-  const liveSlots = courtAvailability.slice(0, 3).map((court) => ({ hour: court.free, court: court.name, status: court.status, tone: court.tone }));
-  const availableCount = availabilityLoading || blocksLoading || blocksError || availabilityError ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
-  const handleShopConsult = (product) => {
-    setConsultingProduct(product.name);
-    notify({
-      type: "info",
-      title: "Consulta preparada",
-      message: `Se abre WhatsApp con el mensaje de ${product.name}.`,
-      duration: 2400,
-    });
-    window.setTimeout(() => setConsultingProduct(""), 1400);
-  };
+  const loading = blocksLoading || availabilityLoading;
+  const error = blocksError || availabilityError;
+  const courts = getCourtAvailability({ today, bookings, occupied, blocks, loading, error });
+  const availableCourts = courts.filter((court) => court.available).length;
+  const nextTournament = tournaments.find((tournament) => tournament.status === "abierto" && tournament.date >= today);
+  const whatsapp = String(settings.whatsapp || "").replace(/\D/g, "");
+  const shopUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hola, quiero consultar por productos de pádel en ${settings.clubName}.`)}` : null;
+  const courtPrice = getCourtPrice("15:00", new Date(), prices);
+  const editorialHeadline = settings.homeHeadline === "Tu próximo partido empieza antes de llegar a la cancha.";
+
   return (
-    <main className="home-wrapper text-white">
-      <section className="relative isolate overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
-        <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[66%_center] opacity-45 lg:hidden" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(163,230,53,0.28),transparent_32%),radial-gradient(circle_at_92%_20%,rgba(45,212,191,0.16),transparent_30%),linear-gradient(135deg,rgba(2,6,23,0.1),rgba(2,6,23,0.75))]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/72 via-[#030611]/58 to-[#030611]/92 lg:hidden" />
-        <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
-        <div className="absolute bottom-16 right-16 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
-
-        <div className="relative z-10 grid min-h-[560px] lg:min-h-[640px] lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="flex flex-col justify-center px-4 py-6 sm:px-8 sm:py-12 lg:px-12">
-            <div className="mb-4 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-lime-100 backdrop-blur sm:mb-5 sm:text-[11px] sm:tracking-[0.24em]">
-              <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_18px_rgba(190,242,100,0.95)]" />
-              {settings.clubStatus}
-            </div>
-
-            <h1 className="max-w-[18rem] text-[2rem] font-black leading-[1] tracking-[-0.045em] text-white sm:max-w-4xl sm:text-6xl sm:leading-[0.95] sm:tracking-[-0.075em] xl:text-7xl">
-              {settings.homeHeadline}
-            </h1>
-
-            <p className="mt-5 max-w-[19rem] text-sm leading-6 text-slate-200 sm:mt-6 sm:max-w-2xl sm:text-lg sm:leading-8">
-              {settings.homeSubtitle}
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
-              <Link to={ROUTES.BOOKING} className="btn-primary tap-action px-5 py-2.5 text-sm sm:px-7 sm:py-3">
-                Reservar ahora
-              </Link>
-              <Link to={ROUTES.COMMUNITY} className="btn-outline tap-action px-5 py-2.5 text-sm sm:px-7 sm:py-3">
-                Buscar partido
-              </Link>
-            </div>
-
-            <div className="mt-6 grid max-w-3xl grid-cols-3 gap-2 sm:mt-9 sm:gap-3">
-              <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" featured />
-              <HeroMetric value={settings.openingHours} label="agenda del club" />
-              <HeroMetric value={settings.promoText} label="para jugadores" />
-            </div>
+    <main className="home-page">
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="home-hero__photo" aria-hidden="true"><img src={heroImg} alt="" loading="eager" /></div>
+        <div className="home-hero__grid" aria-hidden="true" />
+        <div className="home-hero__content">
+          <div className="home-kicker home-hero__enter"><span className="home-kicker__line" /> {settings.clubName} <span className="home-kicker__index">/ RESERVAS ONLINE</span></div>
+          <h1 id="home-title" className="home-hero__title home-hero__enter">{editorialHeadline ? <>El próximo<br /><em>gran partido</em><br />empieza acá<span className="home-hero__period">.</span></> : settings.homeHeadline}</h1>
+          <p className="home-hero__description home-hero__enter">{settings.homeSubtitle}</p>
+          <div className="home-hero__actions home-hero__enter">
+            <Link to={ROUTES.BOOKING} className="home-button home-button--primary">Reservar cancha <ArrowUpRight size={19} aria-hidden="true" /></Link>
+            <Link to={ROUTES.TOURNAMENTS} className="home-button home-button--ghost">Explorar torneos <ArrowRight size={18} aria-hidden="true" /></Link>
           </div>
-
-          <div className="relative min-h-[250px] overflow-hidden sm:min-h-[420px] lg:min-h-full">
-            <img src={heroImg} alt="Jugador de pádel en cancha iluminada" className="absolute inset-0 hidden h-full w-full scale-105 object-cover object-center opacity-95 lg:block" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#030611] via-[#030611]/25 to-transparent lg:bg-gradient-to-r lg:from-[#030611] lg:via-[#030611]/15 lg:to-transparent" />
-
-            <div className="absolute right-5 top-5 hidden rounded-[1.4rem] border border-white/15 bg-black/55 px-4 py-3 backdrop-blur md:block">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Ocupación hoy</p>
-              <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black text-lime-100">{availableCount}</span><span className="pb-1 text-xs text-slate-400">canchas con horarios libres</span></div>
-            </div>
-
-            <div className="absolute bottom-4 left-4 right-4 rounded-[1.45rem] border border-white/15 bg-black/60 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-5 sm:right-5 sm:rounded-[1.8rem] sm:p-4 md:left-auto md:w-[410px]">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <p className="hidden text-[11px] uppercase tracking-[0.22em] text-slate-400 sm:block">Disponibilidad rápida</p>
-                  <h2 className="text-base font-black text-white sm:text-lg">Horarios destacados</h2>
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black"><span className="h-1.5 w-1.5 rounded-full bg-black/70" />{apiOnline ? "En vivo" : "Demo"}</span>
-              </div>
-              <div className="space-y-2">
-                {liveSlots.map((slot) => <LiveSlot key={`${slot.hour}-${slot.court}`} slot={slot} />)}
-              </div>
-            </div>
+          <div className="home-hero__facts home-hero__enter">
+            <span><Clock3 size={16} aria-hidden="true" /> {settings.openingHours}</span>
+            <span><MapPin size={16} aria-hidden="true" /> {settings.address}</span>
           </div>
+        </div>
+        <div className="home-hero__side-label" aria-hidden="true">JUGÁ EL MOMENTO · PADELBOOK</div>
+        <a href="#home-courts" className="home-hero__scroll" aria-label="Ver disponibilidad de canchas"><ArrowDown size={19} aria-hidden="true" /></a>
+        <div className="home-hero__number" aria-hidden="true">01 / 03</div>
+      </section>
+
+      <div className="home-tape" aria-label="Todo tu pádel en un lugar"><span>RESERVÁ TU CANCHA</span><i /> <span>JUGÁ TORNEOS</span><i /> <span>ENCONTRÁ TU GRUPO</span><i /> <span>VIVÍ EL CLUB</span></div>
+
+      <section id="home-courts" className="home-section home-courts" aria-labelledby="home-courts-title">
+        <div className="home-section__intro" data-reveal>
+          <div><p className="home-eyebrow"><span>01</span> / LA AGENDA</p><h2 id="home-courts-title">Tu cancha<br /><em>te espera.</em></h2></div>
+          <div className="home-section__aside"><p>Elegí tu cancha y encontrá un horario que encaje con tu día. La disponibilidad se actualiza desde la agenda del club.</p><Link to={ROUTES.BOOKING} className="home-text-link">Ver todos los horarios <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+        </div>
+        <div className="home-availability" data-reveal role="status">
+          <div className="home-availability__signal"><span className={`home-live-dot ${loading ? "is-loading" : ""}`} /> {loading ? "Consultando agenda" : error ? "Agenda temporalmente no disponible" : `${availableCourts} de ${courts.length} canchas con lugar hoy`}</div>
+          <span className="home-availability__mode">{apiOnline ? "AGENDA EN VIVO" : "VISTA DEMO"} · {today.split("-").reverse().join("/")}</span>
+        </div>
+        <div className="home-court-grid">
+          {courts.map((court, index) => <Link key={court.id} to={`${ROUTES.BOOKING}?court=${court.id}`} className="home-court" data-reveal style={{ "--reveal-delay": `${index * 90}ms` }}>
+            <div className="home-court__top"><span>CANCHA {court.number}</span><ArrowUpRight size={23} aria-hidden="true" /></div>
+            <div className="home-court__lines" aria-hidden="true"><span /><span /><span /></div>
+            <div className="home-court__bottom"><div><h3>{court.name.replace(/^Cancha \d+ - /, "")}</h3><p>{court.note}</p></div><div className="home-court__time"><span>PRÓXIMO LIBRE</span><strong className={court.available ? "" : "is-muted"}>{court.nextHour}</strong></div></div>
+          </Link>)}
+        </div>
+        <p className="home-courts__footnote">Turnos de 1, 1:30, 2 o 2:30 h · Desde {formatMoney(courtPrice)} por hora base · Precios finales visibles al elegir horario.</p>
+      </section>
+
+      <section className="home-feature" aria-labelledby="home-feature-title">
+        <div className="home-feature__copy" data-reveal><p className="home-eyebrow"><span>02</span> / SIN VUELTAS</p><h2 id="home-feature-title">Menos mensajes.<br /><em>Más pádel.</em></h2><p>Tu próximo turno, tus torneos y tu grupo, en un mismo lugar. Reservá en minutos y seguí todo desde tu cuenta.</p><Link to={ROUTES.BOOKING} className="home-button home-button--dark">Elegir un turno <ArrowUpRight size={19} aria-hidden="true" /></Link></div>
+        <div className="home-feature__steps" data-reveal>
+          <div><span>01 / ELEGÍ</span><CalendarDays size={27} aria-hidden="true" /><h3>Cancha y horario</h3><p>Ves las opciones disponibles para la duración de tu partido.</p></div>
+          <div><span>02 / CONFIRMÁ</span><Zap size={27} aria-hidden="true" /><h3>Reservá al instante</h3><p>Elegís cómo coordinar el pago y el turno queda en tu agenda.</p></div>
+          <div><span>03 / JUGÁ</span><Sparkles size={27} aria-hidden="true" /><h3>Todo listo</h3><p>Consultás el detalle del turno cuando lo necesites.</p></div>
         </div>
       </section>
 
-      <section className="mobile-snap-row mobile-fade-x compact mt-8 grid gap-4 lg:grid-cols-3">
-        {experience.map((item, index) => <ExperienceCard key={item.title} index={index + 1} {...item} />)}
-      </section>
-      <p className="mobile-scroll-hint">Deslizá para ver más</p>
-
-      <section className="mobile-tight-section mt-8 overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_28px_95px_rgba(0,0,0,0.85)]">
-        <div className="relative grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
-          <img src={shopProductsImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-20" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(190,242,100,0.2),transparent_28%),linear-gradient(110deg,rgba(3,6,17,0.78),rgba(3,6,17,0.6),rgba(3,6,17,0.9))]" />
-          <div className="relative border-b border-white/10 p-5 sm:p-6 lg:border-b-0 lg:border-r">
-            <div className="overflow-hidden rounded-[1.6rem] border border-lime-300/20 bg-black/35 shadow-2xl">
-              <img src={shopProductsImg} alt="Paletas, pelotas, grips y accesorios de pádel" className="h-56 w-full object-cover object-center sm:h-72 lg:h-80" />
-            </div>
-            <div className="relative mt-5">
-              <p className="section-eyebrow">Pro shop</p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Paletas, pelotas y accesorios para salir a jugar.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                {apiOnline ? "Consultá directamente al club por paletas, pelotas y accesorios disponibles." : "Catálogo ilustrativo de la demo. Consultá disponibilidad y precio con el club."}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Pill>{apiOnline ? "Consultar disponibilidad" : "Productos de ejemplo"}</Pill>
-                <Pill>Consulta rápida</Pill>
-                <Pill>Retiro en cancha</Pill>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative mobile-snap-row mobile-fade-x compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
-            {apiOnline ? <div className="flex min-h-80 flex-col justify-center gap-5 rounded-[1.6rem] border border-white/10 bg-black/40 p-6 sm:col-span-2">
-              <h3 className="text-2xl font-black text-white">Consultá los productos del club</h3>
-              <p className="text-sm leading-6 text-slate-300">El club te confirma modelos, precios y stock al momento de la consulta.</p>
-              <a className="btn-primary w-fit" href={whatsappShopUrl(settings, "productos de pádel")} target="_blank" rel="noreferrer">Consultar por WhatsApp</a>
-            </div> : shopProducts.map((product) => (
-              <article key={product.name} className="depth-card overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 transition hover:border-lime-300/35 hover:bg-black/50">
-                <div className="relative h-32 overflow-hidden border-b border-white/10 sm:h-36">
-                  <img src={product.image} alt={`${product.name} disponible en el pro shop del club`} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-                  <span className="absolute right-3 top-3 rounded-full border border-lime-300/25 bg-black/55 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-lime-100 backdrop-blur">{product.badge}</span>
-                </div>
-                <div className="p-5">
-                <h3 className="text-lg font-black text-white">{product.name}</h3>
-                <p className="mt-1 min-h-[48px] text-sm leading-6 text-slate-400">{product.detail}</p>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <p className="text-xl font-black text-lime-100">${product.price.toLocaleString("es-AR")}</p>
-                  <a
-                    className="tap-action inline-flex min-w-[92px] items-center justify-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-white transition hover:border-lime-300/40 hover:bg-lime-300/10 hover:text-lime-100"
-                    href={whatsappShopUrl(settings, product.name)}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Consultar por ${product.name} en WhatsApp`}
-                    onClick={() => handleShopConsult(product)}
-                  >
-                    {consultingProduct === product.name && <span className="mini-spinner" aria-hidden="true" />}
-                    {consultingProduct === product.name ? "Abriendo" : "Consultar"}
-                  </a>
-                </div>
-                </div>
-              </article>
-            ))}
-          </div>
+      <section className="home-section home-more" aria-labelledby="home-more-title">
+        <div className="home-section__intro" data-reveal><div><p className="home-eyebrow"><span>03</span> / MÁS QUE UNA CANCHA</p><h2 id="home-more-title">El juego<br /><em>sigue afuera.</em></h2></div><p className="home-section__aside">Conectá con jugadores, sumate a un torneo o volvé a tu agenda. Todo sucede alrededor de tu club.</p></div>
+        <div className="home-more__grid">
+          <Link to={ROUTES.TOURNAMENTS} className="home-story home-story--tournament" data-reveal><span className="home-story__index">01 / TORNEOS</span><div className="home-story__content"><div className="home-story__icon"><CalendarDays size={22} aria-hidden="true" /></div><h3>{nextTournament ? nextTournament.name : "Próximo desafío"}</h3><p>{nextTournament ? `${nextTournament.date.split("-").reverse().join("/")} · ${nextTournament.category}` : tournamentsLoading ? "Buscando torneos del club" : tournamentsError ? "No se pudieron cargar los torneos" : "Descubrí los torneos del club y preparate para jugar."}</p><span className="home-story__link">{nextTournament ? "Ver torneo" : "Explorar torneos"} <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
+          <Link to={ROUTES.COMMUNITY} className="home-story home-story--community" data-reveal style={{ "--reveal-delay": "90ms" }}><span className="home-story__index">02 / COMUNIDAD</span><div className="home-story__content"><div className="home-story__icon"><Users size={22} aria-hidden="true" /></div><h3>Siempre hay partido.</h3><p>Encontrá jugadores de tu nivel y armá el próximo encuentro.</p><span className="home-story__link">Buscar jugadores <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
+          <Link to={ROUTES.MY_BOOKINGS} className="home-story home-story--agenda" data-reveal style={{ "--reveal-delay": "180ms" }}><span className="home-story__index">03 / TU AGENDA</span><div className="home-story__content"><div className="home-story__icon"><Clock3 size={22} aria-hidden="true" /></div><h3>Todo bajo control.</h3><p>Tus turnos y su estado, siempre a mano desde el celular.</p><span className="home-story__link">Ver mis turnos <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
         </div>
       </section>
 
+      <section className="home-shop" data-reveal aria-labelledby="home-shop-title"><div className="home-shop__image"><img src={shopImg} alt="Paletas y accesorios de pádel" loading="lazy" /></div><div className="home-shop__copy"><p className="home-eyebrow"><span>EXTRA</span> / EN EL CLUB</p><h2 id="home-shop-title">Equipate para<br /><em>el próximo punto.</em></h2><p>Consultá al club por paletas, pelotas y accesorios. Te confirman modelos, precios y disponibilidad por WhatsApp.</p>{shopUrl && <a className="home-text-link" href={shopUrl} target="_blank" rel="noreferrer">Consultar productos <ArrowUpRight size={17} aria-hidden="true" /></a>}</div></section>
 
-      <section className="mobile-tight-section mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="depth-card relative overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-lime-300/20 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 right-0 h-28 w-44 rounded-tl-full border-l border-t border-lime-300/10 bg-black/20" />
-          <p className="section-eyebrow">Experiencia del jugador</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Todo lo que importa, a un toque.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-            El club gestiona precios, contacto, torneos y disponibilidad desde su panel. Los turnos y cobros quedan ordenados en cada cuenta.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Pill>{`Turno desde $${courtPrice.toLocaleString("es-AR")}`}</Pill><Pill>{`Clase $${classPrice.toLocaleString("es-AR")}`}</Pill><Pill>{settings.openingHours}</Pill><Pill>{nextTournament?.name || "Torneos"}</Pill>
-          </div>
-          <Link to={ROUTES.PLAYER} className="btn-primary tap-action mt-7">Abrir mi panel</Link>
-        </div>
-
-        <div className="mobile-snap-row compact mobile-fade-x grid gap-3 md:grid-cols-3">
-          {courtAvailability.map((court) => (
-            <article key={court.id} className="depth-card group rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl transition hover:border-lime-300/35 hover:bg-[#101B32]">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Cancha</p>
-              <h3 className="mt-3 text-xl font-black text-white">{court.name}</h3>
-              <p className="mt-1 text-sm text-slate-400">{court.detail}</p>
-              <div className="depth-row mt-8 rounded-2xl border border-lime-300/20 bg-lime-300/10 p-3">
-                <p className="text-xs text-slate-300">Próximo libre</p>
-                <p className="mt-1 inline-flex items-center gap-2 text-2xl font-black text-lime-100">
-                  <StatusDot tone={court.tone} />
-                  {court.free}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
-        <div className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl sm:p-6">
-          <p className="section-eyebrow">Comunidad en juego</p>
-          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Torneos del club</h2>
-          <div className="mt-4 grid gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-3">
-            {!tournaments.length && <p className="text-sm leading-6 text-slate-400">Próximamente se publicarán torneos del club.</p>}
-            {tournaments.slice(0, 4).map((tournament) => (
-              <div key={tournament.id} className="depth-row flex items-center justify-between rounded-2xl border border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-lime-300 text-sm font-black text-black sm:h-9 sm:w-9">🎾</span>
-                  <div className="min-w-0">
-                    <p className="truncate font-bold text-white">{tournament.name}</p>
-                    <p className="truncate text-xs text-slate-500">{tournament.date} · {tournament.category}</p>
-                  </div>
-                </div>
-                <span className="shrink-0 pl-3 text-xs font-bold text-lime-100">{tournament.currentPlayers}/{tournament.maxPlayers}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="depth-card rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
-          <p className="section-eyebrow">Tu cuenta</p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">{settings.promoText}</h2>
-          <p className="mt-3 text-sm leading-7 text-slate-300">El jugador puede consultar sus turnos, cancelar cuando corresponda y contactar al club con el detalle armado por WhatsApp.</p>
-          <Link to={ROUTES.MY_BOOKINGS} className="btn-primary tap-action mt-6">Ver mi agenda</Link>
-        </div>
-      </section>
+      <section className="home-end" data-reveal><span>EL PARTIDO EMPIEZA ACÁ</span><h2>Nos vemos<br /><em>en la cancha.</em></h2><Link to={ROUTES.BOOKING} className="home-button home-button--primary">Reservar mi turno <ArrowUpRight size={20} aria-hidden="true" /></Link></section>
     </main>
   );
 }
-
-function HeroMetric({ value, label, featured = false }) {
-  const featuredClass = featured
-    ? "border-lime-300/35 bg-lime-300/10 shadow-[0_0_34px_rgba(190,242,100,0.12)]"
-    : "border-white/10 bg-black/25 sm:bg-white/[0.045]";
-  return <div className={`min-w-0 rounded-2xl border px-2 py-2 backdrop-blur sm:px-4 sm:py-3 ${featuredClass}`}><p className="text-[clamp(0.78rem,2vw,1.45rem)] font-black leading-tight text-lime-100">{value}</p><p className="mt-0.5 truncate text-[8px] uppercase tracking-wide text-slate-300 sm:text-[11px]">{label}</p></div>;
-}
-function LiveSlot({ slot }) {
-  const cls = slot.tone === "amber" ? "border-amber-300/30 bg-amber-300/10 text-amber-100" : "border-lime-300/30 bg-lime-300/10 text-lime-100";
-  return <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.055] px-3 py-2 transition hover:bg-white/[0.09]"><div><p className="text-sm font-black text-white">{slot.hour}</p><p className="text-xs text-slate-300">{slot.court}</p></div><span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${cls}`}><StatusDot tone={slot.tone} />{slot.status}</span></div>;
-}
-function StatusDot({ tone = "lime" }) {
-  const color = tone === "amber" ? "bg-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.75)]" : "bg-lime-300 shadow-[0_0_14px_rgba(190,242,100,0.8)]";
-  return <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />;
-}
-function ExperienceCard({ icon, title, text, index }) {
-  return <article className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/90 p-6 shadow-xl transition hover:border-lime-300/35"><div className="flex items-center justify-between"><span className="depth-icon text-3xl">{icon}</span><span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-2 py-1 text-xs font-black text-lime-200">0{index}</span></div><h3 className="mt-7 text-xl font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{text}</p></article>;
-}
-function Pill({ children }) { return <span className="rounded-full border border-lime-300/20 bg-black/25 px-3 py-1 text-xs font-bold text-lime-100">{children}</span>; }

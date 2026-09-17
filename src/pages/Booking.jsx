@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
@@ -35,6 +36,8 @@ function todayISO() {
 }
 
 export default function Booking() {
+  const [searchParams] = useSearchParams();
+  const requestedCourtId = searchParams.get("court");
   const { user, openLogin, apiOnline } = useAuth();
   const { bookings, addBooking, setSelectedBooking } = useBooking();
   const { notify } = useToast();
@@ -47,12 +50,20 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const { occupied, teacherBusy, loading: availabilityLoading, error: availabilityError } = useAvailability(selectedDate);
   const [selectedDuration, setSelectedDuration] = useState(90);
-  const [selectedCourtId, setSelectedCourtId] = useState(COURTS[0].id);
+  const [selectedCourtId, setSelectedCourtId] = useState(() => COURTS.some((court) => court.id === requestedCourtId) ? requestedCourtId : COURTS[0].id);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(false);
+
+  useEffect(() => {
+    if (COURTS.some((court) => court.id === requestedCourtId)) {
+      setSelectedCourtId(requestedCourtId);
+      setSelectedSlot(null);
+      setPaymentOption(null);
+    }
+  }, [requestedCourtId]);
 
   useEffect(() => {
     if (!selectedSlot) { setSummaryVisible(false); return; }
