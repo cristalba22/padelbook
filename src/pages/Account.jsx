@@ -5,7 +5,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { money } from "../utils/businessMetrics.js";
 import { usePricing } from "../context/PricingContext.jsx";
-import { getUserTournamentRegistrations, TOURNAMENTS_EVENT } from "../utils/tournamentsStorage.js";
+import { useTournaments } from "../hooks/useTournaments.jsx";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "Profesor"];
@@ -23,17 +23,7 @@ export default function Account() {
   const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", password: "", phone: user?.phone || "", category: user?.category || "Sin categoría" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [tournamentSync, setTournamentSync] = useState(0);
-
-  useEffect(() => {
-    const refresh = () => setTournamentSync((value) => value + 1);
-    window.addEventListener(TOURNAMENTS_EVENT, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(TOURNAMENTS_EVENT, refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
+  const { myRegistrations } = useTournaments();
 
   const userBookings = useMemo(() => {
     if (!user?.email) return [];
@@ -44,8 +34,7 @@ export default function Account() {
   const confirmedBookings = activeBookings.filter((b) => b.status === "confirmado");
   const nextBooking = [...activeBookings].sort((a, b) => `${a.date}T${a.time || a.hour}`.localeCompare(`${b.date}T${b.time || b.hour}`))[0];
   const totalSpent = activeBookings.reduce((acc, b) => acc + Number(b.price || b.total || 0), 0);
-  const benefitProgress = Math.min(8, activeBookings.length % 9 || activeBookings.length);
-  const tournamentRegistrations = useMemo(() => getUserTournamentRegistrations(user, prices.tournamentPrice), [user, prices.tournamentPrice, tournamentSync]);
+  const tournamentRegistrations = myRegistrations;
   const tournamentGroups = useMemo(() => splitTournamentRegistrations(tournamentRegistrations), [tournamentRegistrations]);
   const activeTournamentRegistrations = tournamentGroups.upcoming;
 
@@ -57,9 +46,9 @@ export default function Account() {
     catch (err) { setError(err.message || "No se pudo completar la operación."); }
   }
 
-  function saveProfile(e) {
+  async function saveProfile(e) {
     e.preventDefault(); setMessage(""); setError("");
-    try { updateProfile({ name: form.name, phone: form.phone, category: form.category }); setMessage("Perfil actualizado correctamente."); }
+    try { await updateProfile({ name: form.name, phone: form.phone, category: form.category }); setMessage("Perfil actualizado correctamente."); }
     catch (err) { setError(err.message || "No se pudo guardar el perfil."); }
   }
 
@@ -74,9 +63,8 @@ export default function Account() {
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Tu perfil mantiene sincronizadas las reservas, pagos, categoría y contacto que usa el club para gestionar tus turnos.</p>
             </div>
             <div className="rounded-[1.7rem] border border-lime-300/20 bg-lime-300/10 p-4">
-              <div className="mb-2 flex items-center justify-between text-xs"><span className="font-bold uppercase tracking-[0.2em] text-lime-100">Reserva bonificada</span><span className="text-lime-100">{benefitProgress}/8</span></div>
-              <div className="h-2 overflow-hidden rounded-full bg-black/35"><div className="h-full rounded-full bg-lime-300" style={{ width: `${(benefitProgress / 8) * 100}%` }} /></div>
-              <p className="mt-2 text-xs text-slate-300">Cuando completás 8 reservas activas, la próxima queda identificada para beneficio del club.</p>
+              <div className="mb-2 flex items-center justify-between text-xs"><span className="font-bold uppercase tracking-[0.2em] text-lime-100">Tus reservas</span><span className="text-lime-100">{activeBookings.length}</span></div>
+              <p className="mt-2 text-xs text-slate-300">Consultá tus turnos activos, pagos registrados y próximos torneos desde esta cuenta.</p>
             </div>
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

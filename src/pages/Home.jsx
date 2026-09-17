@@ -1,5 +1,5 @@
 ﻿// src/pages/Home.jsx
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import heroImg from "../assets/hero-padel.webp";
 import shopProductsImg from "../assets/shop-padel-products.jpg";
@@ -15,7 +15,7 @@ import { useBooking } from "../hooks/useBooking.jsx";
 import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule } from "../hooks/useSchedule.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
-import { loadTournaments } from "../utils/tournamentsStorage.js";
+import { useTournaments } from "../hooks/useTournaments.jsx";
 import { useToast } from "../components/ToastProvider.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
@@ -47,15 +47,15 @@ export default function Home() {
   const { notify } = useToast();
   const { apiOnline } = useAuth();
   const [consultingProduct, setConsultingProduct] = useState("");
-  const tournaments = useMemo(() => loadTournaments(prices.tournamentPrice), [prices.tournamentPrice]);
+  const { tournaments } = useTournaments();
   const openTournaments = tournaments.filter((t) => t.status === "abierto").length;
   const courtPrice = getCourtPrice("15:00", new Date(), prices);
   const classPrice = getClassPrice(prices);
   const nextTournament = tournaments.find((t) => t.status === "abierto") || tournaments[0];
   const today = argentinaDateISO();
-  const { occupied, loading: availabilityLoading } = useAvailability(today);
+  const { occupied, loading: availabilityLoading, error: availabilityError } = useAvailability(today);
   const courtAvailability = COURTS.map((court) => {
-    const freeHour = !availabilityLoading && !blocksLoading && !blocksError && COURT_HOURS.find((hour) => {
+    const freeHour = !availabilityLoading && !blocksLoading && !blocksError && !availabilityError && COURT_HOURS.find((hour) => {
       if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
       const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
       return !blocks.some((block) => blockOverlapsBooking(block, candidate)) && ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
@@ -64,13 +64,13 @@ export default function Home() {
       id: court.id,
       name: court.name.replace("Cancha ", ""),
       detail: court.description,
-      free: availabilityLoading || blocksLoading ? "Consultando" : blocksError ? "No disponible" : freeHour || "Completa",
-      status: availabilityLoading || blocksLoading ? "Cargando" : blocksError ? "Sin datos" : freeHour ? "Libre" : "Sin turnos",
+      free: availabilityLoading || blocksLoading ? "Consultando" : blocksError || availabilityError ? "No disponible" : freeHour || "Completa",
+      status: availabilityLoading || blocksLoading ? "Cargando" : blocksError || availabilityError ? "Sin datos" : freeHour ? "Libre" : "Sin turnos",
       tone: freeHour ? "lime" : "amber",
     };
   });
   const liveSlots = courtAvailability.slice(0, 3).map((court) => ({ hour: court.free, court: court.name, status: court.status, tone: court.tone }));
-  const availableCount = availabilityLoading || blocksLoading || blocksError ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
+  const availableCount = availabilityLoading || blocksLoading || blocksError || availabilityError ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
   const handleShopConsult = (product) => {
     setConsultingProduct(product.name);
     notify({
@@ -81,16 +81,6 @@ export default function Home() {
     });
     window.setTimeout(() => setConsultingProduct(""), 1400);
   };
-  const tournamentRanking = useMemo(() => {
-    const registeredPlayers = tournaments
-      .flatMap((tournament) => tournament.registrations || [])
-      .filter((registration) => !["cancelado", "rechazado"].includes(String(registration.status || "").toLowerCase()))
-      .map((registration) => ({
-        name: registration.name || "Jugador del club",
-        category: registration.category || "Mixto libre",
-      }));
-    return registeredPlayers.slice(0, 4);
-  }, [tournaments]);
   return (
     <main className="home-wrapper text-white">
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
@@ -127,7 +117,7 @@ export default function Home() {
             <div className="mt-6 grid max-w-3xl grid-cols-3 gap-2 sm:mt-9 sm:gap-3">
               <HeroMetric value={`$${courtPrice.toLocaleString("es-AR")}`} label="turno base" featured />
               <HeroMetric value={settings.openingHours} label="agenda del club" />
-              <HeroMetric value={settings.promoText} label="beneficio activo" />
+              <HeroMetric value={settings.promoText} label="para jugadores" />
             </div>
           </div>
 
@@ -173,10 +163,10 @@ export default function Home() {
               <p className="section-eyebrow">Pro shop</p>
               <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Paletas, pelotas y accesorios para salir a jugar.</h2>
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                El club puede mostrar productos destacados y recibir consultas por WhatsApp sin salir de la experiencia de reserva.
+                {apiOnline ? "Consultá directamente al club por paletas, pelotas y accesorios disponibles." : "Catálogo ilustrativo de la demo. Consultá disponibilidad y precio con el club."}
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Pill>Stock del club</Pill>
+                <Pill>{apiOnline ? "Consultar disponibilidad" : "Productos de ejemplo"}</Pill>
                 <Pill>Consulta rápida</Pill>
                 <Pill>Retiro en cancha</Pill>
               </div>
@@ -184,7 +174,11 @@ export default function Home() {
           </div>
 
           <div className="relative mobile-snap-row mobile-fade-x compact grid gap-3 p-4 sm:grid-cols-2 lg:p-5">
-            {shopProducts.map((product) => (
+            {apiOnline ? <div className="flex min-h-80 flex-col justify-center gap-5 rounded-[1.6rem] border border-white/10 bg-black/40 p-6 sm:col-span-2">
+              <h3 className="text-2xl font-black text-white">Consultá los productos del club</h3>
+              <p className="text-sm leading-6 text-slate-300">El club te confirma modelos, precios y stock al momento de la consulta.</p>
+              <a className="btn-primary w-fit" href={whatsappShopUrl(settings, "productos de pádel")} target="_blank" rel="noreferrer">Consultar por WhatsApp</a>
+            </div> : shopProducts.map((product) => (
               <article key={product.name} className="depth-card overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40 transition hover:border-lime-300/35 hover:bg-black/50">
                 <div className="relative h-32 overflow-hidden border-b border-white/10 sm:h-36">
                   <img src={product.image} alt={`${product.name} disponible en el pro shop del club`} className="h-full w-full object-cover" />
@@ -223,7 +217,7 @@ export default function Home() {
           <p className="section-eyebrow">Experiencia del jugador</p>
           <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Todo lo que importa, a un toque.</h2>
           <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-            Toda la información del club se actualiza desde administración: precios, horarios, contacto, torneos y disponibilidad visible para el jugador.
+            El club gestiona precios, contacto, torneos y disponibilidad desde su panel. Los turnos y cobros quedan ordenados en cada cuenta.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Pill>{`Turno desde $${courtPrice.toLocaleString("es-AR")}`}</Pill><Pill>{`Clase $${classPrice.toLocaleString("es-AR")}`}</Pill><Pill>{settings.openingHours}</Pill><Pill>{nextTournament?.name || "Torneos"}</Pill>
@@ -252,25 +246,25 @@ export default function Home() {
       <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
         <div className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl sm:p-6">
           <p className="section-eyebrow">Comunidad en juego</p>
-          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Inscripciones recientes</h2>
+          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Torneos del club</h2>
           <div className="mt-4 grid gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-3">
-            {!tournamentRanking.length && <p className="text-sm leading-6 text-slate-400">Las inscripciones aparecerán acá cuando los jugadores se anoten a un torneo.</p>}
-            {tournamentRanking.map((player, index) => (
-              <div key={player.name} className={`${index > 2 ? "hidden sm:flex" : "flex"} depth-row items-center justify-between rounded-2xl border border-white/10 px-3 py-2.5 sm:px-4 sm:py-3`}>
+            {!tournaments.length && <p className="text-sm leading-6 text-slate-400">Próximamente se publicarán torneos del club.</p>}
+            {tournaments.slice(0, 4).map((tournament) => (
+              <div key={tournament.id} className="depth-row flex items-center justify-between rounded-2xl border border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-lime-300 text-sm font-black text-black sm:h-9 sm:w-9">{index + 1}</span>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-lime-300 text-sm font-black text-black sm:h-9 sm:w-9">🎾</span>
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-white">{player.name}</p>
-                    <p className="truncate text-xs text-slate-500">{player.category}</p>
+                    <p className="truncate font-bold text-white">{tournament.name}</p>
+                    <p className="truncate text-xs text-slate-500">{tournament.date} · {tournament.category}</p>
                   </div>
                 </div>
-                <span className="shrink-0 pl-3 text-xs font-bold text-lime-100">Inscripto</span>
+                <span className="shrink-0 pl-3 text-xs font-bold text-lime-100">{tournament.currentPlayers}/{tournament.maxPlayers}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="depth-card rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-6 shadow-xl">
-          <p className="section-eyebrow">Beneficio activo</p>
+          <p className="section-eyebrow">Tu cuenta</p>
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">{settings.promoText}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-300">El jugador puede consultar sus turnos, cancelar cuando corresponda y contactar al club con el detalle armado por WhatsApp.</p>
           <Link to={ROUTES.MY_BOOKINGS} className="btn-primary tap-action mt-6">Ver mi agenda</Link>

@@ -34,29 +34,35 @@ function publicProfile(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => safeRead(AUTH_KEY, null));
+  const configuredApi = Boolean(import.meta.env.VITE_API_URL);
+  const [user, setUser] = useState(() => configuredApi && !getAuthToken() ? null : safeRead(AUTH_KEY, null));
   const [showLogin, setShowLogin] = useState(false);
-  const [apiOnline, setApiOnline] = useState(false);
+  const [apiOnline, setApiOnline] = useState(configuredApi);
+  const [apiReady, setApiReady] = useState(configuredApi);
 
   useEffect(() => {
     let alive = true;
     checkApiHealth().then((online) => {
-      if (alive) setApiOnline(online);
+      if (alive) {
+        if (!configuredApi) setApiOnline(online);
+        setApiReady(true);
+      }
     });
     return () => { alive = false; };
   }, []);
 
   useEffect(() => {
+    if (!apiOnline) return;
     const token = getAuthToken();
-    if (!token) return;
+    if (!token) { setUser(null); safeRemove(AUTH_KEY); return; }
     apiRequest("/auth/me")
       .then(({ user: profile }) => {
         setApiOnline(true);
         setUser(profile);
         safeWrite(AUTH_KEY, profile);
       })
-      .catch(() => setAuthToken(null));
-  }, []);
+      .catch((error) => { if (error.status === 401) { setUser(null); safeRemove(AUTH_KEY); } });
+  }, [apiOnline]);
 
   useEffect(() => {
     const handleExpired = () => {
@@ -123,8 +129,17 @@ export function AuthProvider({ children }) {
     return profile;
   }
 
-  function updateProfile(updates) {
+  async function updateProfile(updates) {
     if (!user) return null;
+    if (apiOnline) {
+      const { user: saved } = await apiRequest("/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify({ name: updates.name, phone: updates.phone, category: updates.category }),
+      });
+      setUser(saved);
+      safeWrite(AUTH_KEY, saved);
+      return saved;
+    }
     const users = getUsers();
     const nextUser = { ...user, ...updates, email: cleanEmail(updates.email || user.email) };
     const nextUsers = users.map((u) => cleanEmail(u.email) === cleanEmail(user.email) ? { ...u, ...updates, email: nextUser.email } : u);
@@ -141,8 +156,8 @@ export function AuthProvider({ children }) {
     closeLogin();
   }
 
-  const value = useMemo(() => ({ user, showLogin, apiOnline, openLogin, closeLogin, login, register, updateProfile, logout }), [user, showLogin, apiOnline]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, updateProfile, logout }), [user, showLogin, apiOnline, apiReady]);
+  return <AuthContext.Provider value={value}>{apiReady ? children : <div role="status" className="grid min-h-screen place-items-center bg-[#080c16] text-sm text-white">Consultando el estado del club...</div>}</AuthContext.Provider>;
 }
 
 export function useAuth() {

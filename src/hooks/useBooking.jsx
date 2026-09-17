@@ -24,7 +24,7 @@ function readBookings() {
 
 export function BookingProvider({ children }) {
   const { user, apiOnline } = useAuth();
-  const [bookings, setBookings] = useState(readBookings);
+  const [bookings, setBookings] = useState(() => apiOnline ? [] : readBookings());
   const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
@@ -40,12 +40,14 @@ export function BookingProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!apiOnline || !user) return;
+    if (!apiOnline) return;
+    setBookings([]);
+    if (!user) return;
     apiRequest("/bookings")
       .then(({ bookings: remoteBookings }) => {
         setBookings(remoteBookings.map((booking) => ({ ...booking, status: normalizeStatus(booking.status) })));
       })
-      .catch(() => {});
+      .catch(() => setBookings([]));
   }, [apiOnline, user?.id, user?.role]);
 
   function persist(next) {

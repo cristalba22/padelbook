@@ -2,19 +2,22 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
-import { loadTeachers, saveTeachers } from "../utils/teachersStorage.js";
-
-const agenda = [
-  { hour: "09:00", teacher: "Lucio", type: "Clase grupal", status: "confirmada" },
-  { hour: "10:30", teacher: "Eze", type: "Técnica inicial", status: "pendiente" },
-  { hour: "18:00", teacher: "Laura", type: "Entrenamiento", status: "confirmada" },
-];
+import { useTeachers } from "../hooks/useTeachers.jsx";
+import { useBooking } from "../hooks/useBooking.jsx";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
+import { paymentSummary } from "../utils/paymentDomain.js";
 
 export default function AdminTeachers() {
   const { prices } = usePricing();
-  const [teachers, setTeachers] = useState(() => loadTeachers(prices.classPrice));
+  const { teachers, updateTeacher, save: saveTeachers, create, error: loadError } = useTeachers();
+  const { bookings } = useBooking();
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newSpecialty, setNewSpecialty] = useState("Clases de pádel");
+  const todayClasses = useMemo(() => bookings.filter((booking) => booking.date === argentinaDateISO() && booking.type === "class" && booking.status !== "cancelado"), [bookings]);
+  const agenda = todayClasses.slice().sort((a, b) => String(a.time).localeCompare(String(b.time))).slice(0, 4);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -25,15 +28,25 @@ export default function AdminTeachers() {
   const stats = useMemo(() => ({
     active: teachers.filter((t) => t.status === "activo").length,
     vacation: teachers.filter((t) => t.status === "vacaciones").length,
-    classes: teachers.reduce((acc, t) => acc + Number(t.todayClasses || 0), 0),
-    revenue: teachers.reduce((acc, t) => acc + Number(t.todayClasses || 0) * Number(t.price || 0), 0),
-  }), [teachers]);
+    classes: todayClasses.length,
+    revenue: todayClasses.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0),
+  }), [teachers, todayClasses]);
 
-  function updateTeacher(id, patch) { setTeachers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))); }
-  function save() { saveTeachers(teachers); setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  async function save() {
+    setActionError("");
+    try { await saveTeachers(); setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    catch (cause) { setActionError(cause.message || "No se pudo guardar el staff."); }
+  }
+  async function addTeacher() {
+    if (!newName.trim()) return;
+    setActionError("");
+    try { await create({ name: newName.trim(), nickname: newName.trim().split(" ")[0], specialty: newSpecialty.trim(), price: Number(prices.classPrice) }); setNewName(""); }
+    catch (cause) { setActionError(cause.message || "No se pudo agregar el profesor."); }
+  }
 
   return (
     <AdminLayout title="Staff y clases" subtitle="Los precios y estados guardados se reflejan en las clases visibles para jugadores.">
+      {(loadError || actionError) && <p role="alert" className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm text-red-100">{loadError || actionError}</p>}
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -41,14 +54,16 @@ export default function AdminTeachers() {
             <button onClick={save} className="btn-primary px-6 py-3">Guardar staff</button>
           </div>
           {saved && <p className="mt-3 text-sm font-bold text-lime-100">Cambios guardados ✓</p>}
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Kpi label="Activos" value={stats.active} /><Kpi label="Vacaciones" value={stats.vacation} warn /><Kpi label="Clases hoy" value={stats.classes} /><Kpi label="Caja clases" value={money(stats.revenue)} /></div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Kpi label="Activos" value={stats.active} /><Kpi label="Vacaciones" value={stats.vacation} warn /><Kpi label="Clases hoy" value={stats.classes} /><Kpi label="Cobrado en clases de hoy" value={money(stats.revenue)} /></div>
         </div>
-        <aside className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Agenda rápida</p><div className="mt-4 space-y-2">{agenda.map((a) => <div key={`${a.hour}-${a.teacher}`} className="rounded-2xl border border-white/10 bg-black/30 p-3"><div className="flex justify-between"><strong>{a.hour}</strong><span className="text-xs text-lime-100">{a.status}</span></div><p className="text-sm text-slate-300">{a.teacher} · {a.type}</p></div>)}</div></aside>
+        <aside className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-5 shadow-xl"><p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Agenda de hoy</p><div className="mt-4 space-y-2">{agenda.map((a) => <div key={a.id} className="rounded-2xl border border-white/10 bg-black/30 p-3"><div className="flex justify-between"><strong>{a.time}</strong><span className="text-xs text-lime-100">{a.status}</span></div><p className="text-sm text-slate-300">{a.teacherName || "Sin profesor"} · {a.courtName}</p></div>)}{agenda.length === 0 && <p className="text-sm text-slate-300">No hay clases agendadas para hoy.</p>}</div></aside>
       </section>
+
+      <section className="admin-panel mb-5 flex flex-col gap-3 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 sm:flex-row sm:items-end"><label className="flex-1 text-xs text-slate-400">Nombre del profesor<input className="field mt-2" value={newName} onChange={(event) => setNewName(event.target.value)} /></label><label className="flex-1 text-xs text-slate-400">Especialidad<input className="field mt-2" value={newSpecialty} onChange={(event) => setNewSpecialty(event.target.value)} /></label><button type="button" onClick={addTeacher} className="btn-primary justify-center">Agregar profesor</button></section>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-400">Buscá por nombre, especialidad o estado.</p><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar profesor..." className="field max-w-sm" /></div>
       <section className="grid gap-4 lg:grid-cols-2">
-        {filtered.map((teacher) => <TeacherCard key={teacher.id} teacher={teacher} onUpdate={updateTeacher} />)}
+        {filtered.map((teacher) => <TeacherCard key={teacher.id} teacher={{ ...teacher, todayClasses: todayClasses.filter((booking) => booking.teacherId === teacher.id || booking.teacherName === teacher.name).length }} onUpdate={updateTeacher} />)}
       </section>
     </AdminLayout>
   );

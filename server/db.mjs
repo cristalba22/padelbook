@@ -62,6 +62,10 @@ bookingSchema.index({ date: 1, courtId: 1, occupiedSlots: 1 }, {
   unique: true,
   partialFilterExpression: { occupiedSlots: { $exists: true }, status: { $in: ["pendiente", "confirmado"] } },
 });
+bookingSchema.index({ date: 1, teacherId: 1, occupiedSlots: 1 }, {
+  unique: true,
+  partialFilterExpression: { type: "class", status: { $in: ["pendiente", "confirmado"] }, teacherId: { $type: "string" }, occupiedSlots: { $exists: true } },
+});
 
 const registrationSchema = new mongoose.Schema({
   userId: String,
@@ -73,6 +77,7 @@ const registrationSchema = new mongoose.Schema({
   partnerPhone: { type: String, default: "" },
   status: { type: String, default: "pendiente" },
   paymentStatus: { type: String, default: "pendiente" },
+  paymentEntries: { type: [new mongoose.Schema({ id: String, amount: Number, method: String, actor: String, at: Date }, { _id: false })], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: null },
 }, { _id: true, versionKey: false, toJSON: { virtuals: true } });
@@ -91,7 +96,7 @@ const tournamentSchema = new mongoose.Schema({
   prize: { type: String, default: "Premio del club" },
   description: { type: String, default: "" },
   registrations: [registrationSchema],
-}, baseOptions);
+}, { ...baseOptions, versionKey: "__v", optimisticConcurrency: true });
 
 const settingsSchema = new mongoose.Schema({
   clubName: { type: String, default: "Arena Norte Padel Club" },
@@ -104,7 +109,7 @@ const settingsSchema = new mongoose.Schema({
   clubStatus: { type: String, default: "Club abierto - reservas online" },
   homeHeadline: { type: String, default: "Tu próximo partido empieza antes de llegar a la cancha." },
   homeSubtitle: { type: String, default: "Reservá cancha, coordiná la seña con el club, consultá tus turnos y sumate a torneos desde una experiencia simple y rápida." },
-  promoText: { type: String, default: "9ª reserva bonificada" },
+  promoText: { type: String, default: "Tus turnos, siempre organizados" },
   courtPrice: { type: Number, default: 18000 },
   nightPrice: { type: Number, default: 24000 },
   weekendExtra: { type: Number, default: 3000 },
@@ -141,6 +146,25 @@ const scheduleBlockSchema = new mongoose.Schema({
 }, baseOptions);
 scheduleBlockSchema.index({ date: 1, courtId: 1, hour: 1 }, { unique: true });
 
+const teacherSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  nickname: { type: String, default: "" },
+  specialty: { type: String, default: "Clases de pádel" },
+  status: { type: String, enum: ["activo", "vacaciones", "baja"], default: "activo" },
+  price: { type: Number, default: 30000 },
+  userId: { type: String, default: "" },
+}, baseOptions);
+
+const slotClaimSchema = new mongoose.Schema({
+  date: { type: String, required: true },
+  courtId: { type: String, required: true },
+  slot: { type: Number, required: true },
+  ownerType: { type: String, enum: ["booking", "block"], required: true },
+  ownerId: { type: String, required: true },
+}, { versionKey: false });
+slotClaimSchema.index({ date: 1, courtId: 1, slot: 1 }, { unique: true });
+slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
+
 export const User = mongoose.model("User", userSchema);
 export const Booking = mongoose.model("Booking", bookingSchema);
 export const Tournament = mongoose.model("Tournament", tournamentSchema);
@@ -148,6 +172,8 @@ export const Setting = mongoose.model("Setting", settingsSchema);
 export const Activity = mongoose.model("Activity", activitySchema);
 export const Expense = mongoose.model("Expense", expenseSchema);
 export const ScheduleBlock = mongoose.model("ScheduleBlock", scheduleBlockSchema);
+export const Teacher = mongoose.model("Teacher", teacherSchema);
+export const SlotClaim = mongoose.model("SlotClaim", slotClaimSchema);
 
 export async function connectDb() {
   if (!MONGODB_URI) {
@@ -159,6 +185,9 @@ export async function connectDb() {
   await ScheduleBlock.init();
   await migrateBookingSlots();
   await migrateLegacyPayments();
+  await migrateTournamentPayments();
+  await SlotClaim.init();
+  await migrateSlotClaims();
 }
 
 export function dbState() {
@@ -209,6 +238,9 @@ async function seedDatabase() {
     { name: "Ranking interno", status: "en_curso", date: addDays(12), hour: "18:00", category: "Caballeros 5ta/6ta", surface: "Mixta", pricePerPlayer: 0, seededPlayers: 40, currentPlayers: 40, maxPlayers: 64, prize: "Puntos ranking", description: "Liga interna mensual para socios.", registrations: [] },
   ]);
 
+  const teacherUser = await User.findOne({ email: "lucio@club.com" });
+  await Teacher.create({ name: "Lucio Profe", nickname: "Lucio", specialty: "Clases individuales", status: "activo", price: 30000, userId: teacherUser?.id || "" });
+
   await Setting.create({ courtPrice: 18000, nightPrice: 24000, weekendExtra: 3000, classPrice: 30000, tournamentPrice: 25000 });
   await Expense.insertMany([
     { date: addDays(0), concept: "Limpieza y mantenimiento diario", category: "mantenimiento", amount: 18000, paymentMethod: "efectivo" },
@@ -234,5 +266,43 @@ async function migrateLegacyPayments() {
     booking.amountPaid = booking.price;
     booking.paymentEntries = [{ id: `legacy-${booking.id}`, amount: booking.price, method: "otro", note: "Pago registrado antes del historial de cobros", actor: "Migración", at: booking.updatedAt || booking.createdAt || new Date() }];
     await booking.save();
+  }
+}
+
+async function migrateTournamentPayments() {
+  const tournaments = await Tournament.find({ "registrations.paymentStatus": "pagado" });
+  for (const tournament of tournaments) {
+    let changed = false;
+    for (const registration of tournament.registrations) {
+      if (registration.paymentStatus !== "pagado" || registration.paymentEntries.length) continue;
+      registration.paymentEntries.push({ id: `legacy-${registration.id}`, amount: tournament.pricePerPlayer,
+        method: "registro anterior", actor: "Migración", at: registration.updatedAt || registration.createdAt || tournament.createdAt });
+      changed = true;
+    }
+    if (changed) await tournament.save();
+  }
+}
+
+async function migrateSlotClaims() {
+  const [bookings, blocks] = await Promise.all([
+    Booking.find({ status: { $ne: "cancelado" } }), ScheduleBlock.find(),
+  ]);
+  const expected = [
+    ...bookings.flatMap((booking) => bookingSlotStarts(booking.time, booking.durationMinutes || 60)
+      .map((slot) => ({ date: booking.date, courtId: canonicalCourtId(booking.courtId), slot, ownerType: "booking", ownerId: booking.id }))),
+    ...blocks.flatMap((block) => bookingSlotStarts(block.hour, block.durationMinutes || 30)
+      .map((slot) => ({ date: block.date, courtId: canonicalCourtId(block.courtId), slot, ownerType: "block", ownerId: block.id }))),
+  ];
+  const claimKey = (claim) => `${claim.date}|${claim.courtId}|${claim.slot}|${claim.ownerType}|${claim.ownerId}`;
+  const expectedKeys = new Set(expected.map(claimKey));
+  const allClaims = await SlotClaim.find();
+  const stale = allClaims.filter((claim) => !expectedKeys.has(claimKey(claim)));
+  if (stale.length) await SlotClaim.deleteMany({ _id: { $in: stale.map((claim) => claim._id) } });
+  for (const claim of expected) {
+    const existing = await SlotClaim.findOne({ date: claim.date, courtId: claim.courtId, slot: claim.slot });
+    if (!existing) await SlotClaim.create(claim);
+    else if (existing.ownerType !== claim.ownerType || existing.ownerId !== claim.ownerId) {
+      throw new Error(`Conflicto de agenda previo en ${claim.date} ${claim.courtId} ${claim.slot}. Requiere revisión manual.`);
+    }
   }
 }

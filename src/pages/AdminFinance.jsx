@@ -7,6 +7,8 @@ import { apiRequest } from "../utils/apiClient.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
 import { paymentSummary } from "../utils/paymentDomain.js";
+import { useTournaments } from "../hooks/useTournaments.jsx";
+import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../utils/clubDate.js";
 
 const EXPENSES_KEY = "padel_finance_expenses";
 
@@ -19,25 +21,19 @@ function todayISO() {
 }
 
 function startOfWeek() {
-  const date = new Date();
-  const day = date.getDay() || 7;
-  date.setDate(date.getDate() - day + 1);
-  return date.toISOString().slice(0, 10);
+  return startOfClubWeek();
 }
 
 function startOfMonth() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+  return startOfClubMonth();
 }
 
 function startOfYear() {
-  return `${new Date().getFullYear()}-01-01`;
+  return startOfClubYear();
 }
 
 function dateShift(days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return shiftClubDate(days);
 }
 
 function sumFrom(items, from, valueKey = "amount") {
@@ -62,20 +58,23 @@ function normalizeBooking(booking) {
   };
 }
 
-function buildLocalSummary(bookings = [], pricing = {}) {
+function buildLocalSummary(bookings = [], pricing = {}, tournaments = []) {
   const commissionPercent = Number(pricing.teacherCommissionPercent || 50);
   const normalized = bookings.map(normalizeBooking);
   const collected = normalized.filter((booking) => paymentSummary(booking).paid > 0);
   const pending = normalized.filter((booking) => booking.status !== "cancelado" && paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
   const expenses = safeRead(EXPENSES_KEY, []);
-  const incomeRows = normalized.flatMap((booking) => booking.paymentEntries.length
-    ? booking.paymentEntries.map((entry) => ({ date: String(entry.at).slice(0, 10), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
-    : paymentSummary(booking).paid > 0 ? [{ date: String(booking.updatedAt || booking.date).slice(0, 10), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : []);
+  const tournamentIncomeRows = tournaments.flatMap((tournament) => (tournament.registrations || []).flatMap((registration) => registration.paymentEntries?.length
+    ? registration.paymentEntries.map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: "tournament", label: tournament.name }))
+    : registration.paymentStatus === "pagado" ? [{ date: accountingDate(registration.updatedAt || registration.createdAt || tournament.date), amount: Number(tournament.pricePerPlayer || 0), type: "tournament", label: tournament.name }] : []));
+  const incomeRows = [...normalized.flatMap((booking) => booking.paymentEntries.length
+    ? booking.paymentEntries.map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
+    : paymentSummary(booking).paid > 0 ? [{ date: accountingDate(booking.updatedAt || booking.date), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : []), ...tournamentIncomeRows];
   const teacherCommissions = collected
     .filter((booking) => booking.type === "class")
     .flatMap((booking) => {
       const entries = booking.paymentEntries.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
-      return entries.map((entry) => ({ date: String(entry.at).slice(0, 10), teacherName: booking.teacherName || "Profesor",
+      return entries.map((entry) => ({ date: accountingDate(entry.at), teacherName: booking.teacherName || "Profesor",
         gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent }));
     });
 
@@ -99,7 +98,7 @@ function buildLocalSummary(bookings = [], pricing = {}) {
     byPeriod,
     totals: {
       grossIncome: incomeRows.reduce((acc, item) => acc + item.amount, 0),
-      collected: collected.reduce((acc, item) => acc + paymentSummary(item).paid, 0),
+      collected: collected.reduce((acc, item) => acc + paymentSummary(item).paid, 0) + tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0),
       pending: pending.reduce((acc, item) => acc + item.amountDue, 0),
       expenses: expenses.reduce((acc, item) => acc + Number(item.amount || 0), 0),
       teacherCommissions: teacherCommissions.reduce((acc, item) => acc + item.amount, 0),
@@ -109,7 +108,7 @@ function buildLocalSummary(bookings = [], pricing = {}) {
     incomeByCategory: [
       { label: "Cancha", amount: collected.filter((item) => item.type === "court").reduce((acc, item) => acc + paymentSummary(item).paid, 0) },
       { label: "Clases", amount: collected.filter((item) => item.type === "class").reduce((acc, item) => acc + paymentSummary(item).paid, 0) },
-      { label: "Torneos", amount: 0 },
+      { label: "Torneos", amount: tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0) },
     ],
     teacherCommissions: teacherCommissions.slice(0, 12),
     expenses: expenses.slice(0, 12),
@@ -121,22 +120,28 @@ export default function AdminFinance() {
   const { bookings = [] } = useBooking();
   const { apiOnline } = useAuth();
   const { prices } = usePricing();
-  const [summary, setSummary] = useState(() => buildLocalSummary(bookings, prices));
+  const { tournaments } = useTournaments();
+  const [summary, setSummary] = useState(() => buildLocalSummary(bookings, prices, tournaments));
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ date: todayISO(), concept: "", category: "operativo", amount: "", paymentMethod: "efectivo", note: "" });
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const loadSummary = useCallback(async () => {
     setLoading(true);
     try {
-      const payload = await apiRequest("/finance/summary");
-      setSummary(payload.summary);
-    } catch {
-      setSummary(buildLocalSummary(bookings, prices));
+      if (apiOnline) {
+        const payload = await apiRequest("/finance/summary");
+        setSummary(payload.summary);
+      } else setSummary(buildLocalSummary(bookings, prices, tournaments));
+      setLoadError("");
+    } catch (cause) {
+      setSummary(buildLocalSummary([], prices, []));
+      setLoadError(cause.message || "No se pudo consultar la caja del club.");
     } finally {
       setLoading(false);
     }
-  }, [bookings, prices]);
+  }, [apiOnline, bookings, prices, tournaments]);
 
   useEffect(() => {
     loadSummary();
@@ -153,10 +158,14 @@ export default function AdminFinance() {
       return;
     }
     try {
-      await apiRequest("/expenses", { method: "POST", body: JSON.stringify(expense) });
-    } catch {
-      const local = safeRead(EXPENSES_KEY, []);
-      safeWrite(EXPENSES_KEY, [{ ...expense, id: `expense-${Date.now()}` }, ...local]);
+      if (apiOnline) await apiRequest("/expenses", { method: "POST", body: JSON.stringify(expense) });
+      else {
+        const local = safeRead(EXPENSES_KEY, []);
+        safeWrite(EXPENSES_KEY, [{ ...expense, id: `expense-${Date.now()}` }, ...local]);
+      }
+    } catch (cause) {
+      setMessage(cause.message || "No se pudo registrar el egreso.");
+      return;
     }
     setForm({ date: todayISO(), concept: "", category: "operativo", amount: "", paymentMethod: "efectivo", note: "" });
     setMessage("Egreso registrado.");
@@ -166,6 +175,7 @@ export default function AdminFinance() {
 
   return (
     <AdminLayout title="Finanzas del club" subtitle="Ingresos, egresos, comisiones de profesores y rentabilidad por período.">
+      {loadError && <p role="alert" className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm text-red-100">{loadError}</p>}
       {!apiOnline && bookings.length === 0 && <p className="club-admin__notice">Las reservas de ejemplo del dashboard no son cobros registrados. Esta sección muestra movimientos reales guardados en este navegador.</p>}
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={loadSummary} disabled={loading} className="btn-outline px-4 py-2 text-xs">
