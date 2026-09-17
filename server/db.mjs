@@ -52,6 +52,8 @@ const bookingSchema = new mongoose.Schema({
   price: { type: Number, default: 0 },
   paymentOption: { type: String, default: "cash" },
   paymentStatus: { type: String, default: "pendiente_pago" },
+  amountPaid: { type: Number, default: 0 },
+  paymentEntries: { type: [new mongoose.Schema({ id: String, amount: Number, method: String, note: String, actor: String, at: Date, reversalOf: String }, { _id: false })], default: [] },
   status: { type: String, enum: ["pendiente", "confirmado", "cancelado"], default: "pendiente" },
 }, baseOptions);
 
@@ -143,6 +145,7 @@ export async function connectDb() {
   await seedDatabase();
   await Booking.init();
   await migrateBookingSlots();
+  await migrateLegacyPayments();
 }
 
 export function dbState() {
@@ -206,6 +209,17 @@ async function migrateBookingSlots() {
     booking.courtId = canonicalCourtId(booking.courtId);
     booking.occupiedSlots = bookingSlotStarts(booking.time, booking.durationMinutes || 60);
     if (!booking.occupiedSlots.length) throw new Error(`Reserva ${booking.id} tiene una franja horaria invalida.`);
+    await booking.save();
+  }
+}
+
+async function migrateLegacyPayments() {
+  await Booking.updateMany({ amountPaid: { $exists: false }, paymentStatus: { $ne: "pagado" } }, { $set: { amountPaid: 0, paymentEntries: [] } });
+  const paid = await Booking.find({ paymentStatus: "pagado", $or: [{ amountPaid: { $exists: false } }, { amountPaid: 0 }] });
+  for (const booking of paid) {
+    if (Number(booking.price || 0) <= 0) continue;
+    booking.amountPaid = booking.price;
+    booking.paymentEntries = [{ id: `legacy-${booking.id}`, amount: booking.price, method: "otro", note: "Pago registrado antes del historial de cobros", actor: "Migración", at: booking.updatedAt || booking.createdAt || new Date() }];
     await booking.save();
   }
 }

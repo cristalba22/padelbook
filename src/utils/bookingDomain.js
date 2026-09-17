@@ -39,6 +39,25 @@ export function bookingsOverlap(existing, incoming) {
     firstStart < secondStart + secondDuration && secondStart < firstStart + firstDuration;
 }
 
+export function intervalOverlaps(aStart, aDuration, bStart, bDuration) {
+  const first = minutesFromTime(aStart);
+  const second = minutesFromTime(bStart);
+  return Number.isFinite(first) && Number.isFinite(second) && first < second + Number(bDuration) && second < first + Number(aDuration);
+}
+
+export function blockOverlapsBooking(block, booking) {
+  return block?.date === booking?.date &&
+    canonicalCourtId(block?.courtId) === canonicalCourtId(booking?.courtId) &&
+    intervalOverlaps(block?.hour ?? block?.time, block?.durationMinutes || 60, booking?.time ?? booking?.hour, booking?.durationMinutes || 60);
+}
+
+export function fitsOperatingHours(time, durationMinutes) {
+  const start = minutesFromTime(time);
+  const duration = Number(durationMinutes);
+  return Number.isFinite(start) && Number.isInteger(duration) && start >= 9 * 60 && start % 30 === 0 &&
+    [60, 90, 120, 150].includes(duration) && start + duration <= 22 * 60;
+}
+
 export function calculateBookingPrice({ date, time, type, durationMinutes }, settings) {
   if (type === "class") return Number(settings.classPrice);
   const day = new Date(`${date}T00:00:00`).getDay();

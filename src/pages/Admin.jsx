@@ -11,6 +11,7 @@ import { ROUTES } from "../constants/routes.js";
 import { money } from "../utils/businessMetrics.js";
 import { readActivity } from "../utils/activityLog.js";
 import { apiRequest } from "../utils/apiClient.js";
+import { paymentSummary } from "../utils/paymentDomain.js";
 
 const START_MINUTES = 18 * 60;
 const END_MINUTES = 22 * 60;
@@ -43,13 +44,17 @@ function normalizeBooking(booking) {
     playerName: booking.playerName || booking.playerOrGroup || "Jugador",
     price: Number(booking.price || 0),
     paymentStatus: booking.paymentStatus || "",
+    amountPaid: booking.amountPaid,
+    paymentOption: booking.paymentOption || "cash",
     status: booking.status || "pendiente",
     type: booking.type || "court",
   };
 }
 
 function paymentLabel(booking) {
-  if (booking.paymentStatus === "pagado") return "Pago registrado";
+  const payment = paymentSummary(booking);
+  if (payment.due === 0) return "Pago completo";
+  if (payment.paid > 0) return `Cobrado ${money(payment.paid)} · saldo ${money(payment.due)}`;
   if (booking.paymentStatus === "a_pagar_en_club") return "Paga en el club";
   if (booking.paymentStatus === "pendiente_pago") return "Pago pendiente";
   return "Pago sin verificar";

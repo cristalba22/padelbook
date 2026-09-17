@@ -6,6 +6,7 @@ import { usePricing } from "../context/PricingContext.jsx";
 import { apiRequest } from "../utils/apiClient.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
+import { paymentSummary } from "../utils/paymentDomain.js";
 
 const EXPENSES_KEY = "padel_finance_expenses";
 
@@ -55,29 +56,28 @@ function normalizeBooking(booking) {
     price: Number(booking.price || booking.total || booking.monto || 0),
     status: booking.status || "pendiente",
     paymentStatus: booking.paymentStatus || "pendiente_pago",
+    paymentOption: booking.paymentOption || "cash",
+    amountPaid: booking.amountPaid,
+    paymentEntries: booking.paymentEntries || [],
   };
-}
-
-function isCollected(booking) {
-  return booking.paymentStatus === "pagado";
 }
 
 function buildLocalSummary(bookings = [], pricing = {}) {
   const commissionPercent = Number(pricing.teacherCommissionPercent || 50);
-  const normalized = bookings.map(normalizeBooking).filter((booking) => booking.status !== "cancelado");
-  const collected = normalized.filter(isCollected);
-  const pending = normalized.filter((booking) => !isCollected(booking));
+  const normalized = bookings.map(normalizeBooking);
+  const collected = normalized.filter((booking) => paymentSummary(booking).paid > 0);
+  const pending = normalized.filter((booking) => booking.status !== "cancelado" && paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
   const expenses = safeRead(EXPENSES_KEY, []);
-  const incomeRows = collected.map((booking) => ({ date: booking.date, amount: booking.price, type: booking.type, label: booking.courtName }));
+  const incomeRows = normalized.flatMap((booking) => booking.paymentEntries.length
+    ? booking.paymentEntries.map((entry) => ({ date: String(entry.at).slice(0, 10), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
+    : paymentSummary(booking).paid > 0 ? [{ date: String(booking.updatedAt || booking.date).slice(0, 10), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : []);
   const teacherCommissions = collected
     .filter((booking) => booking.type === "class")
-    .map((booking) => ({
-      date: booking.date,
-      teacherName: booking.teacherName || "Profesor",
-      gross: booking.price,
-      amount: Math.round((booking.price * commissionPercent) / 100),
-      percent: commissionPercent,
-    }));
+    .flatMap((booking) => {
+      const entries = booking.paymentEntries.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
+      return entries.map((entry) => ({ date: String(entry.at).slice(0, 10), teacherName: booking.teacherName || "Profesor",
+        gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent }));
+    });
 
   const periods = { day: todayISO(), week: startOfWeek(), month: startOfMonth(), year: startOfYear() };
   const byPeriod = Object.fromEntries(Object.entries(periods).map(([key, from]) => {
@@ -99,16 +99,16 @@ function buildLocalSummary(bookings = [], pricing = {}) {
     byPeriod,
     totals: {
       grossIncome: incomeRows.reduce((acc, item) => acc + item.amount, 0),
-      collected: collected.reduce((acc, item) => acc + item.price, 0),
-      pending: pending.reduce((acc, item) => acc + item.price, 0),
+      collected: collected.reduce((acc, item) => acc + paymentSummary(item).paid, 0),
+      pending: pending.reduce((acc, item) => acc + item.amountDue, 0),
       expenses: expenses.reduce((acc, item) => acc + Number(item.amount || 0), 0),
       teacherCommissions: teacherCommissions.reduce((acc, item) => acc + item.amount, 0),
     },
     commissionPercent,
     dailyTrend,
     incomeByCategory: [
-      { label: "Cancha", amount: collected.filter((item) => item.type === "court").reduce((acc, item) => acc + item.price, 0) },
-      { label: "Clases", amount: collected.filter((item) => item.type === "class").reduce((acc, item) => acc + item.price, 0) },
+      { label: "Cancha", amount: collected.filter((item) => item.type === "court").reduce((acc, item) => acc + paymentSummary(item).paid, 0) },
+      { label: "Clases", amount: collected.filter((item) => item.type === "class").reduce((acc, item) => acc + paymentSummary(item).paid, 0) },
       { label: "Torneos", amount: 0 },
     ],
     teacherCommissions: teacherCommissions.slice(0, 12),
@@ -196,7 +196,7 @@ export default function AdminFinance() {
           <p className="mt-1 text-sm text-slate-400">Reservas activas todavía no confirmadas como pagadas.</p>
           <div className="mt-4 space-y-2">
             {summary.pendingPayments.length ? summary.pendingPayments.slice(0, 4).map((item) => (
-              <MiniRow key={item.id || `${item.date}-${item.time}`} title={item.playerName} detail={`${item.date} · ${item.time || ""}`} amount={item.price} />
+              <MiniRow key={item.id || `${item.date}-${item.time}`} title={item.playerName} detail={`${item.date} · ${item.time || ""}`} amount={item.amountDue} />
             )) : <p className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">Sin pagos pendientes.</p>}
           </div>
         </Panel>

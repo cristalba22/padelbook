@@ -7,6 +7,7 @@ import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { getUserTournamentRegistrations, TOURNAMENTS_EVENT } from "../utils/tournamentsStorage.js";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
+import { paymentSummary } from "../utils/paymentDomain.js";
 
 function bookingDate(booking) {
   return new Date(`${booking.date}T${booking.time || booking.hour || "00:00"}:00`);
@@ -335,7 +336,7 @@ function PlayerEventRow({ event, onCancel }) {
 }
 
 function PlayerBookingRow({ booking, onCancel }) {
-  const pending = booking.status === "pendiente";
+  const pending = booking.status !== "cancelado" && paymentSummary(booking).due > 0;
   return (
     <article className="grid gap-3 rounded-3xl border border-white/10 bg-black/30 p-4 transition hover:border-lime-300/35 hover:bg-black/45 lg:grid-cols-[130px_1fr_auto] lg:items-center">
       <div>
@@ -348,6 +349,7 @@ function PlayerBookingRow({ booking, onCancel }) {
           <StatusPill status={booking.status} />
         </div>
         <p className="mt-1 text-sm text-slate-400">{booking.description || "Turno de pádel"} · {money(booking.price || booking.total)}</p>
+        <p className="mt-1 text-xs text-lime-200">Cobrado {money(paymentSummary(booking).paid)} · Saldo {money(paymentSummary(booking).due)}</p>
       </div>
       <div className="flex flex-wrap gap-2 lg:justify-end">
         {pending && <Link to={ROUTES.MY_BOOKINGS} className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-black hover:bg-lime-200">Coordinar pago</Link>}

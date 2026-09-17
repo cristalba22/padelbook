@@ -3,13 +3,13 @@ import React, { useMemo, useState } from "react";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useAvailability } from "../hooks/useAvailability.js";
-import { useSchedule, sameSlot } from "../hooks/useSchedule.jsx";
+import { useSchedule } from "../hooks/useSchedule.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
-import { COURTS, CLASS_HOURS, COURT_HOURS, COURT_DAY_END, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
+import { COURTS, CLASS_HOURS, COURT_HOURS, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
 import { getClassPrice, getCourtPrice, getCourtPriceForDuration } from "../utils/pricing.js";
 import { loadTeachers } from "../utils/teachersStorage.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { argentinaDateISO, isPastSlot } from "../utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
 
 function minutesFromHour(hour = "00:00") {
   const [hh = "0", mm = "0"] = String(hour).split(":");
@@ -38,13 +38,14 @@ export default function Booking() {
   const { user, openLogin } = useAuth();
   const { bookings, addBooking, setSelectedBooking } = useBooking();
   const { notify } = useToast();
-  const { getBlock, isBlocked } = useSchedule();
+  const { blocks } = useSchedule();
   const { prices } = usePricing();
   const activeTeachers = useMemo(() => loadTeachers(prices.classPrice).filter((teacher) => teacher.status === "activo"), [prices.classPrice]);
   const primaryTeacher = activeTeachers[0] || null;
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const { occupied, loading: availabilityLoading } = useAvailability(selectedDate);
   const [selectedDuration, setSelectedDuration] = useState(90);
+  const [selectedCourtId, setSelectedCourtId] = useState(COURTS[0].id);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
@@ -59,38 +60,21 @@ export default function Booking() {
     }
   }, [selectedDate]);
 
-  function courtHoursForDuration(hour, durationMinutes = selectedDuration) {
-    const start = minutesFromHour(hour);
-    const end = start + Number(durationMinutes || 60);
-    return COURT_HOURS.filter((slotHour) => {
-      const slotStart = minutesFromHour(slotHour);
-      return slotStart >= start && slotStart < end;
-    });
-  }
-
-  function isPastCourtEnd(hour, durationMinutes = selectedDuration) {
-    return minutesFromHour(hour) + Number(durationMinutes || 60) > minutesFromHour(COURT_DAY_END);
-  }
-
   function getSlotState(courtId, hour, type = "court", durationMinutes = selectedDuration) {
     if (isPastSlot(selectedDate, hour)) {
       return { block: { reason: "Horario pasado" }, reserved: null, taken: true };
     }
-    if (type === "court" && isPastCourtEnd(hour, durationMinutes)) {
+    if (type === "court" && !fitsOperatingHours(hour, durationMinutes)) {
       return { block: { reason: "Fuera de horario" }, reserved: null, taken: true };
     }
-
-    const hoursToCheck = type === "court" ? courtHoursForDuration(hour, durationMinutes) : [hour];
-    const block = hoursToCheck.map((slotHour) => getBlock(selectedDate, courtId, slotHour)).find(Boolean);
-    const reserved = [...bookings, ...occupied].find((booking) => hoursToCheck.some((slotHour) => sameSlot(booking, selectedDate, courtId, slotHour)));
-    return { block, reserved, taken: Boolean(block || reserved) };
+    const candidate = { date: selectedDate, courtId, time: hour, durationMinutes };
+    const block = blocks.find((item) => blockOverlapsBooking(item, candidate));
+    const reserved = [...bookings, ...occupied].find((booking) => bookingsOverlap(booking, candidate));
+    return { block, reserved, taken: Boolean(block || reserved || availabilityLoading) };
   }
 
   function isSlotTaken(courtId, hour, type = "court", durationMinutes = selectedDuration) {
-    if (isPastSlot(selectedDate, hour)) return true;
-    if (type === "court" && isPastCourtEnd(hour, durationMinutes)) return true;
-    const hoursToCheck = type === "court" ? courtHoursForDuration(hour, durationMinutes) : [hour];
-    return availabilityLoading || hoursToCheck.some((slotHour) => isBlocked(selectedDate, courtId, slotHour) || [...bookings, ...occupied].some((booking) => sameSlot(booking, selectedDate, courtId, slotHour)));
+    return getSlotState(courtId, hour, type, durationMinutes).taken;
   }
 
   const handleSelectSlot = (court, hour, type) => {
@@ -220,7 +204,7 @@ export default function Booking() {
           <div>
             <p className="text-[11px] uppercase tracking-[0.24em] text-lime-100">Duración del partido</p>
             <h2 className="mt-1 text-xl font-black text-white">Reserva el tiempo que necesita tu grupo</h2>
-            <p className="mt-1 text-sm text-slate-200">Ideal para partidos de 4 o más jugadores: 1:30, 2 hs o 2:30 hs.</p>
+            <p className="mt-1 text-sm text-slate-200">Elegí 1 h, 1:30 h, 2 h o 2:30 h según tu partido.</p>
           </div>
           <div className="grid grid-cols-4 gap-2 md:min-w-[360px]">
             {DURATION_OPTIONS.map((option) => {
@@ -249,9 +233,13 @@ export default function Booking() {
         </div>
       </section>
 
+      <div className="mb-5" role="tablist" aria-label="Elegí cancha">
+        <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-white/50">Elegí una cancha</p>
+        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" role="tab" aria-selected={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
+      </div>
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] lg:gap-8">
         <div className="mobile-snap-row wide lg:block lg:space-y-5">
-          {COURTS.map((court) => (
+          {COURTS.filter((court) => court.id === selectedCourtId).map((court) => (
             <article key={court.id} className="overflow-hidden rounded-3xl border border-slate-800/90 bg-[#050814]/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
               <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-white/5 via-white/0 to-transparent px-5 pb-3 pt-4">
                 <div>
@@ -264,7 +252,7 @@ export default function Booking() {
 
                 <div className="hidden space-y-1 text-right text-[11px] text-white/60 sm:block">
                   <PriceLine label="Clases 09-13" value={getClassPrice(prices)} />
-                  <PriceLine label="Padel 13-19" value={getCourtPrice("15:00", selectedDate, prices)} />
+                  <PriceLine label="Cancha 09-19" value={getCourtPrice("15:00", selectedDate, prices)} />
                   <PriceLine label="Noche desde 19" value={getCourtPrice("20:00", selectedDate, prices)} />
                 </div>
               </div>
@@ -292,9 +280,9 @@ export default function Booking() {
               </div>
 
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Turnos de pádel - elegí {formatDuration(selectedDuration)}</p>
+                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de 09:00 a 22:00 · {formatDuration(selectedDuration)} · salidas cada 30 min</p>
                 <div className="flex flex-wrap gap-2">
-                  {COURT_HOURS.map((hour) => {
+                  {COURT_HOURS.filter((hour) => fitsOperatingHours(hour, selectedDuration)).map((hour) => {
                     const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, prices);
                     const endTime = addMinutesToHour(hour, selectedDuration);
                     const isSelected = selectedSlot?.courtId === court.id && selectedSlot.hour === hour && selectedSlot.type === "court";
@@ -316,7 +304,6 @@ export default function Booking() {
             </article>
           ))}
         </div>
-        <p className="mobile-scroll-hint lg:hidden">Desliza para cambiar de cancha</p>
 
         <aside className="space-y-4">
           <div className="rounded-3xl border border-slate-800 bg-[#050814]/90 px-5 py-4 shadow-[0_18px_55px_rgba(0,0,0,0.9)]">

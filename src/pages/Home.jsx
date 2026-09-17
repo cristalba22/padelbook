@@ -13,12 +13,12 @@ import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { getCourtPrice, getClassPrice } from "../utils/pricing.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useAvailability } from "../hooks/useAvailability.js";
-import { useSchedule, sameSlot } from "../hooks/useSchedule.jsx";
+import { useSchedule } from "../hooks/useSchedule.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { loadTournaments } from "../utils/tournamentsStorage.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { argentinaDateISO } from "../utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
 
 const experience = [
   { title: "Reservá en pocos pasos", text: "Ves los horarios, elegís cancha y confirmás desde la misma pantalla.", icon: "⚡" },
@@ -43,7 +43,7 @@ export default function Home() {
   const { prices } = usePricing();
   const { settings } = useClubSettings();
   const { bookings } = useBooking();
-  const { getBlock } = useSchedule();
+  const { blocks } = useSchedule();
   const { notify } = useToast();
   const { apiOnline } = useAuth();
   const [consultingProduct, setConsultingProduct] = useState("");
@@ -55,7 +55,11 @@ export default function Home() {
   const today = argentinaDateISO();
   const { occupied, loading: availabilityLoading } = useAvailability(today);
   const courtAvailability = COURTS.map((court) => {
-    const freeHour = !availabilityLoading && COURT_HOURS.find((hour) => !getBlock(today, court.id, hour) && ![...bookings, ...occupied].some((booking) => sameSlot(booking, today, court.id, hour)));
+    const freeHour = !availabilityLoading && COURT_HOURS.find((hour) => {
+      if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
+      const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
+      return !blocks.some((block) => blockOverlapsBooking(block, candidate)) && ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
+    });
     return {
       id: court.id,
       name: court.name.replace("Cancha ", ""),

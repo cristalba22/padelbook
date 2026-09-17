@@ -6,6 +6,7 @@ import { useAdminDemoBookings } from "../hooks/useAdminDemoBookings.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { buildBookingWhatsAppUrl } from "../utils/whatsapp.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../utils/paymentDomain.js";
 
 function normalizeUserBooking(booking) {
   const time = booking.time || booking.hour;
@@ -23,6 +24,9 @@ function normalizeUserBooking(booking) {
     phone: booking.phone || "Sin teléfono",
     price: Number(booking.price || booking.total || 0),
     paymentStatus: booking.paymentStatus || "pendiente_pago",
+    paymentOption: booking.paymentOption || "cash",
+    amountPaid: booking.amountPaid,
+    paymentEntries: booking.paymentEntries || [],
     status: booking.status || "pendiente",
     source: "web",
   };
@@ -37,7 +41,7 @@ function money(value) {
 }
 
 export default function AdminBookings() {
-  const { bookings: userBookings = [], updateBookingStatus, updateBookingPaymentStatus } = useBooking();
+  const { bookings: userBookings = [], updateBookingStatus, recordPayment, undoLastPayment } = useBooking();
   const { apiOnline } = useAuth();
   const { demoBookings, updateDemoBookingStatus } = useAdminDemoBookings();
   const { notify } = useToast();
@@ -46,6 +50,10 @@ export default function AdminBookings() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [paymentBooking, setPaymentBooking] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("transferencia");
+  const [paymentNote, setPaymentNote] = useState("");
 
   const bookings = useMemo(() => {
     const webBookings = userBookings.map(normalizeUserBooking);
@@ -102,14 +110,38 @@ export default function AdminBookings() {
     setBookingStatus(booking, "confirmado");
   }
 
-  async function handlePayment(booking) {
-    const nextStatus = booking.paymentStatus === "pagado" ? "pendiente_pago" : "pagado";
-    setBusyId(`${booking.id}-payment`);
+  function handlePayment(booking) {
+    const summary = paymentSummary(booking);
+    setPaymentBooking(booking);
+    setPaymentAmount(String(summary.suggested));
+    setPaymentMethod("transferencia");
+    setPaymentNote("");
+  }
+
+  async function submitPayment(event) {
+    event.preventDefault();
+    if (!paymentBooking) return;
+    setBusyId(`${paymentBooking.id}-payment`);
     try {
-      await updateBookingPaymentStatus(booking.id, nextStatus);
-      notify({ type: "success", title: nextStatus === "pagado" ? "Pago registrado" : "Pago revertido", message: booking.playerOrGroup });
+      await recordPayment(paymentBooking.id, { amount: Number(paymentAmount), method: paymentMethod, note: paymentNote });
+      notify({ type: "success", title: "Cobro registrado", message: `${paymentBooking.playerOrGroup} · ${money(paymentAmount)}` });
+      setPaymentBooking(null);
     } catch (error) {
-      notify({ type: "error", title: "No se pudo actualizar el pago", message: error.message || "Revisá la conexión." });
+      notify({ type: "error", title: "No se pudo registrar el cobro", message: error.message || "Revisá la conexión." });
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function undoPayment() {
+    if (!paymentBooking || !window.confirm("¿Revertir el último cobro registrado? El movimiento quedará en el historial.")) return;
+    setBusyId(`${paymentBooking.id}-payment`);
+    try {
+      await undoLastPayment(paymentBooking.id);
+      notify({ type: "success", title: "Cobro revertido", message: paymentBooking.playerOrGroup });
+      setPaymentBooking(null);
+    } catch (error) {
+      notify({ type: "error", title: "No se pudo revertir", message: error.message });
     } finally {
       setBusyId("");
     }
@@ -120,7 +152,8 @@ export default function AdminBookings() {
   }
 
   function handleCancel(booking) {
-    if (!window.confirm("¿Seguro que querés cancelar esta reserva?")) return;
+    const collected = paymentSummary(booking).paid;
+    if (!window.confirm(`¿Seguro que querés cancelar esta reserva?${collected > 0 ? ` Hay ${money(collected)} cobrados: coordiná el reintegro y revertí el cobro en Caja.` : ""}`)) return;
     setBookingStatus(booking, "cancelado");
   }
 
@@ -203,6 +236,20 @@ export default function AdminBookings() {
         </div>
 
       </section>
+      {paymentBooking && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPaymentBooking(null); }}>
+        <form onSubmit={submitPayment} role="dialog" aria-modal="true" aria-labelledby="payment-title" className="w-full max-w-md rounded-3xl border border-lime-300/25 bg-[#111827] p-6 shadow-2xl">
+          <p className="club-dashboard__eyebrow">CAJA DEL CLUB</p><h2 id="payment-title" className="mt-1 text-xl font-bold">Registrar cobro</h2>
+          <p className="mt-2 text-sm text-slate-300">{paymentBooking.playerOrGroup} · {paymentBooking.date} {paymentBooking.timeLabel}</p>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><Info label="Total" value={money(paymentSummary(paymentBooking).total)} /><Info label="Cobrado" value={money(paymentSummary(paymentBooking).paid)} /><Info label="Saldo" value={money(paymentSummary(paymentBooking).due)} /></div>
+          {paymentBooking.paymentOption === "deposit" && <p className="mt-3 text-xs text-lime-200">Seña sugerida: {money(paymentSummary(paymentBooking).deposit)}. Podés registrar un importe distinto hasta completar el saldo.</p>}
+          {paymentBooking.status !== "cancelado" && paymentSummary(paymentBooking).due > 0 && <><label className="mt-5 block text-sm">Importe recibido<input className="field mt-2" type="number" min="1" max={paymentSummary(paymentBooking).due} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></label>
+          <label className="mt-4 block text-sm">Medio de cobro<select className="field mt-2" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method[0].toUpperCase() + method.slice(1)}</option>)}</select></label>
+          <label className="mt-4 block text-sm">Nota (opcional)<input className="field mt-2" maxLength={300} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Ej. seña por transferencia" /></label></>}
+          {paymentBooking.paymentEntries.length > 0 && <div className="mt-4 max-h-36 space-y-1 overflow-y-auto border-t border-white/10 pt-3 text-xs text-slate-300"><p className="font-bold text-white">Historial de cobros</p>{[...paymentBooking.paymentEntries].reverse().map((entry) => <p key={entry.id}>{new Date(entry.at).toLocaleString("es-AR")} · {entry.amount < 0 ? "Reversión " : "Cobro "}{money(Math.abs(entry.amount))} · {entry.method}</p>)}</div>}
+          <div className="mt-6 flex gap-2"><button type="button" className="btn-outline flex-1" onClick={() => setPaymentBooking(null)}>Cerrar</button>{paymentBooking.status !== "cancelado" && paymentSummary(paymentBooking).due > 0 && <button type="submit" disabled={Boolean(busyId)} className="btn-primary flex-1">{busyId ? "Guardando..." : "Registrar cobro"}</button>}</div>
+          {lastReversiblePayment(paymentBooking) && <button type="button" disabled={Boolean(busyId)} onClick={undoPayment} className="mt-3 w-full text-xs text-rose-200 underline underline-offset-2">Revertir último cobro</button>}
+        </form>
+      </div>}
     </AdminLayout>
   );
 }
@@ -242,11 +289,13 @@ function BookingMobileCard({ booking, busyId, onWhatsApp, onConfirm, onPending, 
 
 function ActionBar({ booking, busyId, onWhatsApp, onConfirm, onPending, onCancel, onPayment, align = "start" }) {
   const isBusy = String(busyId || "").startsWith(`${booking.id}-`);
-  return <div className={`mt-0 flex flex-wrap gap-2 ${align === "end" ? "justify-end" : "mt-4"}`}><button disabled={isBusy} onClick={() => onWhatsApp(booking)} className="action-btn border-emerald-400/35 text-emerald-200 hover:bg-emerald-400/10">WhatsApp</button>{booking.status === "pendiente" && <button disabled={isBusy} onClick={() => onConfirm(booking)} className="action-btn border-sky-400/35 text-sky-200 hover:bg-sky-400/10">{busyId === `${booking.id}-confirmado` ? "Guardando..." : "Confirmar"}</button>}{booking.status === "confirmado" && <button disabled={isBusy} onClick={() => onPending(booking)} className="action-btn border-amber-400/35 text-amber-200 hover:bg-amber-400/10">{busyId === `${booking.id}-pendiente` ? "Guardando..." : "Pendiente"}</button>}{booking.source === "web" && booking.status !== "cancelado" && <button disabled={isBusy} onClick={() => onPayment(booking)} className="action-btn border-lime-400/35 text-lime-200 hover:bg-lime-400/10">{booking.paymentStatus === "pagado" ? "Revertir pago" : "Registrar pago"}</button>}{booking.status !== "cancelado" && <button disabled={isBusy} onClick={() => onCancel(booking)} className="action-btn border-rose-400/35 text-rose-200 hover:bg-rose-400/10">{busyId === `${booking.id}-cancelado` ? "Cancelando..." : "Cancelar"}</button>}</div>;
+  return <div className={`mt-0 flex flex-wrap gap-2 ${align === "end" ? "justify-end" : "mt-4"}`}><button disabled={isBusy} onClick={() => onWhatsApp(booking)} className="action-btn border-emerald-400/35 text-emerald-200 hover:bg-emerald-400/10">WhatsApp</button>{booking.status === "pendiente" && <button disabled={isBusy} onClick={() => onConfirm(booking)} className="action-btn border-sky-400/35 text-sky-200 hover:bg-sky-400/10">{busyId === `${booking.id}-confirmado` ? "Guardando..." : "Confirmar"}</button>}{booking.status === "confirmado" && <button disabled={isBusy} onClick={() => onPending(booking)} className="action-btn border-amber-400/35 text-amber-200 hover:bg-amber-400/10">{busyId === `${booking.id}-pendiente` ? "Guardando..." : "Pendiente"}</button>}{booking.source === "web" && (booking.status !== "cancelado" || lastReversiblePayment(booking)) && <button disabled={isBusy} onClick={() => onPayment(booking)} className="action-btn border-lime-400/35 text-lime-200 hover:bg-lime-400/10">{paymentSummary(booking).due > 0 && booking.status !== "cancelado" ? "Registrar cobro" : "Ver cobros"}</button>}{booking.status !== "cancelado" && <button disabled={isBusy} onClick={() => onCancel(booking)} className="action-btn border-rose-400/35 text-rose-200 hover:bg-rose-400/10">{busyId === `${booking.id}-cancelado` ? "Cancelando..." : "Cancelar"}</button>}</div>;
 }
 
 function paymentText(booking) {
-  if (booking.paymentStatus === "pagado") return "Pago registrado";
+  const summary = paymentSummary(booking);
+  if (summary.due === 0) return "Pago completo";
+  if (summary.paid > 0) return `Cobrado ${money(summary.paid)} · Saldo ${money(summary.due)}`;
   if (booking.paymentStatus === "a_pagar_en_club") return "Paga en el club";
   return booking.source === "web" ? "Pago pendiente" : "Pago sin verificar";
 }

@@ -7,6 +7,8 @@ import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { getUserTournamentRegistrations } from "../utils/tournamentsStorage.js";
+import { paymentSummary } from "../utils/paymentDomain.js";
+import { useToast } from "../components/ToastProvider.jsx";
 
 const STATUS_LABELS = {
   confirmado: "confirmado",
@@ -85,6 +87,7 @@ function loadLastBooking() {
 }
 
 export default function MyBookings() {
+  const { notify } = useToast();
   const { user, openLogin } = useAuth();
   const { settings } = useClubSettings();
   const { prices } = usePricing();
@@ -210,15 +213,20 @@ export default function MyBookings() {
     window.open(`https://wa.me/${clubPhone}?text=${text}`, "_blank");
   };
 
-  const handleCancel = (booking) => {
+  const handleCancel = async (booking) => {
     if (!cancelBooking) return;
     const ok = window.confirm(
       `¿Seguro que querés cancelar el turno del ${
         booking.fecha || booking.dateFormatted || booking.date || ""
-      } a las ${bookingTimeLabel(booking)}?`
+      } a las ${bookingTimeLabel(booking)}?${paymentSummary(booking).paid > 0 ? " Tenés un pago registrado; coordiná el reintegro con el club." : ""}`
     );
     if (ok) {
-      cancelBooking(booking.id);
+      try {
+        await cancelBooking(booking.id);
+        notify({ type: "success", title: "Reserva cancelada", message: "El club ya puede ver el cambio." });
+      } catch (error) {
+        notify({ type: "error", title: "No se pudo cancelar", message: error.message || "Contactá al club." });
+      }
     }
   };
 
@@ -395,12 +403,13 @@ export default function MyBookings() {
                               {booking.paymentMethod}
                             </span>
                           )}
+                          {booking.source !== "tournament" && booking.status !== "cancelado" && <span className="rounded-full border border-lime-300/25 bg-lime-300/10 px-2.5 py-1 text-[0.7rem] text-lime-100">Cobrado: ${paymentSummary(booking).paid.toLocaleString("es-AR")} · Saldo: ${paymentSummary(booking).due.toLocaleString("es-AR")}</span>}
                         </div>
                       </div>
 
                       {/* Acciones */}
                       <div className="flex flex-col items-stretch gap-2 text-xs md:text-[0.8rem] z-10">
-                        {status === "pendiente" && booking.source !== "tournament" && (
+                        {status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && (
                           <button
                             onClick={() => handlePayNow(booking)}
                             className="rounded-full bg-gradient-to-r from-lime-400 to-lime-300 px-4 py-2 font-semibold text-zinc-950 shadow-lg shadow-lime-400/40 hover:shadow-lime-400/60 transition"
