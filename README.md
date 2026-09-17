@@ -105,7 +105,7 @@ npm test
 
 ## Estado actual
 
-La URL de Vercel publica solo el frontend y funciona en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md).
+La URL de Vercel publica solo el frontend y funciona en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB Atlas (replica set para transacciones) y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md) y en el [plan del piloto](docs/PLAN_PILOTO.md).
 
 Próximos pasos posibles:
 

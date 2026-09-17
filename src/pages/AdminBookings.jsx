@@ -1,5 +1,5 @@
 // src/pages/AdminBookings.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useAdminDemoBookings } from "../hooks/useAdminDemoBookings.jsx";
@@ -54,6 +54,24 @@ export default function AdminBookings() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("transferencia");
   const [paymentNote, setPaymentNote] = useState("");
+  const paymentDialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!paymentBooking) return;
+    const previousFocus = document.activeElement;
+    paymentDialogRef.current?.querySelector("input, button")?.focus();
+    return () => previousFocus?.focus?.();
+  }, [paymentBooking?.id]);
+
+  function handlePaymentDialogKey(event) {
+    if (event.key === "Escape") { setPaymentBooking(null); return; }
+    if (event.key !== "Tab") return;
+    const elements = [...paymentDialogRef.current.querySelectorAll("button:not(:disabled), input:not(:disabled), select:not(:disabled)")];
+    const first = elements[0];
+    const last = elements.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
 
   const bookings = useMemo(() => {
     const webBookings = userBookings.map(normalizeUserBooking);
@@ -237,7 +255,7 @@ export default function AdminBookings() {
 
       </section>
       {paymentBooking && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPaymentBooking(null); }}>
-        <form onSubmit={submitPayment} role="dialog" aria-modal="true" aria-labelledby="payment-title" className="w-full max-w-md rounded-3xl border border-lime-300/25 bg-[#111827] p-6 shadow-2xl">
+        <form ref={paymentDialogRef} onKeyDown={handlePaymentDialogKey} onSubmit={submitPayment} role="dialog" aria-modal="true" aria-labelledby="payment-title" className="w-full max-w-md rounded-3xl border border-lime-300/25 bg-[#111827] p-6 shadow-2xl">
           <p className="club-dashboard__eyebrow">CAJA DEL CLUB</p><h2 id="payment-title" className="mt-1 text-xl font-bold">Registrar cobro</h2>
           <p className="mt-2 text-sm text-slate-300">{paymentBooking.playerOrGroup} · {paymentBooking.date} {paymentBooking.timeLabel}</p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><Info label="Total" value={money(paymentSummary(paymentBooking).total)} /><Info label="Cobrado" value={money(paymentSummary(paymentBooking).paid)} /><Info label="Saldo" value={money(paymentSummary(paymentBooking).due)} /></div>

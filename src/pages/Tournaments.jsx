@@ -1,10 +1,10 @@
 // src/pages/Tournaments.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { loadTournaments, registerToTournament, TOURNAMENTS_EVENT } from "../utils/tournamentsStorage.js";
+import { useTournaments } from "../hooks/useTournaments.jsx";
 import { cleanPhone } from "../utils/whatsapp.js";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -17,30 +17,18 @@ export default function Tournaments() {
   const { settings } = useClubSettings();
   const { user, openLogin } = useAuth();
   const { notify } = useToast();
-  const [tournaments, setTournaments] = useState(() => loadTournaments(prices.tournamentPrice));
+  const { tournaments, register, error: tournamentsError } = useTournaments();
   const [category, setCategory] = useState("todas");
   const [message, setMessage] = useState("");
   const [selected, setSelected] = useState(null);
   const [partnerName, setPartnerName] = useState("");
   const [partnerPhone, setPartnerPhone] = useState("");
 
-  useEffect(() => {
-    const sync = () => setTournaments(loadTournaments(prices.tournamentPrice));
-    window.addEventListener(TOURNAMENTS_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(TOURNAMENTS_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, [prices.tournamentPrice]);
-
   const filtered = useMemo(() => category === "todas" ? tournaments : tournaments.filter((t) => String(t.category || "").includes(category)), [category, tournaments]);
   const featured = filtered.find((t) => t.status === "abierto") || filtered[0] || tournaments[0];
   const openCount = tournaments.filter((t) => t.status === "abierto").length;
   const nextOpen = tournaments.find((t) => t.status === "abierto");
-  const recentRegistrations = tournaments.flatMap((tournament) => (tournament.registrations || [])
-    .filter((registration) => !["cancelado", "rechazado"].includes(registration.status))
-    .map((registration) => ({ name: registration.name || "Jugador", tournament: tournament.name }))).slice(0, 4);
+  const registeredPlayers = tournaments.reduce((total, tournament) => total + Number(tournament.currentPlayers || 0), 0);
 
   function startSignup(tournament) {
     setMessage("");
@@ -62,16 +50,17 @@ export default function Tournaments() {
     setSelected(tournament);
   }
 
-  function confirmSignup(event) {
+  async function confirmSignup(event) {
     event.preventDefault();
     if (!selected) return;
-    const result = registerToTournament(selected.id, user, { partnerName, partnerPhone }, prices.tournamentPrice);
+    let result;
+    try { result = await register(selected.id, { partnerName, partnerPhone }); }
+    catch (cause) { result = { ok: false, error: cause.message || "No se pudo completar la inscripción." }; }
     if (!result.ok) {
       setMessage(result.error);
       notify({ type: "warning", title: "No se pudo anotar", message: result.error });
       return;
     }
-    setTournaments(loadTournaments(prices.tournamentPrice));
     setSelected(null);
     setPartnerName("");
     setPartnerPhone("");
@@ -101,6 +90,7 @@ export default function Tournaments() {
       </section>
 
       {message && <div className="mb-5 rounded-2xl border border-lime-300/20 bg-lime-300/10 px-5 py-4 text-sm font-bold text-lime-50">{message}</div>}
+      {tournamentsError && <p role="alert" className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm text-red-100">{tournamentsError}</p>}
 
       <section className="mb-5 flex flex-wrap gap-2"><button onClick={() => setCategory("todas")} className={chip(category === "todas")}>Todos</button><button onClick={() => setCategory("Mixto")} className={chip(category === "Mixto")}>Mixto</button><button onClick={() => setCategory("Caballeros")} className={chip(category === "Caballeros")}>Caballeros</button></section>
 
@@ -109,7 +99,7 @@ export default function Tournaments() {
           {filtered.map((t) => <TournamentCard key={t.id} tournament={t} onSignup={startSignup} />)}
         </div>
         <aside className="space-y-4">
-          <Panel title="Inscripciones recientes" kicker="Jugadores">{recentRegistrations.length ? recentRegistrations.map((registration, index) => <div key={`${registration.tournament}-${registration.name}-${index}`} className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3"><span className="font-bold text-white">{registration.name}</span><span className="text-xs text-lime-100">{registration.tournament}</span></div>) : <p className="text-sm leading-6 text-slate-400">Las inscripciones se mostrarán acá cuando los jugadores se anoten.</p>}</Panel>
+          <Panel title="Actividad del club" kicker="Jugadores"><p className="text-4xl font-black text-lime-100">{registeredPlayers}</p><p className="mt-2 text-sm leading-6 text-slate-400">Cupos ocupados entre los torneos publicados. Tus propias inscripciones aparecen en tu cuenta.</p></Panel>
           <Panel title="Inscripción" kicker="Funcionamiento"><p className="text-sm leading-6 text-slate-400">La inscripción queda pendiente hasta que el club confirme el cupo. Si el torneo es por pareja, cargá el nombre de tu compañero al anotarte.</p>{nextOpen && <a className="btn-outline mt-4 w-full justify-center" target="_blank" rel="noreferrer" href={`https://wa.me/${cleanPhone(settings.whatsapp)}?text=${encodeURIComponent(`Hola, quiero consultar por el torneo ${nextOpen.name} del ${nextOpen.date}.`)}`}>Consultar por WhatsApp</a>}</Panel>
         </aside>
       </section>

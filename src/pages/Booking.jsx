@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
@@ -7,7 +7,7 @@ import { useSchedule } from "../hooks/useSchedule.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { COURTS, CLASS_HOURS, COURT_HOURS, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
 import { getClassPrice, getCourtPrice, getCourtPriceForDuration } from "../utils/pricing.js";
-import { loadTeachers } from "../utils/teachersStorage.js";
+import { useTeachers } from "../hooks/useTeachers.jsx";
 import { useToast } from "../components/ToastProvider.jsx";
 import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
 
@@ -35,21 +35,33 @@ function todayISO() {
 }
 
 export default function Booking() {
-  const { user, openLogin } = useAuth();
+  const { user, openLogin, apiOnline } = useAuth();
   const { bookings, addBooking, setSelectedBooking } = useBooking();
   const { notify } = useToast();
   const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
   const { prices } = usePricing();
-  const activeTeachers = useMemo(() => loadTeachers(prices.classPrice).filter((teacher) => teacher.status === "activo"), [prices.classPrice]);
-  const primaryTeacher = activeTeachers[0] || null;
+  const { teachers, error: teachersError } = useTeachers();
+  const activeTeachers = useMemo(() => teachers.filter((teacher) => teacher.status === "activo"), [teachers]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState(null);
+  const primaryTeacher = activeTeachers.find((teacher) => String(teacher.id) === String(selectedTeacherId)) || activeTeachers[0] || null;
   const [selectedDate, setSelectedDate] = useState(todayISO);
-  const { occupied, loading: availabilityLoading } = useAvailability(selectedDate);
+  const { occupied, teacherBusy, loading: availabilityLoading, error: availabilityError } = useAvailability(selectedDate);
   const [selectedDuration, setSelectedDuration] = useState(90);
   const [selectedCourtId, setSelectedCourtId] = useState(COURTS[0].id);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSlot) { setSummaryVisible(false); return; }
+    const summary = document.getElementById("booking-summary");
+    if (!summary) return;
+    const observer = new IntersectionObserver(([entry]) => setSummaryVisible(entry.intersectionRatio >= 0.6), { threshold: [0, 0.6] });
+    observer.observe(summary);
+    return () => observer.disconnect();
+  }, [selectedSlot]);
 
   const formattedDate = useMemo(() => {
     try {
@@ -61,6 +73,8 @@ export default function Booking() {
   }, [selectedDate]);
 
   function getSlotState(courtId, hour, type = "court", durationMinutes = selectedDuration) {
+    if (type === "class" && (!activeTeachers.length || teachersError)) return { block: { reason: "Sin profesor disponible" }, reserved: null, taken: true };
+    if (type === "class" && primaryTeacher && teacherBusy.some((item) => String(item.teacherId) === String(primaryTeacher.id) && item.time === hour)) return { block: { reason: "Profesor ocupado" }, reserved: null, taken: true };
     if (isPastSlot(selectedDate, hour)) {
       return { block: { reason: "Horario pasado" }, reserved: null, taken: true };
     }
@@ -70,8 +84,8 @@ export default function Booking() {
     const candidate = { date: selectedDate, courtId, time: hour, durationMinutes };
     const block = blocks.find((item) => blockOverlapsBooking(item, candidate));
     const reserved = [...bookings, ...occupied].find((booking) => bookingsOverlap(booking, candidate));
-    return { block: blocksError ? { reason: "Agenda no disponible" } : blocksLoading ? { reason: "Consultando agenda" } : block,
-      reserved, taken: Boolean(block || reserved || availabilityLoading || blocksLoading || blocksError) };
+    return { block: blocksError || availabilityError ? { reason: "Agenda no disponible" } : blocksLoading ? { reason: "Consultando agenda" } : block,
+      reserved, taken: Boolean(block || reserved || availabilityLoading || blocksLoading || blocksError || availabilityError) };
   }
 
   function isSlotTaken(courtId, hour, type = "court", durationMinutes = selectedDuration) {
@@ -83,7 +97,7 @@ export default function Booking() {
     if (isSlotTaken(court.id, hour, type, durationMinutes)) return;
 
     const price = type === "class"
-      ? getClassPrice(prices)
+      ? Number(primaryTeacher?.price ?? getClassPrice(prices))
       : getCourtPriceForDuration(hour, selectedDate, durationMinutes, prices);
 
     setSelectedSlot({
@@ -162,6 +176,10 @@ export default function Booking() {
 
       setConfirmationMsg(message);
       notify({ type: "success", title: "Reserva guardada", message });
+    } catch (cause) {
+      const message = cause.message || "No se pudo guardar la reserva. Reintentá.";
+      setConfirmationMsg(message);
+      notify({ type: "warning", title: "Reserva no guardada", message });
     } finally {
       setIsSubmitting(false);
     }
@@ -234,10 +252,11 @@ export default function Booking() {
         </div>
       </section>
       {blocksError && <p role="alert" className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudo consultar la agenda del club. Actualizá la página para volver a intentar.</p>}
+      {availabilityError && <p role="alert" className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudo consultar la disponibilidad. Actualizá la página para volver a intentar.</p>}
 
-      <div className="mb-5" role="tablist" aria-label="Elegí cancha">
+      <div className="mb-5" role="group" aria-label="Elegí cancha">
         <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-white/50">Elegí una cancha</p>
-        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" role="tab" aria-selected={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
+        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" aria-pressed={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
       </div>
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] lg:gap-8">
         <div className="mobile-snap-row wide lg:block lg:space-y-5">
@@ -249,7 +268,7 @@ export default function Booking() {
                   <h2 className="mt-1 text-sm font-semibold md:text-base">{court.name}</h2>
                   <p className="mt-1 text-[11px] text-white/60">{court.description}</p>
                   <p className="mt-1 text-[11px] text-lime-300/80">{court.tag}</p>
-                  <p className="mt-1 text-[11px] text-white/45">Profes activos: {activeTeachers.map((t) => t.nickname || t.name).slice(0, 3).join(" - ")}</p>
+                  <p className="mt-1 text-[11px] text-white/45">Profes activos: {activeTeachers.map((t) => t.nickname || t.name).slice(0, 3).join(" - ") || "ninguno"}</p>
                 </div>
 
                 <div className="hidden space-y-1 text-right text-[11px] text-white/60 sm:block">
@@ -261,9 +280,14 @@ export default function Booking() {
 
               <div className="border-t border-white/5 px-5 pb-2 pt-3">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/45">Clases con profesor - 09 a 13 hs</p>
+                {activeTeachers.length > 0 && <label className="mb-3 block text-xs text-white/70">Elegí profesor
+                  <select className="field mt-2" value={primaryTeacher?.id || ""} onChange={(event) => { setSelectedTeacherId(event.target.value); setSelectedSlot(null); setPaymentOption(null); }}>
+                    {activeTeachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name} · ${Number(teacher.price ?? prices.classPrice).toLocaleString("es-AR")}</option>)}
+                  </select>
+                </label>}
                 <div className="flex flex-wrap gap-2">
-                  {CLASS_HOURS.map((hour) => {
-                    const price = getClassPrice(prices);
+                  {CLASS_HOURS.filter((hour) => !isPastSlot(selectedDate, hour)).map((hour) => {
+                    const price = Number(primaryTeacher?.price ?? getClassPrice(prices));
                     const isSelected = selectedSlot?.courtId === court.id && selectedSlot.hour === hour && selectedSlot.type === "class";
                     const slotState = getSlotState(court.id, hour, "class", 60);
                     return (
@@ -284,7 +308,7 @@ export default function Booking() {
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de 09:00 a 22:00 · {formatDuration(selectedDuration)} · salidas cada 30 min</p>
                 <div className="flex flex-wrap gap-2">
-                  {COURT_HOURS.filter((hour) => fitsOperatingHours(hour, selectedDuration)).map((hour) => {
+                  {COURT_HOURS.filter((hour) => fitsOperatingHours(hour, selectedDuration) && !isPastSlot(selectedDate, hour)).map((hour) => {
                     const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, prices);
                     const endTime = addMinutesToHour(hour, selectedDuration);
                     const isSelected = selectedSlot?.courtId === court.id && selectedSlot.hour === hour && selectedSlot.type === "court";
@@ -307,7 +331,7 @@ export default function Booking() {
           ))}
         </div>
 
-        <aside className="space-y-4">
+        <aside id="booking-summary" className="space-y-4 scroll-mt-24">
           <div className="rounded-3xl border border-slate-800 bg-[#050814]/90 px-5 py-4 shadow-[0_18px_55px_rgba(0,0,0,0.9)]">
             <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-white/40">Tu reserva</p>
 
@@ -318,6 +342,7 @@ export default function Booking() {
                 <div className="mb-3 space-y-1">
                   <h3 className="text-base font-semibold">{selectedSlot.courtName}</h3>
                   <p className="text-xs text-white/60">{formattedDate} - {selectedSlot.hour} a {selectedSlot.endTime}</p>
+                  {selectedSlot.type === "class" && <p className="pt-2 text-xs text-lime-200">Profesor: {selectedSlot.teacherName}</p>}
                   <p className="text-[11px] text-lime-300/90">
                     {selectedSlot.type === "class" ? "Clase con profesor" : `Turno de pádel - ${formatDuration(selectedSlot.durationMinutes)}`}
                   </p>
@@ -387,10 +412,15 @@ export default function Booking() {
 
           <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4 text-[11px] text-lime-50/85">
             <p className="mb-1 font-semibold text-white">Reserva segura</p>
-            <p>El turno queda guardado en tu cuenta y el club lo visualiza al instante en su panel de gestión.</p>
+            <p>{apiOnline ? "El turno queda guardado en tu cuenta y el club lo ve en su panel de gestión." : "En esta demo el turno se guarda solo en este navegador."}</p>
           </div>
         </aside>
       </section>
+      {selectedSlot && !summaryVisible && <button type="button" onClick={() => document.getElementById("booking-summary")?.scrollIntoView({ behavior: "auto", block: "start" })}
+        className="fixed bottom-4 left-4 right-4 z-40 flex items-center justify-between rounded-2xl border border-lime-200/40 bg-[#111b19] px-4 py-3 text-left text-white shadow-2xl lg:hidden">
+        <span><span className="block text-xs text-lime-200">{selectedSlot.hour} a {selectedSlot.endTime}</span><strong className="text-sm">{selectedSlot.type === "class" ? "Clase" : "Turno"} · ${Number(selectedSlot.price).toLocaleString("es-AR")}</strong></span>
+        <span className="rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-black">Ver resumen</span>
+      </button>}
     </main>
   );
 }

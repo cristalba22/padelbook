@@ -3,7 +3,7 @@ import { COURTS, CLASS_HOURS } from "../data/bookingConfig.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { sameSlot, useSchedule } from "../hooks/useSchedule.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { loadTeachers } from "../utils/teachersStorage.js";
+import { useTeachers } from "../hooks/useTeachers.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
 
@@ -31,7 +31,7 @@ export default function TeacherDashboard() {
   const [rangeStart, setRangeStart] = useState(CLASS_HOURS[0]);
   const [rangeEnd, setRangeEnd] = useState(CLASS_HOURS[CLASS_HOURS.length - 1]);
 
-  const teachers = useMemo(() => loadTeachers(prices.classPrice), [prices.classPrice]);
+  const { teachers } = useTeachers();
   const teacherName = user?.name || teachers[0]?.name || "Profesor";
   const teacherNameLower = teacherName.toLowerCase();
   const selectedDateLabel = formatDateLabel(selectedDate);

@@ -14,7 +14,7 @@ export const DEFAULT_CLUB_SETTINGS = Object.freeze({
   homeSubtitle:
     import.meta.env.VITE_HOME_SUBTITLE ||
     "Reservá cancha, coordiná la seña con el club, consultá tus turnos y sumate a torneos desde una experiencia simple y rápida.",
-  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9ª reserva bonificada",
+  promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "Tus turnos, siempre organizados",
   clubStatus: import.meta.env.VITE_CLUB_STATUS || "Club abierto - reservas online",
 });
 
@@ -29,7 +29,7 @@ function normalizeSettings(input = {}) {
     openingHours: String(input.openingHours || DEFAULT_CLUB_SETTINGS.openingHours),
     homeHeadline: String(input.homeHeadline || DEFAULT_CLUB_SETTINGS.homeHeadline),
     homeSubtitle: String(input.homeSubtitle || DEFAULT_CLUB_SETTINGS.homeSubtitle).replace("Reservá, pagá seña,", "Reservá, coordiná la seña con el club,"),
-    promoText: String(input.promoText || DEFAULT_CLUB_SETTINGS.promoText),
+    promoText: input.promoText === "9ª reserva bonificada" ? DEFAULT_CLUB_SETTINGS.promoText : String(input.promoText || DEFAULT_CLUB_SETTINGS.promoText),
     clubStatus: String(input.clubStatus || DEFAULT_CLUB_SETTINGS.clubStatus),
   };
 }

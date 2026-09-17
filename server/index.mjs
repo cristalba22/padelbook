@@ -5,12 +5,14 @@ import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
-import { Activity, Booking, Expense, ScheduleBlock, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
+import { Activity, Booking, Expense, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { publicUser, requireAuth, requireRole, signToken } from "./auth.mjs";
 import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
 import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
 import { randomUUID } from "node:crypto";
+import { pathToFileURL } from "node:url";
+import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 
 const app = express();
 
@@ -50,25 +52,19 @@ function isValidDateISO(value) {
 }
 
 function addDaysString(days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return shiftClubDate(days);
 }
 
 function startOfWeekString() {
-  const date = new Date();
-  const day = date.getDay() || 7;
-  date.setDate(date.getDate() - day + 1);
-  return date.toISOString().slice(0, 10);
+  return startOfClubWeek();
 }
 
 function startOfMonthString() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+  return startOfClubMonth();
 }
 
 function startOfYearString() {
-  return `${new Date().getFullYear()}-01-01`;
+  return startOfClubYear();
 }
 
 function moneyBucket(items, from, getDate, getValue) {
@@ -141,11 +137,47 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
+app.patch("/api/auth/me", requireAuth, async (req, res) => {
+  const parsed = z.object({
+    name: z.string().trim().min(2).max(100),
+    phone: z.string().trim().max(40),
+    category: z.string().trim().max(60),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Revisá los datos del perfil." });
+  const user = await User.findByIdAndUpdate(req.user.id, { $set: parsed.data }, { returnDocument: "after", runValidators: true });
+  if (!user) return res.status(404).json({ message: "Cuenta no encontrada." });
+  res.json({ user: publicUser(user) });
+});
+
 app.get("/api/availability", async (req, res) => {
   const date = String(req.query.date || "");
   if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha invalida." });
-  const occupied = await Booking.find({ date, status: { $ne: "cancelado" } }).select("date time durationMinutes courtId status").lean();
-  res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({ date: bookingDate, time, durationMinutes, courtId: canonicalCourtId(courtId), status })) });
+  const occupied = await Booking.find({ date, status: { $ne: "cancelado" } }).select("date time durationMinutes courtId status teacherId").lean();
+  res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({ date: bookingDate, time, durationMinutes, courtId: canonicalCourtId(courtId), status })),
+    teacherBusy: occupied.filter((booking) => booking.teacherId).map(({ teacherId, time }) => ({ teacherId, time })) });
+});
+
+app.get("/api/teachers", async (_req, res) => {
+  const teachers = await Teacher.find().sort({ name: 1 });
+  res.json({ teachers: teachers.map(({ id, name, nickname, specialty, status, price }) => ({ id, name, nickname, specialty, status, price })) });
+});
+
+app.post("/api/admin/teachers", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = z.object({ name: z.string().trim().min(2).max(100), nickname: z.string().trim().max(40).optional().default(""),
+    specialty: z.string().trim().max(100).optional().default("Clases de pádel"), price: z.number().int().min(0) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Datos de profesor inválidos." });
+  const teacher = await Teacher.create(parsed.data);
+  res.status(201).json({ teacher: teacher.toJSON() });
+});
+
+app.patch("/api/admin/teachers/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de profesor inválido." });
+  const parsed = z.object({ status: z.enum(["activo", "vacaciones", "baja"]).optional(),
+    price: z.number().int().min(0).optional() }).strict().safeParse(req.body);
+  if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Datos de profesor inválidos." });
+  const teacher = await Teacher.findByIdAndUpdate(req.params.id, { $set: parsed.data }, { returnDocument: "after", runValidators: true });
+  if (!teacher) return res.status(404).json({ message: "Profesor no encontrado." });
+  res.json({ teacher: teacher.toJSON() });
 });
 
 app.get("/api/blocks", async (_req, res) => {
@@ -190,9 +222,17 @@ app.post("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), asyn
     if (same && req.user.role === "teacher" && same.ownerId !== req.user.id) return res.status(403).json({ message: "Ese bloqueo pertenece al club o a otro profesor." });
   }
   try {
-    await ScheduleBlock.bulkWrite(blocks.map((block) => ({ updateOne: { filter: { date: block.date, courtId: block.courtId, hour: block.hour }, update: { $set: block }, upsert: true } })));
+    await withAgendaTransaction(async (session) => {
+      for (const block of blocks) {
+        const same = existingBlocks.find((item) => item.date === block.date && item.courtId === block.courtId && item.hour === block.hour);
+        const id = same?._id || new mongoose.Types.ObjectId();
+        if (same) await SlotClaim.deleteMany({ ownerType: "block", ownerId: String(id) }, { session });
+        await SlotClaim.insertMany(claimsFor({ date: block.date, courtId: block.courtId, time: block.hour, durationMinutes: block.durationMinutes }, "block", id), { session });
+        await ScheduleBlock.updateOne({ _id: id }, { $set: block }, { upsert: true, session });
+      }
+    });
   } catch (error) {
-    if (error.code === 11000) return res.status(409).json({ message: "El calendario cambió. Actualizá e intentá de nuevo." });
+    if (error.code === 11000 || error.code === 112) return res.status(409).json({ message: "El calendario cambió. Actualizá e intentá de nuevo." });
     throw error;
   }
   res.json({ blocks: (await ScheduleBlock.find({ date: { $in: dates } })).map((block) => block.toJSON()) });
@@ -202,8 +242,14 @@ app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), as
   const parsed = z.object({ keys: z.array(z.object({ date: z.string(), courtId: z.string(), hour: z.string() })).min(1).max(120) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
   const keys = parsed.data.keys.map((item) => ({ date: item.date, courtId: canonicalCourtId(item.courtId), hour: item.hour }));
-  const result = await ScheduleBlock.deleteMany({ $or: keys, ...(req.user.role === "teacher" ? { ownerId: req.user.id, type: "teacher" } : {}) });
-  res.json({ deleted: result.deletedCount });
+  const query = { $or: keys, ...(req.user.role === "teacher" ? { ownerId: req.user.id, type: "teacher" } : {}) };
+  const deleted = await withAgendaTransaction(async (session) => {
+    const blocks = await ScheduleBlock.find(query).session(session);
+    await SlotClaim.deleteMany({ ownerType: "block", ownerId: { $in: blocks.map((block) => block.id) } }, { session });
+    const result = await ScheduleBlock.deleteMany({ _id: { $in: blocks.map((block) => block._id) } }, { session });
+    return result.deletedCount;
+  });
+  res.json({ deleted });
 });
 
 app.get("/api/bookings", requireAuth, async (req, res) => {
@@ -240,6 +286,14 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   const validTime = isClass ? CLASS_HOURS.includes(parsed.data.time) : COURT_HOURS.includes(parsed.data.time);
   const validDuration = isClass ? parsed.data.durationMinutes === 60 : DURATION_OPTIONS.some((item) => item.minutes === parsed.data.durationMinutes);
   if (!court || !validTime || !validDuration || !fitsOperatingHours(parsed.data.time, parsed.data.durationMinutes)) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
+  let teacher = null;
+  if (isClass) {
+    if (!isValidObjectId(parsed.data.teacherId)) return res.status(400).json({ message: "Elegí un profesor para la clase." });
+    teacher = await Teacher.findById(parsed.data.teacherId);
+    if (!teacher || teacher.status !== "activo") return res.status(409).json({ message: "El profesor ya no está disponible." });
+    const teacherBookings = await Booking.find({ date: parsed.data.date, teacherId: teacher.id, status: { $ne: "cancelado" } });
+    if (teacherBookings.some((booking) => booking.time === parsed.data.time)) return res.status(409).json({ message: "El profesor ya tiene una clase en ese horario." });
+  }
   if (!["cash", "deposit", "full"].includes(parsed.data.paymentOption)) return res.status(400).json({ message: "Forma de pago invalida." });
   const settings = await Setting.findOne();
   if (!settings) return res.status(503).json({ message: "La configuracion del club no esta disponible." });
@@ -249,7 +303,9 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     courtId: court.id,
     courtName: court.name,
     type: isClass ? "class" : "court",
-    price: calculateBookingPrice(parsed.data, settings),
+    teacherId: teacher?.id || null,
+    teacherName: teacher?.name || "",
+    price: isClass ? teacher.price : calculateBookingPrice(parsed.data, settings),
     occupiedSlots: bookingSlotStarts(parsed.data.time, parsed.data.durationMinutes),
     durationMinutes: Number(parsed.data.durationMinutes || 60),
     endTime: addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
@@ -260,23 +316,28 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     status: { $ne: "cancelado" },
   });
   const duplicated = sameDayBookings.find((booking) => bookingsOverlap(booking, incoming));
-  if (duplicated) return res.status(409).json({ message: "Ese horario ya fue reservado.", booking: duplicated.toJSON(), duplicated: true });
+  if (duplicated) return res.status(409).json({ message: "Ese horario ya fue reservado.", duplicated: true });
   const scheduleBlocks = await ScheduleBlock.find({ date: incoming.date, courtId: incoming.courtId });
   if (scheduleBlocks.some((block) => blockOverlapsBooking(block, incoming))) return res.status(409).json({ message: "Ese horario fue bloqueado por el club." });
 
   let booking;
   try {
-    booking = await Booking.create({
-      ...incoming,
-      status: "pendiente",
-      paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
-      userId: req.user.id,
-      userEmail: req.user.email,
-      playerName: req.user.name,
-      phone: req.user.phone || "",
+    booking = await withAgendaTransaction(async (session) => {
+      const id = new mongoose.Types.ObjectId();
+      await SlotClaim.insertMany(claimsFor(incoming, "booking", id), { session });
+      const [created] = await Booking.create([{
+        _id: id, ...incoming,
+        status: "pendiente",
+        paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
+        userId: req.user.id,
+        userEmail: req.user.email,
+        playerName: req.user.name,
+        phone: req.user.phone || "",
+      }], { session });
+      return created;
     });
   } catch (error) {
-    if (error.code === 11000) return res.status(409).json({ message: "Ese horario ya fue reservado.", duplicated: true });
+    if (error.code === 11000 || error.code === 112) return res.status(409).json({ message: "Ese horario ya fue reservado o bloqueado.", duplicated: true });
     throw error;
   }
   await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: booking.playerName, bookingId: booking.id });
@@ -291,16 +352,30 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
   if (booking.status === "cancelado" && parsed.data.status !== "cancelado") {
-    const occupied = await Booking.find({ date: booking.date, status: { $ne: "cancelado" } });
+    const [occupied, blocks] = await Promise.all([
+      Booking.find({ date: booking.date, status: { $ne: "cancelado" } }),
+      ScheduleBlock.find({ date: booking.date, courtId: booking.courtId }),
+    ]);
     if (occupied.some((item) => bookingsOverlap(item, booking))) return res.status(409).json({ message: "Ese horario ya fue ocupado. No se puede reactivar la reserva." });
+    if (blocks.some((block) => blockOverlapsBooking(block, booking))) return res.status(409).json({ message: "Ese horario está bloqueado. No se puede reactivar la reserva." });
   }
-  booking.status = parsed.data.status;
   try {
-    await booking.save();
+    await withAgendaTransaction(async (session) => {
+      const current = await Booking.findById(booking.id).session(session);
+      if (!current) throw Object.assign(new Error("Reserva no encontrada."), { status: 404 });
+      if (current.status === "cancelado" && parsed.data.status !== "cancelado") {
+        await SlotClaim.insertMany(claimsFor(current, "booking", current.id), { session });
+      } else if (current.status !== "cancelado" && parsed.data.status === "cancelado") {
+        await SlotClaim.deleteMany({ ownerType: "booking", ownerId: current.id }, { session });
+      }
+      current.status = parsed.data.status;
+      await current.save({ session });
+    });
   } catch (error) {
-    if (error.code === 11000) return res.status(409).json({ message: "Ese horario ya fue ocupado. No se puede reactivar la reserva." });
+    if (error.code === 11000 || error.code === 112) return res.status(409).json({ message: "Ese horario ya fue ocupado. No se puede reactivar la reserva." });
     throw error;
   }
+  booking.status = parsed.data.status;
   await addActivity({ type: `booking_${parsed.data.status}`, title: "Reserva actualizada", detail: `${booking.playerName} - ${booking.status}`, actor: req.user.name, bookingId: booking.id });
   res.json({ booking: booking.toJSON() });
 });
@@ -319,7 +394,7 @@ app.post("/api/bookings/:id/payments", requireAuth, requireRole("admin"), async 
   const entry = { id: randomUUID(), amount: parsed.data.amount, method: parsed.data.method, note: parsed.data.note.trim(), actor: req.user.name, at: new Date() };
   const updated = await Booking.findOneAndUpdate({ _id: booking.id, amountPaid: booking.amountPaid, status: { $ne: "cancelado" } }, {
     $set: { amountPaid, paymentStatus: amountPaid >= current.total ? "pagado" : "parcial" }, $push: { paymentEntries: entry },
-  }, { new: true });
+  }, { returnDocument: "after" });
   if (!updated) return res.status(409).json({ message: "La reserva cambió. Actualizá la página y volvé a intentar." });
   await addActivity({ type: "booking_payment_recorded", title: "Cobro registrado", detail: `${updated.playerName} - $${parsed.data.amount}`, actor: req.user.name, bookingId: updated.id });
   res.json({ booking: updated.toJSON() });
@@ -333,8 +408,14 @@ app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
   if (req.user.role !== "admin" && !ownsBooking) return res.status(403).json({ message: "No podés cancelar esta reserva." });
   if (isPastSlot(booking.date, booking.time)) return res.status(409).json({ message: "El turno ya comenzó. Contactá al club para resolver la cancelación." });
   if (booking.status !== "cancelado") {
+    await withAgendaTransaction(async (session) => {
+      const current = await Booking.findById(booking.id).session(session);
+      if (current?.status === "cancelado") return;
+      await SlotClaim.deleteMany({ ownerType: "booking", ownerId: booking.id }, { session });
+      current.status = "cancelado";
+      await current.save({ session });
+    });
     booking.status = "cancelado";
-    await booking.save();
     await addActivity({ type: "booking_cancelado", title: "Reserva cancelada", detail: `${booking.playerName} - ${booking.date} ${booking.time}`, actor: req.user.name, bookingId: booking.id });
   }
   res.json({ booking: booking.toJSON() });
@@ -351,15 +432,115 @@ app.post("/api/bookings/:id/payments/reverse", requireAuth, requireRole("admin")
   const entry = { id: randomUUID(), amount: -Number(last.amount), method: last.method, note: "Reversión del cobro anterior", actor: req.user.name, at: new Date(), reversalOf: last.id };
   const updated = await Booking.findOneAndUpdate({ _id: booking.id, amountPaid: booking.amountPaid, "paymentEntries.id": last.id, "paymentEntries.reversalOf": { $ne: last.id } }, {
     $set: { amountPaid, paymentStatus }, $push: { paymentEntries: entry },
-  }, { new: true });
+  }, { returnDocument: "after" });
   if (!updated) return res.status(409).json({ message: "El cobro cambió. Actualizá la página." });
   await addActivity({ type: "booking_payment_reversed", title: "Cobro revertido", detail: `${updated.playerName} - $${last.amount}`, actor: req.user.name, bookingId: updated.id });
   res.json({ booking: updated.toJSON() });
 });
 
+function publicTournament(tournament) {
+  const item = tournament.toJSON();
+  delete item.registrations;
+  delete item.__v;
+  return item;
+}
+
+function claimsFor({ date, courtId, time, durationMinutes }, ownerType, ownerId) {
+  return bookingSlotStarts(time, durationMinutes).map((slot) => ({ date, courtId, slot, ownerType, ownerId: String(ownerId) }));
+}
+
+async function withAgendaTransaction(work) {
+  const session = await mongoose.startSession();
+  try {
+    return await session.withTransaction(() => work(session));
+  } finally {
+    await session.endSession();
+  }
+}
+
 app.get("/api/tournaments", async (_req, res) => {
   const tournaments = await Tournament.find().sort({ date: 1 });
+  res.json({ tournaments: tournaments.map(publicTournament) });
+});
+
+app.get("/api/tournaments/mine", requireAuth, async (req, res) => {
+  const tournaments = await Tournament.find({ "registrations.userId": req.user.id }).sort({ date: 1 });
+  const registrations = tournaments.flatMap((tournament) => tournament.registrations
+    .filter((registration) => registration.userId === req.user.id)
+    .map((registration) => ({ ...registration.toJSON(), tournamentId: tournament.id, tournamentName: tournament.name,
+      tournamentDate: tournament.date, tournamentHour: tournament.hour, pricePerPlayer: tournament.pricePerPlayer,
+      statusTournament: tournament.status })));
+  res.json({ registrations });
+});
+
+app.get("/api/admin/tournaments", requireAuth, requireRole("admin"), async (_req, res) => {
+  const tournaments = await Tournament.find().sort({ date: 1 });
   res.json({ tournaments: tournaments.map((tournament) => tournament.toJSON()) });
+});
+
+const tournamentFields = z.object({
+  name: z.string().trim().min(2).max(120), date: z.string(), hour: z.string(),
+  status: z.enum(["abierto", "lleno", "en_curso", "finalizado", "cancelado"]),
+  category: z.string().trim().max(80), surface: z.string().trim().max(80),
+  pricePerPlayer: z.number().int().min(0), seededPlayers: z.number().int().min(0),
+  maxPlayers: z.number().int().min(1), prize: z.string().trim().max(120),
+  description: z.string().trim().max(1000),
+});
+
+app.post("/api/admin/tournaments", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = tournamentFields.safeParse(req.body);
+  if (!parsed.success || !isValidDateISO(parsed.data?.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.data?.hour || "") ||
+    parsed.data.seededPlayers > parsed.data.maxPlayers) return res.status(400).json({ message: "Datos de torneo inválidos." });
+  const tournament = await Tournament.create({ ...parsed.data, currentPlayers: parsed.data.seededPlayers, registrations: [] });
+  res.status(201).json({ tournament: tournament.toJSON() });
+});
+
+app.patch("/api/admin/tournaments/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de torneo inválido." });
+  const parsed = tournamentFields.partial().strict().safeParse(req.body);
+  if (!parsed.success || (parsed.data.date && !isValidDateISO(parsed.data.date)) ||
+    (parsed.data.hour && !/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.data.hour))) return res.status(400).json({ message: "Datos de torneo inválidos." });
+  const tournament = await Tournament.findById(req.params.id);
+  if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
+  Object.assign(tournament, parsed.data);
+  const active = tournament.registrations.filter((registration) => registration.status !== "cancelado").length;
+  if (tournament.seededPlayers + active > tournament.maxPlayers) return res.status(409).json({ message: "El cupo no puede ser menor a las inscripciones activas." });
+  tournament.currentPlayers = tournament.seededPlayers + active;
+  await tournament.save();
+  res.json({ tournament: tournament.toJSON() });
+});
+
+app.delete("/api/admin/tournaments/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de torneo inválido." });
+  const tournament = await Tournament.findById(req.params.id);
+  if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
+  if (tournament.registrations.length) return res.status(409).json({ message: "El torneo tiene inscripciones. Cancelalo en lugar de eliminarlo." });
+  await tournament.deleteOne();
+  res.json({ deleted: true });
+});
+
+app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id) || !isValidObjectId(req.params.registrationId)) return res.status(400).json({ message: "ID inválido." });
+  const parsed = z.object({ status: z.enum(["pendiente", "confirmado", "cancelado"]).optional(),
+    paymentStatus: z.enum(["pendiente", "pagado", "sin_cargo"]).optional() }).strict().safeParse(req.body);
+  if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Estado inválido." });
+  const tournament = await Tournament.findById(req.params.id);
+  if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
+  const registration = tournament.registrations.id(req.params.registrationId);
+  if (!registration) return res.status(404).json({ message: "Inscripción no encontrada." });
+  if (parsed.data.paymentStatus && parsed.data.paymentStatus !== registration.paymentStatus) {
+    const wasPaid = registration.paymentStatus === "pagado";
+    const isPaid = parsed.data.paymentStatus === "pagado";
+    const collected = registration.paymentEntries.reduce((acc, entry) => acc + Number(entry.amount || 0), 0);
+    if (wasPaid !== isPaid) registration.paymentEntries.push({ id: randomUUID(), amount: isPaid ? tournament.pricePerPlayer : -collected,
+      method: "registro manual", actor: req.user.name, at: new Date() });
+  }
+  Object.assign(registration, parsed.data, { updatedAt: new Date() });
+  const active = tournament.registrations.filter((item) => item.status !== "cancelado").length;
+  if (tournament.seededPlayers + active > tournament.maxPlayers) return res.status(409).json({ message: "No quedan cupos disponibles." });
+  tournament.currentPlayers = tournament.seededPlayers + active;
+  await tournament.save();
+  res.json({ tournament: tournament.toJSON() });
 });
 
 app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
@@ -370,6 +551,7 @@ app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
   if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
   if (tournament.status !== "abierto") return res.status(409).json({ message: "La inscripcion no esta abierta." });
   if (Number(tournament.currentPlayers) >= Number(tournament.maxPlayers)) return res.status(409).json({ message: "No quedan cupos disponibles." });
+  if (isPastDate(tournament.date)) return res.status(409).json({ message: "El torneo ya comenzó o pasó." });
   const exists = (tournament.registrations || []).some((reg) => cleanEmail(reg.email) === cleanEmail(req.user.email) && reg.status !== "cancelado");
   if (exists) return res.status(409).json({ message: "Ya estas inscripto en este torneo." });
   const registration = {
@@ -387,7 +569,7 @@ app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
   tournament.currentPlayers = Math.min(Number(tournament.maxPlayers), Number(tournament.currentPlayers || 0) + 1);
   await tournament.save();
   await addActivity({ type: "tournament_signup", title: "Inscripcion a torneo", detail: `${registration.name} - ${tournament.name}`, actor: registration.name });
-  res.status(201).json({ tournament: tournament.toJSON(), registration: tournament.registrations.at(-1).toJSON() });
+  res.status(201).json({ tournament: publicTournament(tournament), registration: tournament.registrations.at(-1).toJSON() });
 });
 
 app.get("/api/settings", async (_req, res) => {
@@ -418,7 +600,7 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
     classPrice: z.number().or(z.string()).transform(Number).optional(),
     tournamentPrice: z.number().or(z.string()).transform(Number).optional(),
     teacherCommissionPercent: z.number().or(z.string()).transform(Number).optional(),
-  }).passthrough();
+  }).strict();
 
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de configuracion invalidos." });
@@ -429,6 +611,7 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
       return res.status(400).json({ message: "Los precios deben ser numeros positivos." });
     }
   }
+  if (parsed.data.teacherCommissionPercent > 100) return res.status(400).json({ message: "La comisión debe estar entre 0 y 100%." });
 
   const patch = {
     ...parsed.data,
@@ -443,10 +626,11 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
 });
 
 app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, res) => {
-  const [bookings, expenses, settingsDoc] = await Promise.all([
+  const [bookings, expenses, settingsDoc, tournaments] = await Promise.all([
     Booking.find().sort({ date: -1, time: -1 }),
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(80),
     Setting.findOne().sort({ createdAt: 1 }),
+    Tournament.find().select("name registrations pricePerPlayer"),
   ]);
 
   const settings = settingsDoc?.toJSON?.() || {};
@@ -456,18 +640,20 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
   const expenseRows = expenses.map((expense) => expense.toJSON());
   const collectedBookings = allBookings.filter((booking) => paymentSummary(booking).paid > 0);
   const pendingBookings = activeBookings.filter((booking) => paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
-  const incomeRows = allBookings.flatMap((booking) => {
+  const tournamentIncomeRows = tournaments.flatMap((tournament) => tournament.registrations.flatMap((registration) => (registration.paymentEntries || [])
+    .map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: "tournament", label: tournament.name }))));
+  const incomeRows = [...allBookings.flatMap((booking) => {
     const entries = booking.paymentEntries || [];
-    return entries.length ? entries.map((entry) => ({ date: String(entry.at).slice(0, 10), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
-      : paymentSummary(booking).paid > 0 ? [{ date: String(booking.updatedAt || booking.date).slice(0, 10), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : [];
-  });
+    return entries.length ? entries.map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
+      : paymentSummary(booking).paid > 0 ? [{ date: accountingDate(booking.updatedAt || booking.date), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : [];
+  }), ...tournamentIncomeRows];
 
   const teacherCommissions = collectedBookings
     .filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName)
     .flatMap((booking) => {
       const entries = booking.paymentEntries?.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
       return entries.map((entry) => ({
-        date: String(entry.at).slice(0, 10), teacherName: booking.teacherName || "Profesor", bookingId: booking.id,
+        date: accountingDate(entry.at), teacherName: booking.teacherName || "Profesor", bookingId: booking.id,
         gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent,
       }));
     });
@@ -499,7 +685,7 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
   const incomeByCategory = [
     { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class").reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
     { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName).reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
-    { label: "Torneos", amount: 0 },
+    { label: "Torneos", amount: tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0) },
   ];
 
   res.json({
@@ -507,7 +693,7 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
       byPeriod,
       totals: {
         grossIncome: incomeRows.reduce((acc, item) => acc + Number(item.amount || 0), 0),
-        collected: collectedBookings.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0),
+        collected: collectedBookings.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) + tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0),
         pending: pendingBookings.reduce((acc, booking) => acc + booking.amountDue, 0),
         expenses: expenseTotal,
         teacherCommissions: commissionTotal,
@@ -546,17 +732,22 @@ app.get("/api/activity", requireAuth, requireRole("admin"), async (_req, res) =>
 });
 
 app.use((err, _req, res, _next) => {
+  if (err.name === "VersionError") return res.status(409).json({ message: "Los datos cambiaron. Actualizá la página y volvé a intentar." });
   console.error(err);
   res.status(500).json({ message: "Error interno del servidor." });
 });
 
-connectDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`PadelBook API running at http://localhost:${PORT}/api`);
+export { app };
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  connectDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`PadelBook API running at http://localhost:${PORT}/api`);
+      });
+    })
+    .catch((error) => {
+      console.error(error.message);
+      process.exit(1);
     });
-  })
-  .catch((error) => {
-    console.error(error.message);
-    process.exit(1);
-  });
+}

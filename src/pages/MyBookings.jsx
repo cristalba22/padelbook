@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { ROUTES } from "../constants/routes.js";
-import { getUserTournamentRegistrations } from "../utils/tournamentsStorage.js";
+import { useTournaments } from "../hooks/useTournaments.jsx";
 import { paymentSummary } from "../utils/paymentDomain.js";
 import { useToast } from "../components/ToastProvider.jsx";
 
@@ -92,6 +92,7 @@ export default function MyBookings() {
   const { settings } = useClubSettings();
   const { prices } = usePricing();
   const { bookings = [], cancelBooking } = useBooking();
+  const { myRegistrations } = useTournaments();
   const [filter, setFilter] = useState("upcoming"); // upcoming | pending | history | cancelled
 
   const today = new Date();
@@ -105,7 +106,7 @@ export default function MyBookings() {
   }, [bookings, user?.email]);
 
   const tournamentAgendaItems = useMemo(() => {
-    return getUserTournamentRegistrations(user, prices.tournamentPrice).map((registration) => ({
+    return myRegistrations.map((registration) => ({
       id: `tournament-${registration.tournamentId}-${registration.id}`,
       source: "tournament",
       status: registration.status || "pendiente",
@@ -117,7 +118,7 @@ export default function MyBookings() {
       description: `Torneo - ${registration.category || "Sin categoría"}`,
       partnerName: registration.partnerName,
     }));
-  }, [user, prices.tournamentPrice]);
+  }, [myRegistrations]);
 
   const {
     upcoming,

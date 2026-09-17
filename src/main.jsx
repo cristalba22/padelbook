@@ -12,6 +12,8 @@ import { PricingProvider } from "./context/PricingContext.jsx";
 import { ClubSettingsProvider } from "./context/ClubSettingsContext.jsx";
 import { ScheduleProvider } from "./hooks/useSchedule.jsx";
 import { ToastProvider } from "./components/ToastProvider.jsx";
+import { TournamentsProvider } from "./hooks/useTournaments.jsx";
+import { TeachersProvider } from "./hooks/useTeachers.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -20,11 +22,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <BookingProvider>
           <PricingProvider>
             <ClubSettingsProvider>
+              <TournamentsProvider>
+              <TeachersProvider>
               <ScheduleProvider>
                 <ToastProvider>
                   <App />
                 </ToastProvider>
               </ScheduleProvider>
+              </TeachersProvider>
+              </TournamentsProvider>
             </ClubSettingsProvider>
           </PricingProvider>
         </BookingProvider>
@@ -35,8 +41,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
 const loader = document.getElementById("app-loader");
 if (loader) {
-  window.setTimeout(() => {
+  window.requestAnimationFrame(() => {
     loader.classList.add("app-loader--hidden");
     window.setTimeout(() => loader.remove(), 320);
-  }, 650);
+  });
 }
