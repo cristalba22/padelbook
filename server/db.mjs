@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { MONGODB_URI } from "./config.mjs";
+import { bookingSlotStarts, canonicalCourtId } from "../src/utils/bookingDomain.js";
 
 const today = new Date();
 const addDays = (days) => {
@@ -38,6 +39,7 @@ const bookingSchema = new mongoose.Schema({
   endTime: { type: String, default: "" },
   durationMinutes: { type: Number, default: 60 },
   courtId: { type: String, required: true },
+  occupiedSlots: { type: [Number], default: undefined },
   courtName: { type: String, required: true },
   type: { type: String, default: "court" },
   teacherId: { type: String, default: null },
@@ -54,6 +56,10 @@ const bookingSchema = new mongoose.Schema({
 }, baseOptions);
 
 bookingSchema.index({ date: 1, time: 1, courtId: 1, status: 1 });
+bookingSchema.index({ date: 1, courtId: 1, occupiedSlots: 1 }, {
+  unique: true,
+  partialFilterExpression: { occupiedSlots: { $exists: true }, status: { $in: ["pendiente", "confirmado"] } },
+});
 
 const registrationSchema = new mongoose.Schema({
   userId: String,
@@ -95,7 +101,7 @@ const settingsSchema = new mongoose.Schema({
   openingHours: { type: String, default: "09:00 a 22:00" },
   clubStatus: { type: String, default: "Club abierto - reservas online" },
   homeHeadline: { type: String, default: "Tu próximo partido empieza antes de llegar a la cancha." },
-  homeSubtitle: { type: String, default: "Reservá, pagá seña, consultá tus turnos, buscá jugadores por categoría y entrá a torneos desde una experiencia simple, rápida y pensada para jugadores de pádel." },
+  homeSubtitle: { type: String, default: "Reservá cancha, coordiná la seña con el club, consultá tus turnos y sumate a torneos desde una experiencia simple y rápida." },
   promoText: { type: String, default: "9ª reserva bonificada" },
   courtPrice: { type: Number, default: 18000 },
   nightPrice: { type: Number, default: 24000 },
@@ -135,6 +141,8 @@ export async function connectDb() {
   }
   await mongoose.connect(MONGODB_URI, { dbName: "padelbook" });
   await seedDatabase();
+  await Booking.init();
+  await migrateBookingSlots();
 }
 
 export function dbState() {
@@ -156,6 +164,17 @@ export async function addActivity(item) {
 
 async function seedDatabase() {
   if (await User.countDocuments()) return;
+
+  if (process.env.PADELBOOK_DEMO_SEED !== "true") {
+    const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    const password = String(process.env.ADMIN_PASSWORD || "");
+    if (!email.includes("@") || password.length < 12) {
+      throw new Error("Para iniciar una base vacia, configura ADMIN_EMAIL y ADMIN_PASSWORD (12 caracteres minimo), o activa PADELBOOK_DEMO_SEED=true solo en desarrollo.");
+    }
+    await User.create({ name: process.env.ADMIN_NAME || "Administrador del club", email, passwordHash: bcrypt.hashSync(password, 12), role: "admin" });
+    await Setting.create({});
+    return;
+  }
 
   await User.insertMany([
     { name: "Admin Club", email: "admin@club.com", passwordHash: bcrypt.hashSync("admin123", 10), role: "admin", phone: "+5493510000000", category: "Gestión" },
@@ -179,4 +198,14 @@ async function seedDatabase() {
     { date: addDays(0), concept: "Limpieza y mantenimiento diario", category: "mantenimiento", amount: 18000, paymentMethod: "efectivo" },
     { date: addDays(0), concept: "Pelotas y consumibles", category: "insumos", amount: 22000, paymentMethod: "transferencia" },
   ]);
+}
+
+async function migrateBookingSlots() {
+  const legacy = await Booking.find({ $or: [{ occupiedSlots: { $exists: false } }, { courtId: { $in: ["1", "2", "3"] } }] });
+  for (const booking of legacy) {
+    booking.courtId = canonicalCourtId(booking.courtId);
+    booking.occupiedSlots = bookingSlotStarts(booking.time, booking.durationMinutes || 60);
+    if (!booking.occupiedSlots.length) throw new Error(`Reserva ${booking.id} tiene una franja horaria invalida.`);
+    await booking.save();
+  }
 }

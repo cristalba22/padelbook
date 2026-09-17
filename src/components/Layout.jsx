@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 import LoginModal from "./LoginModal.jsx";
-import Padel3DScene from "./Padel3DScene.jsx";
 import { ROUTES, routeForRole } from "../constants/routes.js";
 
 const navItems = [
@@ -14,7 +13,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin, apiOnline } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminWorkspace = location.pathname.startsWith("/admin");
@@ -70,21 +69,18 @@ export default function Layout({ children }) {
           Admin
         </NavLink>
       )}
+      {user?.role === "teacher" && <NavLink to={ROUTES.TEACHER} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Panel profe</NavLink>}
+      {user?.role === "player" && <NavLink to={ROUTES.PLAYER} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Mi panel</NavLink>}
     </>
   );
 
   return (
     <>
       <div className="app-shell">
-        {!isAdminWorkspace && location.pathname !== ROUTES.HOME && (
-          <Padel3DScene
-            variant="ambient"
-            className="fixed inset-0 z-0 opacity-[0.18] mix-blend-screen"
-          />
-        )}
+        <a href="#contenido" className="skip-link">Ir al contenido</a>
         {/* HEADER */}
-        {!isAdminWorkspace && <header className="sticky top-0 z-40 border-b border-black/60 bg-black/95 backdrop-blur">
-          <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4 sm:px-6">
+        {!isAdminWorkspace && <header className="site-header sticky top-0 z-40 border-b border-white/10 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
             {/* Logo */}
             <button
               type="button"
@@ -92,14 +88,14 @@ export default function Layout({ children }) {
                 navigate(ROUTES.HOME);
                 closeMobile();
               }}
-              className="flex items-center gap-1 text-sm font-semibold tracking-tight text-white"
+              className="site-brand flex items-center gap-1 text-base font-black tracking-tight text-white"
             >
-              <span className="text-lime-400">PADEL</span>
-              <span>BOOK</span>
+              <span className="site-brand__mark" aria-hidden="true">p.</span>
+              <span>padelbook</span>
             </button>
 
             {/* Navegación escritorio */}
-            <nav className="hidden items-center gap-6 md:flex">
+            <nav className="hidden items-center gap-5 lg:gap-7 md:flex" aria-label="Navegación principal">
               {renderNavLinks()}
             </nav>
 
@@ -111,7 +107,7 @@ export default function Layout({ children }) {
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-400 text-[11px] font-bold text-black">
                       {user.name?.charAt(0)?.toUpperCase() || "A"}
                     </span>
-                    <span>{user.name || "Admin"}</span>
+                    <NavLink to={ROUTES.ACCOUNT} className="hover:text-lime-300">{user.name || "Mi cuenta"}</NavLink>
                   </div>
                   <button
                     type="button"
@@ -137,7 +133,7 @@ export default function Layout({ children }) {
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
               className="inline-flex items-center justify-center rounded-full border border-slate-700 p-2 text-slate-100 hover:border-lime-400 hover:text-lime-300 md:hidden"
-              aria-label="Abrir menú"
+              aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={mobileOpen}
             >
               <svg
@@ -159,7 +155,7 @@ export default function Layout({ children }) {
           {mobileOpen && (
             <div className="border-t border-slate-900/70 bg-black/95 md:hidden">
               <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 pb-4 pt-3">
-                <nav className="flex flex-col gap-2">
+                <nav className="flex flex-col gap-2" aria-label="Navegación móvil">
                   {renderNavLinks("py-1")}
                 </nav>
 
@@ -170,9 +166,7 @@ export default function Layout({ children }) {
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-lime-400 text-[11px] font-bold text-black">
                           {user.name?.charAt(0)?.toUpperCase() || "A"}
                         </span>
-                        <span className="text-slate-100">
-                          {user.name || "Admin"}
-                        </span>
+                        <NavLink to={ROUTES.ACCOUNT} onClick={closeMobile} className="text-slate-100 hover:text-lime-300">{user.name || "Mi cuenta"}</NavLink>
                       </div>
                       <button
                         type="button"
@@ -197,8 +191,10 @@ export default function Layout({ children }) {
           )}
         </header>}
 
+        {!isAdminWorkspace && !apiOnline && <div className="demo-notice" role="status"><span className="demo-notice__dot" />Demo interactiva: los cambios se guardan en este navegador. <span>La versión para clubes requiere el servidor activo.</span></div>}
+
         {/* CONTENIDO */}
-        <main className={isAdminWorkspace ? "relative z-10 flex-1" : "main-container relative z-10"}>{children}</main>
+        <div id="contenido" className="relative z-10 flex-1">{children}</div>
       </div>
 
       {/* MODAL LOGIN */}

@@ -42,7 +42,7 @@ export const PAYMENT_OPTIONS = [
     id: "full",
     label: "Pago total coordinado",
     subtitle: "Dejás el turno reservado y el club registra el pago cuando lo recibe.",
-    badge: "Pago completo",
+    badge: "Monto total",
   },
   {
     id: "cash",

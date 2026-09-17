@@ -1,6 +1,6 @@
 # PadelBook
 
-PadelBook es una plataforma fullstack para clubes de pádel. Permite gestionar reservas, torneos, agenda de jugadores, clases con profesores y operación administrativa desde una experiencia web simple y clara.
+PadelBook es una demo de plataforma para clubes de pádel con frontend React y una API Express/MongoDB que puede ejecutarse por separado. Incluye reservas, torneos, agenda de jugadores, clases con profesores y operación administrativa.
 
 El proyecto está pensado como un producto recorrible de punta a punta: el jugador puede reservar y seguir su actividad, el profesor puede revisar sus clases y disponibilidad, y el administrador puede controlar reservas, calendario, torneos, precios, pagos y métricas del club.
 
@@ -56,7 +56,7 @@ Creá el archivo de entorno:
 cp .env.example .env
 ```
 
-Completá `MONGODB_URI` y `JWT_SECRET` en `.env`.
+Completá `MONGODB_URI` y `JWT_SECRET` en `.env`. Para pruebas con datos de ejemplo, usá `PADELBOOK_DEMO_SEED=true`. Para una base nueva sin perfiles de prueba, usá `PADELBOOK_DEMO_SEED=false` y configurá `ADMIN_NAME`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 12 caracteres).
 
 Levantá frontend y backend juntos:
 
@@ -88,6 +88,12 @@ Build de producción:
 npm run build
 ```
 
+Pruebas de reglas de reserva:
+
+```bash
+npm test
+```
+
 ## Capturas
 
 ![Home](image-1.png)
@@ -99,7 +105,7 @@ npm run build
 
 ## Estado actual
 
-El proyecto ya cuenta con frontend, backend, autenticación por roles y persistencia en MongoDB. Al iniciar la API, si la base está vacía, se cargan datos iniciales para poder recorrer la plataforma sin configuración manual.
+La URL de Vercel publica solo el frontend y funciona en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md).
 
 Próximos pasos posibles:
 

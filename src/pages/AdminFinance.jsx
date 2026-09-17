@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { apiRequest } from "../utils/apiClient.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 const EXPENSES_KEY = "padel_finance_expenses";
 
@@ -13,7 +14,7 @@ function money(value) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 function startOfWeek() {

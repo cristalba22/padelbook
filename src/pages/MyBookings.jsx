@@ -22,16 +22,15 @@ const STATUS_COLORS = {
 
 // -------- helpers de fechas --------
 function parseBookingDate(booking) {
-  // Intentamos varios campos posibles para no romper nada
-  if (booking.dateISO) return new Date(booking.dateISO);
   if (booking.dateObj instanceof Date) return booking.dateObj;
 
-  if (typeof booking.date === "string") {
-    const d = new Date(booking.date);
+  if (typeof booking.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(booking.date)) {
+    const time = booking.time || booking.hour || booking.hora || "00:00";
+    const d = new Date(`${booking.date}T${time}:00-03:00`);
     if (!isNaN(d.getTime())) return d;
   }
-  // Fallback: hoy (para no tirar errores)
-  return new Date();
+  if (booking.dateISO) return new Date(booking.dateISO);
+  return new Date(NaN);
 }
 
 function formatShortDate(date) {
