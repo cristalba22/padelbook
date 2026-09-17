@@ -1,12 +1,13 @@
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { sameSlot } from "../hooks/useSchedule.jsx";
+import { argentinaDateISO } from "./bookingDomain.js";
 
 export function money(value) {
   return Number(value || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 }
 
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 export function normalizeBooking(booking = {}) {

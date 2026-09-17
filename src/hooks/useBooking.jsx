@@ -3,6 +3,7 @@ import { apiRequest } from "../utils/apiClient.js";
 import { addActivity } from "../utils/activityLog.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { useAuth } from "./useAuth.jsx";
+import { bookingsOverlap } from "../utils/bookingDomain.js";
 
 const BookingCtx = createContext(null);
 const BOOKINGS_KEY = "padel_bookings";
@@ -14,23 +15,6 @@ function makeId() {
 
 function normalizeStatus(status) {
   return String(status || "pendiente").toLowerCase();
-}
-
-function minutesFromHour(hour = "00:00") {
-  const [hh = "0", mm = "0"] = String(hour).split(":");
-  return Number(hh) * 60 + Number(mm);
-}
-
-function overlapsBooking(a = {}, b = {}) {
-  if (normalizeStatus(a.status) === "cancelado") return false;
-  if (a.date !== b.date) return false;
-  if (String(a.courtId) !== String(b.courtId)) return false;
-
-  const aStart = minutesFromHour(a.time || a.hour);
-  const aEnd = aStart + Number(a.durationMinutes || 60);
-  const bStart = minutesFromHour(b.time || b.hour);
-  const bEnd = bStart + Number(b.durationMinutes || 60);
-  return aStart < bEnd && bStart < aEnd;
 }
 
 function readBookings() {
@@ -86,7 +70,7 @@ export function BookingProvider({ children }) {
       }
     }
 
-    const duplicated = bookings.find((b) => overlapsBooking(b, bookingData));
+    const duplicated = bookings.find((b) => bookingsOverlap(b, bookingData));
     if (duplicated) return { ...duplicated, duplicated: true };
 
     const withId = {

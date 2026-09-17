@@ -13,7 +13,7 @@ export const DEFAULT_CLUB_SETTINGS = Object.freeze({
   homeHeadline: import.meta.env.VITE_HOME_HEADLINE || "Tu próximo partido empieza antes de llegar a la cancha.",
   homeSubtitle:
     import.meta.env.VITE_HOME_SUBTITLE ||
-    "Reservá, pagá seña, consultá tus turnos, buscá jugadores por categoría y entrá a torneos desde una experiencia simple, rápida y pensada para jugadores de pádel.",
+    "Reservá cancha, coordiná la seña con el club, consultá tus turnos y sumate a torneos desde una experiencia simple y rápida.",
   promoText: import.meta.env.VITE_HOME_PROMO_TEXT || "9ª reserva bonificada",
   clubStatus: import.meta.env.VITE_CLUB_STATUS || "Club abierto - reservas online",
 });
@@ -28,7 +28,7 @@ function normalizeSettings(input = {}) {
     instagram: String(input.instagram || DEFAULT_CLUB_SETTINGS.instagram).replace(/^@/, "").trim(),
     openingHours: String(input.openingHours || DEFAULT_CLUB_SETTINGS.openingHours),
     homeHeadline: String(input.homeHeadline || DEFAULT_CLUB_SETTINGS.homeHeadline),
-    homeSubtitle: String(input.homeSubtitle || DEFAULT_CLUB_SETTINGS.homeSubtitle),
+    homeSubtitle: String(input.homeSubtitle || DEFAULT_CLUB_SETTINGS.homeSubtitle).replace("Reservá, pagá seña,", "Reservá, coordiná la seña con el club,"),
     promoText: String(input.promoText || DEFAULT_CLUB_SETTINGS.promoText),
     clubStatus: String(input.clubStatus || DEFAULT_CLUB_SETTINGS.clubStatus),
   };

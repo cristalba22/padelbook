@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { addActivity } from "../utils/activityLog.js";
+import { canonicalCourtId } from "../utils/bookingDomain.js";
 
 const ScheduleCtx = createContext(null);
 const BLOCKS_KEY = "padel_schedule_blocks";
@@ -25,10 +26,10 @@ function minutesFromHour(hour = "") {
 
 function normalizeBlock(block = {}) {
   const date = block.date;
-  const courtId = String(block.courtId ?? block.court ?? "");
+  const courtId = canonicalCourtId(block.courtId ?? block.court ?? "");
   const hour = normalizeHour(block.hour ?? block.time);
   return {
-    id: block.id || blockId(date, courtId, hour),
+    id: blockId(date, courtId, hour),
     date,
     courtId,
     hour,
@@ -48,12 +49,12 @@ export function isActiveStatus(status) {
 
 export function sameSlot(booking, date, courtId, hour) {
   const bookingDate = booking?.date;
-  const bookingCourt = String(booking?.courtId ?? booking?.court ?? "");
+  const bookingCourt = canonicalCourtId(booking?.courtId ?? booking?.court ?? "");
   const bookingHour = normalizeHour(booking?.time ?? booking?.hour ?? "");
   const bookingStart = minutesFromHour(bookingHour);
   const bookingEnd = bookingStart + Number(booking?.durationMinutes || 60);
   const slotStart = minutesFromHour(hour);
-  return bookingDate === date && bookingCourt === String(courtId) && slotStart >= bookingStart && slotStart < bookingEnd && isActiveStatus(booking?.status);
+  return bookingDate === date && bookingCourt === canonicalCourtId(courtId) && slotStart >= bookingStart && slotStart < bookingEnd && isActiveStatus(booking?.status);
 }
 
 export function ScheduleProvider({ children }) {
@@ -119,7 +120,7 @@ export function ScheduleProvider({ children }) {
   }, [commit]);
 
   const removeBlock = useCallback((date, courtId, hour) => {
-    const id = blockId(date, String(courtId), normalizeHour(hour));
+    const id = blockId(date, canonicalCourtId(courtId), normalizeHour(hour));
     commit((prev) => prev.filter((item) => item.id !== id));
   }, [commit]);
 
@@ -144,12 +145,12 @@ export function ScheduleProvider({ children }) {
 
   const isBlocked = useCallback((date, courtId, hour) => {
     const normalizedHour = normalizeHour(hour);
-    return blocks.some((item) => item.date === date && String(item.courtId) === String(courtId) && normalizeHour(item.hour) === normalizedHour);
+    return blocks.some((item) => item.date === date && canonicalCourtId(item.courtId) === canonicalCourtId(courtId) && normalizeHour(item.hour) === normalizedHour);
   }, [blocks]);
 
   const getBlock = useCallback((date, courtId, hour) => {
     const normalizedHour = normalizeHour(hour);
-    return blocks.find((item) => item.date === date && String(item.courtId) === String(courtId) && normalizeHour(item.hour) === normalizedHour) || null;
+    return blocks.find((item) => item.date === date && canonicalCourtId(item.courtId) === canonicalCourtId(courtId) && normalizeHour(item.hour) === normalizedHour) || null;
   }, [blocks]);
 
   const value = useMemo(() => ({ blocks, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock }), [blocks, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock]);

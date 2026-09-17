@@ -6,11 +6,12 @@ import { useBooking } from "../hooks/useBooking.jsx";
 import { money } from "../utils/businessMetrics.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { getUserTournamentRegistrations, TOURNAMENTS_EVENT } from "../utils/tournamentsStorage.js";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "Profesor"];
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 export default function Account() {
@@ -64,7 +65,7 @@ export default function Account() {
 
   if (user && mode === "profile") {
     return (
-      <main className="py-10 text-white">
+      <main className="main-container py-10 text-white">
         <section className="mb-6 rounded-[2.2rem] border border-white/10 bg-[#060B18] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.8)]">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:items-end">
             <div>
@@ -152,7 +153,7 @@ export default function Account() {
   }
 
   return (
-    <main className="mx-auto max-w-md py-12 text-white">
+    <main className="main-container mx-auto max-w-md py-12 text-white">
       <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-6 shadow-xl">
         <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">Acceso al club</p>
         <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">{mode === "login" ? "Ingresar" : "Crear cuenta"}</h1>

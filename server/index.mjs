@@ -7,6 +7,8 @@ import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
 import { Activity, Booking, Expense, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { publicUser, requireAuth, requireRole, signToken } from "./auth.mjs";
+import { argentinaDateISO, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
+import { CLASS_HOURS, COURT_DAY_END, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 
 const app = express();
 
@@ -21,7 +23,6 @@ app.use(cors({
 app.use(express.json());
 
 const cleanEmail = (email = "") => String(email).toLowerCase().trim();
-const normalizeStatus = (status = "pendiente") => String(status || "pendiente").toLowerCase();
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
 
 const authLimiter = rateLimit({
@@ -33,7 +34,7 @@ const authLimiter = rateLimit({
 });
 
 function todayString() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 function isPastDate(date) {
@@ -82,17 +83,6 @@ function addMinutesToHour(hour, minutes) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-function bookingsOverlap(existing, incoming) {
-  if (normalizeStatus(existing.status) === "cancelado") return false;
-  if (existing.date !== incoming.date) return false;
-  if (String(existing.courtId) !== String(incoming.courtId)) return false;
-  const existingStart = minutesFromHour(existing.time);
-  const existingEnd = existingStart + Number(existing.durationMinutes || 60);
-  const incomingStart = minutesFromHour(incoming.time);
-  const incomingEnd = incomingStart + Number(incoming.durationMinutes || 60);
-  return existingStart < incomingEnd && incomingStart < existingEnd;
-}
-
 app.get("/api", (_req, res) => {
   res.json({
     name: "PadelBook API",
@@ -103,7 +93,8 @@ app.get("/api", (_req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
+  const connected = dbState() === "connected";
+  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
 });
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
@@ -146,6 +137,13 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
+app.get("/api/availability", async (req, res) => {
+  const date = String(req.query.date || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: "Fecha invalida." });
+  const occupied = await Booking.find({ date, status: { $ne: "cancelado" } }).select("date time durationMinutes courtId status").lean();
+  res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({ date: bookingDate, time, durationMinutes, courtId: canonicalCourtId(courtId), status })) });
+});
+
 app.get("/api/bookings", requireAuth, async (req, res) => {
   const query = req.user.role === "admin"
     ? {}
@@ -160,12 +158,12 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   const schema = z.object({
     date: z.string().min(8),
     time: z.string().min(4),
-    courtId: z.union([z.string(), z.number()]).transform(String),
-    courtName: z.string().min(2),
-    type: z.string().optional().default("court"),
+    courtId: z.union([z.string(), z.number()]).transform(canonicalCourtId),
+    courtName: z.string().optional(),
+    type: z.enum(["court", "class"]).optional().default("court"),
     endTime: z.string().optional().default(""),
     durationMinutes: z.number().or(z.string()).transform(Number).optional().default(60),
-    price: z.number().or(z.string()).transform(Number),
+    price: z.number().or(z.string()).transform(Number).optional(),
     paymentOption: z.string().optional().default("cash"),
     teacherId: z.string().nullable().optional(),
     teacherName: z.string().optional().default(""),
@@ -174,30 +172,49 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de reserva invalidos." });
   if (isPastDate(parsed.data.date)) return res.status(400).json({ message: "No se pueden crear reservas en fechas pasadas." });
+  if (isPastSlot(parsed.data.date, parsed.data.time)) return res.status(400).json({ message: "Ese horario ya paso. Elegi un horario futuro." });
+  const court = COURTS.find((item) => item.id === parsed.data.courtId);
+  const isClass = parsed.data.type === "class";
+  const validTime = isClass ? CLASS_HOURS.includes(parsed.data.time) : COURT_HOURS.includes(parsed.data.time);
+  const validDuration = isClass ? parsed.data.durationMinutes === 60 : DURATION_OPTIONS.some((item) => item.minutes === parsed.data.durationMinutes);
+  if (!court || !validTime || !validDuration || (!isClass && minutesFromTime(parsed.data.time) + parsed.data.durationMinutes > minutesFromTime(COURT_DAY_END))) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
+  if (!["cash", "deposit", "full"].includes(parsed.data.paymentOption)) return res.status(400).json({ message: "Forma de pago invalida." });
+  const settings = await Setting.findOne();
+  if (!settings) return res.status(503).json({ message: "La configuracion del club no esta disponible." });
 
   const incoming = {
     ...parsed.data,
+    courtId: court.id,
+    courtName: court.name,
+    type: isClass ? "class" : "court",
+    price: calculateBookingPrice(parsed.data, settings),
+    occupiedSlots: bookingSlotStarts(parsed.data.time, parsed.data.durationMinutes),
     durationMinutes: Number(parsed.data.durationMinutes || 60),
-    endTime: parsed.data.endTime || addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
+    endTime: addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
   };
 
   const sameDayBookings = await Booking.find({
     date: parsed.data.date,
-    courtId: parsed.data.courtId,
     status: { $ne: "cancelado" },
   });
   const duplicated = sameDayBookings.find((booking) => bookingsOverlap(booking, incoming));
   if (duplicated) return res.status(409).json({ message: "Ese horario ya fue reservado.", booking: duplicated.toJSON(), duplicated: true });
 
-  const booking = await Booking.create({
-    ...incoming,
-    status: "pendiente",
-    paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
-    userId: req.user.id,
-    userEmail: req.user.email,
-    playerName: req.user.name,
-    phone: req.user.phone || "",
-  });
+  let booking;
+  try {
+    booking = await Booking.create({
+      ...incoming,
+      status: "pendiente",
+      paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
+      userId: req.user.id,
+      userEmail: req.user.email,
+      playerName: req.user.name,
+      phone: req.user.phone || "",
+    });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "Ese horario ya fue reservado.", duplicated: true });
+    throw error;
+  }
   await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: booking.playerName, bookingId: booking.id });
   res.status(201).json({ booking: booking.toJSON() });
 });
@@ -209,8 +226,17 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (
   if (!parsed.success) return res.status(400).json({ message: "Estado invalido." });
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
+  if (booking.status === "cancelado" && parsed.data.status !== "cancelado") {
+    const occupied = await Booking.find({ date: booking.date, status: { $ne: "cancelado" } });
+    if (occupied.some((item) => bookingsOverlap(item, booking))) return res.status(409).json({ message: "Ese horario ya fue ocupado. No se puede reactivar la reserva." });
+  }
   booking.status = parsed.data.status;
-  await booking.save();
+  try {
+    await booking.save();
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: "Ese horario ya fue ocupado. No se puede reactivar la reserva." });
+    throw error;
+  }
   await addActivity({ type: `booking_${parsed.data.status}`, title: "Reserva actualizada", detail: `${booking.playerName} - ${booking.status}`, actor: req.user.name, bookingId: booking.id });
   res.json({ booking: booking.toJSON() });
 });

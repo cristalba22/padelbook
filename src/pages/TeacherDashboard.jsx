@@ -5,9 +5,10 @@ import { sameSlot, useSchedule } from "../hooks/useSchedule.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { loadTeachers } from "../utils/teachersStorage.js";
 import { usePricing } from "../context/PricingContext.jsx";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 function money(value) {

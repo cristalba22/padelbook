@@ -6,6 +6,7 @@ import { useBooking } from "../hooks/useBooking.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { getUserTournamentRegistrations, TOURNAMENTS_EVENT } from "../utils/tournamentsStorage.js";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 function bookingDate(booking) {
   return new Date(`${booking.date}T${booking.time || booking.hour || "00:00"}:00`);
@@ -21,7 +22,7 @@ function bookingTimeLabel(booking = {}) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 function eventDate(event) {

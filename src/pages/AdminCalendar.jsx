@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { COURTS, CLASS_HOURS, COURT_HOURS } from "../data/bookingConfig.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
+import { argentinaDateISO, canonicalCourtId } from "../utils/bookingDomain.js";
 
 const BLOCK_REASONS = ["Mantenimiento", "Clase fija", "Torneo", "Limpieza", "Club cerrado"];
 const ALL_HOURS = [...CLASS_HOURS, ...COURT_HOURS];
@@ -15,7 +16,7 @@ function normalizeBooking(booking) {
     id: booking.id,
     date: booking.date,
     time: booking.time || booking.hour,
-    courtId: String(booking.courtId || findCourtId(booking.courtOrClass || booking.courtName || booking.court)),
+    courtId: canonicalCourtId(booking.courtId || findCourtId(booking.courtOrClass || booking.courtName || booking.court)),
     court: booking.courtOrClass || booking.courtName || booking.court || "Cancha",
     player: booking.playerOrGroup || booking.playerName || booking.userName || "Jugador",
     price: Number(booking.price || booking.total || 0),
@@ -38,7 +39,7 @@ export default function AdminCalendar() {
   const { apiOnline } = useAuth();
   const { demoBookings } = useAdminDemoBookings();
   const { blocks, addBlocks, clearDate, getBlock, toggleBlock, removeBlocksWhere } = useSchedule();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = argentinaDateISO();
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedReason, setSelectedReason] = useState(BLOCK_REASONS[0]);
   const [rangeStart, setRangeStart] = useState(CLASS_HOURS[0]);

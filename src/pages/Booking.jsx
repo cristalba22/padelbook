@@ -2,12 +2,14 @@ import React, { useMemo, useState } from "react";
 
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
+import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule, sameSlot } from "../hooks/useSchedule.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
 import { COURTS, CLASS_HOURS, COURT_HOURS, COURT_DAY_END, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
 import { getClassPrice, getCourtPrice, getCourtPriceForDuration } from "../utils/pricing.js";
 import { loadTeachers } from "../utils/teachersStorage.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { argentinaDateISO, isPastSlot } from "../utils/bookingDomain.js";
 
 function minutesFromHour(hour = "00:00") {
   const [hh = "0", mm = "0"] = String(hour).split(":");
@@ -29,7 +31,7 @@ function formatDuration(minutes) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return argentinaDateISO();
 }
 
 export default function Booking() {
@@ -40,7 +42,8 @@ export default function Booking() {
   const { prices } = usePricing();
   const activeTeachers = useMemo(() => loadTeachers(prices.classPrice).filter((teacher) => teacher.status === "activo"), [prices.classPrice]);
   const primaryTeacher = activeTeachers[0] || null;
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(todayISO);
+  const { occupied, loading: availabilityLoading } = useAvailability(selectedDate);
   const [selectedDuration, setSelectedDuration] = useState(90);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
@@ -70,20 +73,24 @@ export default function Booking() {
   }
 
   function getSlotState(courtId, hour, type = "court", durationMinutes = selectedDuration) {
+    if (isPastSlot(selectedDate, hour)) {
+      return { block: { reason: "Horario pasado" }, reserved: null, taken: true };
+    }
     if (type === "court" && isPastCourtEnd(hour, durationMinutes)) {
       return { block: { reason: "Fuera de horario" }, reserved: null, taken: true };
     }
 
     const hoursToCheck = type === "court" ? courtHoursForDuration(hour, durationMinutes) : [hour];
     const block = hoursToCheck.map((slotHour) => getBlock(selectedDate, courtId, slotHour)).find(Boolean);
-    const reserved = bookings.find((booking) => hoursToCheck.some((slotHour) => sameSlot(booking, selectedDate, courtId, slotHour)));
+    const reserved = [...bookings, ...occupied].find((booking) => hoursToCheck.some((slotHour) => sameSlot(booking, selectedDate, courtId, slotHour)));
     return { block, reserved, taken: Boolean(block || reserved) };
   }
 
   function isSlotTaken(courtId, hour, type = "court", durationMinutes = selectedDuration) {
+    if (isPastSlot(selectedDate, hour)) return true;
     if (type === "court" && isPastCourtEnd(hour, durationMinutes)) return true;
     const hoursToCheck = type === "court" ? courtHoursForDuration(hour, durationMinutes) : [hour];
-    return hoursToCheck.some((slotHour) => isBlocked(selectedDate, courtId, slotHour) || bookings.some((booking) => sameSlot(booking, selectedDate, courtId, slotHour)));
+    return availabilityLoading || hoursToCheck.some((slotHour) => isBlocked(selectedDate, courtId, slotHour) || [...bookings, ...occupied].some((booking) => sameSlot(booking, selectedDate, courtId, slotHour)));
   }
 
   const handleSelectSlot = (court, hour, type) => {
@@ -115,6 +122,11 @@ export default function Booking() {
     if (selectedDate < todayISO()) {
       setConfirmationMsg("No se pueden confirmar reservas en fechas pasadas.");
       notify({ type: "warning", title: "Fecha no disponible", message: "Elegí una fecha desde hoy en adelante." });
+      return;
+    }
+    if (isPastSlot(selectedDate, selectedSlot.hour)) {
+      setConfirmationMsg("Ese horario ya pasó. Elegí otro turno para continuar.");
+      notify({ type: "warning", title: "Horario pasado", message: "Elegí un turno futuro." });
       return;
     }
     if (!user) {
@@ -156,9 +168,9 @@ export default function Booking() {
       let message = "";
       if (paymentOption === "deposit") {
         const deposit = Math.round(selectedSlot.price * 0.3);
-        message = `Reserva guardada en tu cuenta. Se registró la seña de $${deposit.toLocaleString("es-AR")}.`;
+        message = `Reserva guardada. Seña de $${deposit.toLocaleString("es-AR")} pendiente de coordinación con el club.`;
       } else if (paymentOption === "full") {
-        message = "Reserva guardada en tu cuenta. El turno quedó registrado con pago total.";
+        message = "Reserva guardada. El pago total queda pendiente de coordinación con el club.";
       } else {
         message = "Reserva guardada como 'paga en el club'. El administrador la verá como pendiente hasta registrar el pago.";
       }
@@ -339,8 +351,8 @@ export default function Booking() {
                     {PAYMENT_OPTIONS.map((opt) => {
                       const isActive = paymentOption === opt.id;
                       let amountLabel = "";
-                      if (opt.id === "deposit") amountLabel = `$${depositAmount.toLocaleString("es-AR")} ahora`;
-                      if (opt.id === "full") amountLabel = `$${totalAmount.toLocaleString("es-AR")} ahora`;
+                      if (opt.id === "deposit") amountLabel = `$${depositAmount.toLocaleString("es-AR")} a coordinar`;
+                      if (opt.id === "full") amountLabel = `$${totalAmount.toLocaleString("es-AR")} a coordinar`;
                       if (opt.id === "cash") amountLabel = "Pagás al llegar al club";
 
                       return (

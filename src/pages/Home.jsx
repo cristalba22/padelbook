@@ -7,19 +7,21 @@ import shopControlImg from "../assets/shop-paleta-control.jpg";
 import shopPowerImg from "../assets/shop-paleta-potencia.jpg";
 import shopBallsImg from "../assets/shop-pack-pelotas.jpg";
 import shopGripImg from "../assets/shop-grip-protector.jpg";
-import Padel3DScene from "../components/Padel3DScene.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { getCourtPrice, getClassPrice } from "../utils/pricing.js";
 import { useBooking } from "../hooks/useBooking.jsx";
+import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule, sameSlot } from "../hooks/useSchedule.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { loadTournaments } from "../utils/tournamentsStorage.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { useAuth } from "../hooks/useAuth.jsx";
+import { argentinaDateISO } from "../utils/bookingDomain.js";
 
 const experience = [
-  { title: "Reservá en 30 segundos", text: "Ves disponibilidad real, elegís cancha y confirmás sin esperar respuesta por WhatsApp.", icon: "⚡" },
+  { title: "Reservá en pocos pasos", text: "Ves los horarios, elegís cancha y confirmás desde la misma pantalla.", icon: "⚡" },
   { title: "Tu agenda siempre clara", text: "Próximos turnos, pagos pendientes y cancelaciones quedan ordenados en tu panel.", icon: "📅" },
   { title: "Jugá más, organizá menos", text: "Torneos, comunidad por categoría y clases con profes desde el mismo sistema.", icon: "🎾" },
 ];
@@ -43,26 +45,28 @@ export default function Home() {
   const { bookings } = useBooking();
   const { getBlock } = useSchedule();
   const { notify } = useToast();
+  const { apiOnline } = useAuth();
   const [consultingProduct, setConsultingProduct] = useState("");
   const tournaments = useMemo(() => loadTournaments(prices.tournamentPrice), [prices.tournamentPrice]);
   const openTournaments = tournaments.filter((t) => t.status === "abierto").length;
   const courtPrice = getCourtPrice("15:00", new Date(), prices);
   const classPrice = getClassPrice(prices);
   const nextTournament = tournaments.find((t) => t.status === "abierto") || tournaments[0];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = argentinaDateISO();
+  const { occupied, loading: availabilityLoading } = useAvailability(today);
   const courtAvailability = COURTS.map((court) => {
-    const freeHour = COURT_HOURS.find((hour) => !getBlock(today, court.id, hour) && !bookings.some((booking) => sameSlot(booking, today, court.id, hour)));
+    const freeHour = !availabilityLoading && COURT_HOURS.find((hour) => !getBlock(today, court.id, hour) && ![...bookings, ...occupied].some((booking) => sameSlot(booking, today, court.id, hour)));
     return {
       id: court.id,
       name: court.name.replace("Cancha ", ""),
       detail: court.description,
-      free: freeHour || "Completa",
-      status: freeHour ? "Libre" : "Sin turnos",
+      free: availabilityLoading ? "Consultando" : freeHour || "Completa",
+      status: availabilityLoading ? "Cargando" : freeHour ? "Libre" : "Sin turnos",
       tone: freeHour ? "lime" : "amber",
     };
   });
   const liveSlots = courtAvailability.slice(0, 3).map((court) => ({ hour: court.free, court: court.name, status: court.status, tone: court.tone }));
-  const availableCount = courtAvailability.filter((court) => court.free !== "Completa").length;
+  const availableCount = availabilityLoading ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
   const handleShopConsult = (product) => {
     setConsultingProduct(product.name);
     notify({
@@ -77,28 +81,16 @@ export default function Home() {
     const registeredPlayers = tournaments
       .flatMap((tournament) => tournament.registrations || [])
       .filter((registration) => !["cancelado", "rechazado"].includes(String(registration.status || "").toLowerCase()))
-      .map((registration, index) => ({
+      .map((registration) => ({
         name: registration.name || "Jugador del club",
         category: registration.category || "Mixto libre",
-        points: 980 - index * 55,
       }));
-
-    const fallback = [
-      { name: "Cristian Alba", category: "6ta caballeros", points: 980 },
-      { name: "Laura Lencina", category: "Mixto libre", points: 930 },
-      { name: "Bruno Pérez", category: "7ma caballeros", points: 875 },
-      { name: "Mica Torres", category: "6ta damas", points: 820 },
-    ];
-
-    return (registeredPlayers.length ? registeredPlayers : fallback)
-      .sort((a, b) => b.points - a.points)
-      .slice(0, 4);
+    return registeredPlayers.slice(0, 4);
   }, [tournaments]);
   return (
     <main className="home-wrapper text-white">
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-lime-300/20 bg-[#030611] shadow-[0_35px_130px_rgba(0,0,0,0.95)] sm:rounded-[2.5rem]">
         <img src={heroImg} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[66%_center] opacity-45 lg:hidden" />
-        <Padel3DScene variant="hero" className="absolute inset-0 z-[1] opacity-45 mix-blend-screen" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(163,230,53,0.28),transparent_32%),radial-gradient(circle_at_92%_20%,rgba(45,212,191,0.16),transparent_30%),linear-gradient(135deg,rgba(2,6,23,0.1),rgba(2,6,23,0.75))]" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#030611]/72 via-[#030611]/58 to-[#030611]/92 lg:hidden" />
         <div className="absolute left-8 top-8 h-28 w-28 rounded-full border border-lime-300/20 opacity-40 animate-pulse" />
@@ -141,7 +133,7 @@ export default function Home() {
 
             <div className="absolute right-5 top-5 hidden rounded-[1.4rem] border border-white/15 bg-black/55 px-4 py-3 backdrop-blur md:block">
               <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Ocupación hoy</p>
-              <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black text-lime-100">{availableCount}</span><span className="pb-1 text-xs text-slate-400">canchas con turno</span></div>
+              <div className="mt-2 flex items-end gap-2"><span className="text-3xl font-black text-lime-100">{availableCount}</span><span className="pb-1 text-xs text-slate-400">canchas con horarios libres</span></div>
             </div>
 
             <div className="absolute bottom-4 left-4 right-4 rounded-[1.45rem] border border-white/15 bg-black/60 p-3 shadow-2xl backdrop-blur-md sm:bottom-5 sm:left-5 sm:right-5 sm:rounded-[1.8rem] sm:p-4 md:left-auto md:w-[410px]">
@@ -150,7 +142,7 @@ export default function Home() {
                   <p className="hidden text-[11px] uppercase tracking-[0.22em] text-slate-400 sm:block">Disponibilidad rápida</p>
                   <h2 className="text-base font-black text-white sm:text-lg">Horarios destacados</h2>
                 </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black"><span className="h-1.5 w-1.5 rounded-full bg-black/70" />En vivo</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-black"><span className="h-1.5 w-1.5 rounded-full bg-black/70" />{apiOnline ? "En vivo" : "Demo"}</span>
               </div>
               <div className="space-y-2">
                 {liveSlots.map((slot) => <LiveSlot key={`${slot.hour}-${slot.court}`} slot={slot} />)}
@@ -255,9 +247,10 @@ export default function Home() {
 
       <section className="mobile-tight-section mt-8 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
         <div className="depth-card rounded-[2rem] border border-white/10 bg-[#0B1326]/85 p-5 shadow-xl sm:p-6">
-          <p className="section-eyebrow">Ranking competitivo</p>
-          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Jugadores del torneo</h2>
+          <p className="section-eyebrow">Comunidad en juego</p>
+          <h2 className="mt-2 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Inscripciones recientes</h2>
           <div className="mt-4 grid gap-2 sm:mt-5 sm:grid-cols-2 sm:gap-3">
+            {!tournamentRanking.length && <p className="text-sm leading-6 text-slate-400">Las inscripciones aparecerán acá cuando los jugadores se anoten a un torneo.</p>}
             {tournamentRanking.map((player, index) => (
               <div key={player.name} className={`${index > 2 ? "hidden sm:flex" : "flex"} depth-row items-center justify-between rounded-2xl border border-white/10 px-3 py-2.5 sm:px-4 sm:py-3`}>
                 <div className="flex min-w-0 items-center gap-3">
@@ -267,7 +260,7 @@ export default function Home() {
                     <p className="truncate text-xs text-slate-500">{player.category}</p>
                   </div>
                 </div>
-                <span className="shrink-0 pl-3 text-sm font-black text-lime-100">{player.points} pts</span>
+                <span className="shrink-0 pl-3 text-xs font-bold text-lime-100">Inscripto</span>
               </div>
             ))}
           </div>
