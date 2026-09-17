@@ -33,6 +33,7 @@ function normalizeBlock(block = {}) {
     date,
     courtId,
     hour,
+    durationMinutes: Number(block.durationMinutes || 60),
     reason: block.reason || "No disponible",
     type: block.type || "block",
     createdAt: block.createdAt || new Date().toISOString(),

@@ -4,6 +4,7 @@ import { addActivity } from "../utils/activityLog.js";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { useAuth } from "./useAuth.jsx";
 import { bookingsOverlap } from "../utils/bookingDomain.js";
+import { applyPayment, reversePayment } from "../utils/paymentDomain.js";
 
 const BookingCtx = createContext(null);
 const BOOKINGS_KEY = "padel_bookings";
@@ -129,31 +130,54 @@ export function BookingProvider({ children }) {
     return updated;
   }
 
-  async function updateBookingPaymentStatus(id, paymentStatus) {
+  async function recordPayment(id, details) {
     if (user?.role !== "admin") throw new Error("Solo el club puede registrar pagos.");
     if (apiOnline) {
-      const { booking } = await apiRequest(`/bookings/${id}/payment`, {
-        method: "PATCH",
-        body: JSON.stringify({ paymentStatus }),
+      const { booking } = await apiRequest(`/bookings/${id}/payments`, {
+        method: "POST",
+        body: JSON.stringify(details),
       });
       setBookings((current) => current.map((item) => item.id === id ? booking : item));
       window.dispatchEvent(new Event("padel:bookings-updated"));
       return booking;
     }
-    const next = bookings.map((booking) => booking.id === id ? {
-      ...booking,
-      paymentStatus,
-      paidAt: paymentStatus === "pagado" ? new Date().toISOString() : null,
-      updatedAt: new Date().toISOString(),
-    } : booking);
+    const current = bookings.find((booking) => booking.id === id);
+    if (!current) throw new Error("Reserva no encontrada.");
+    const updated = applyPayment(current, { ...details, actor: user?.name || "Club" });
+    const next = bookings.map((booking) => booking.id === id ? updated : booking);
     persist(next);
-    return next.find((booking) => booking.id === id);
+    addActivity({ type: "booking_payment_recorded", title: "Cobro registrado", detail: `${updated.playerName || "Jugador"} - $${details.amount}`, actor: user?.name || "Club", bookingId: id });
+    return updated;
   }
 
-  const cancelBooking = (id) => updateBookingStatus(id, "cancelado");
+  async function undoLastPayment(id) {
+    if (user?.role !== "admin") throw new Error("Solo el club puede revertir cobros.");
+    if (apiOnline) {
+      const { booking } = await apiRequest(`/bookings/${id}/payments/reverse`, { method: "POST" });
+      setBookings((current) => current.map((item) => item.id === id ? booking : item));
+      window.dispatchEvent(new Event("padel:bookings-updated"));
+      return booking;
+    }
+    const current = bookings.find((booking) => booking.id === id);
+    if (!current) throw new Error("Reserva no encontrada.");
+    const updated = reversePayment(current, user?.name || "Club");
+    persist(bookings.map((booking) => booking.id === id ? updated : booking));
+    addActivity({ type: "booking_payment_reversed", title: "Cobro revertido", detail: updated.playerName || "Jugador", actor: user?.name || "Club", bookingId: id });
+    return updated;
+  }
+
+  async function cancelBooking(id) {
+    if (apiOnline && user) {
+      const { booking } = await apiRequest(`/bookings/${id}/cancel`, { method: "POST" });
+      setBookings((current) => current.map((item) => item.id === id ? booking : item));
+      window.dispatchEvent(new Event("padel:bookings-updated"));
+      return booking;
+    }
+    return updateBookingStatus(id, "cancelado");
+  }
 
   const value = useMemo(
-    () => ({ bookings, selectedBooking, setSelectedBooking, addBooking, cancelBooking, updateBookingStatus, updateBookingPaymentStatus }),
+    () => ({ bookings, selectedBooking, setSelectedBooking, addBooking, cancelBooking, updateBookingStatus, recordPayment, undoLastPayment }),
     [bookings, selectedBooking, apiOnline, user?.role]
   );
 

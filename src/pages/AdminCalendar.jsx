@@ -6,9 +6,10 @@ import { COURTS, CLASS_HOURS, COURT_HOURS } from "../data/bookingConfig.js";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
 import { argentinaDateISO, canonicalCourtId } from "../utils/bookingDomain.js";
+import { blockOverlapsBooking, bookingsOverlap } from "../utils/bookingDomain.js";
 
 const BLOCK_REASONS = ["Mantenimiento", "Clase fija", "Torneo", "Limpieza", "Club cerrado"];
-const ALL_HOURS = [...CLASS_HOURS, ...COURT_HOURS];
+const ALL_HOURS = [...new Set([...CLASS_HOURS, ...COURT_HOURS])].sort();
 
 function normalizeBooking(booking) {
   const type = booking.type || (CLASS_HOURS.includes(booking.time || booking.hour) ? "clase" : "cancha");
@@ -16,6 +17,7 @@ function normalizeBooking(booking) {
     id: booking.id,
     date: booking.date,
     time: booking.time || booking.hour,
+    durationMinutes: Number(booking.durationMinutes || 60),
     courtId: canonicalCourtId(booking.courtId || findCourtId(booking.courtOrClass || booking.courtName || booking.court)),
     court: booking.courtOrClass || booking.courtName || booking.court || "Cancha",
     player: booking.playerOrGroup || booking.playerName || booking.userName || "Jugador",
@@ -38,7 +40,7 @@ export default function AdminCalendar() {
   const { bookings: userBookings = [] } = useBooking();
   const { apiOnline } = useAuth();
   const { demoBookings } = useAdminDemoBookings();
-  const { blocks, addBlocks, clearDate, getBlock, toggleBlock, removeBlocksWhere } = useSchedule();
+  const { blocks, addBlocks, clearDate, toggleBlock, removeBlock, removeBlocksWhere } = useSchedule();
   const today = argentinaDateISO();
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedReason, setSelectedReason] = useState(BLOCK_REASONS[0]);
@@ -56,20 +58,22 @@ export default function AdminCalendar() {
   const pending = dayBookings.filter((b) => b.status === "pendiente");
   const revenue = dayBookings.reduce((acc, b) => acc + b.price, 0);
   const totalSlots = COURTS.length * ALL_HOURS.length;
-  const usedSlots = dayBookings.length + dayBlocks.length;
+  const usedSlots = COURTS.reduce((count, court) => count + ALL_HOURS.filter((hour) => dayBookings.some((booking) => bookingsOverlap(booking, { date: selectedDate, courtId: court.id, time: hour, durationMinutes: 30 })) || dayBlocks.some((block) => blockOverlapsBooking(block, { date: selectedDate, courtId: court.id, time: hour, durationMinutes: 30 }))).length, 0);
   const occupancy = Math.round((usedSlots / totalSlots) * 100);
 
   function findBooking(court, hour) {
-    return dayBookings.find((b) => b.time === hour && String(b.courtId) === String(court.id));
+    return dayBookings.find((b) => bookingsOverlap(b, { date: selectedDate, courtId: court.id, time: hour, durationMinutes: 30 }));
   }
 
   function findBlock(court, hour) {
-    return getBlock(selectedDate, court.id, hour);
+    return dayBlocks.find((block) => blockOverlapsBooking(block, { date: selectedDate, courtId: court.id, time: hour, durationMinutes: 30 }));
   }
 
   function handleToggle(court, hour) {
     if (findBooking(court, hour)) return;
-    toggleBlock({ date: selectedDate, courtId: court.id, hour, reason: selectedReason });
+    const existing = findBlock(court, hour);
+    if (existing) return removeBlock(existing.date, existing.courtId, existing.hour);
+    toggleBlock({ date: selectedDate, courtId: court.id, hour, durationMinutes: 30, reason: selectedReason });
   }
 
   function getSelectedHours() {
@@ -91,8 +95,8 @@ export default function AdminCalendar() {
     const newBlocks = [];
     selectedCourts.forEach((court) => {
       selectedHours.forEach((hour) => {
-        const hasBooking = dayBookings.some((booking) => String(booking.courtId) === String(court.id) && booking.time === hour);
-        if (!hasBooking) newBlocks.push({ date: selectedDate, courtId: court.id, hour, reason: selectedReason });
+        const hasBooking = dayBookings.some((booking) => bookingsOverlap(booking, { date: selectedDate, courtId: court.id, time: hour, durationMinutes: 30 }));
+        if (!hasBooking) newBlocks.push({ date: selectedDate, courtId: court.id, hour, durationMinutes: 30, reason: selectedReason });
       });
     });
     addBlocks(newBlocks);
@@ -105,7 +109,7 @@ export default function AdminCalendar() {
   }
 
   function closeClub() {
-    addBlocks(COURTS.flatMap((court) => ALL_HOURS.map((hour) => ({ date: selectedDate, courtId: court.id, hour, reason: "Club cerrado" }))));
+    addBlocks(COURTS.flatMap((court) => ALL_HOURS.map((hour) => ({ date: selectedDate, courtId: court.id, hour, durationMinutes: 30, reason: "Club cerrado" }))));
   }
 
   return (
@@ -161,8 +165,8 @@ export default function AdminCalendar() {
           {COURTS.map((court) => (
             <article key={court.id} className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-4 shadow-xl">
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div><h3 className="text-lg font-black text-white">{court.name}</h3><p className="text-xs text-slate-500">Clases por la mañana y turnos de pádel por la tarde/noche.</p></div>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">{courtOccupancy(court, dayBookings, dayBlocks)}% ocupada</span>
+                <div><h3 className="text-lg font-black text-white">{court.name}</h3><p className="text-xs text-slate-500">Clases de 09:00 a 13:00 y turnos de cancha de 09:00 a 22:00.</p></div>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">{courtOccupancy(court, selectedDate, dayBookings, dayBlocks)}% ocupada</span>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
                 {ALL_HOURS.map((hour) => {
@@ -196,8 +200,8 @@ export default function AdminCalendar() {
 function courtName(courtId) {
   return COURTS.find((c) => String(c.id) === String(courtId))?.name || "Cancha";
 }
-function courtOccupancy(court, bookings, blocks) {
-  const used = bookings.filter((b) => String(b.courtId) === String(court.id)).length + blocks.filter((b) => String(b.courtId) === String(court.id)).length;
+function courtOccupancy(court, date, bookings, blocks) {
+  const used = ALL_HOURS.filter((hour) => bookings.some((booking) => bookingsOverlap(booking, { date, courtId: court.id, time: hour, durationMinutes: 30 })) || blocks.some((block) => blockOverlapsBooking(block, { date, courtId: court.id, time: hour, durationMinutes: 30 }))).length;
   return Math.round((used / ALL_HOURS.length) * 100);
 }
 function Kpi({ label, value, detail, warn }) { return <div className={`rounded-3xl border p-4 ${warn ? "border-amber-300/25 bg-amber-300/10" : "border-white/10 bg-black/30"}`}><p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{label}</p><p className="mt-2 text-2xl font-black text-white">{value}</p><p className="text-xs text-slate-400">{detail}</p></div>; }

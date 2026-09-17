@@ -7,8 +7,10 @@ import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
 import { Activity, Booking, Expense, Setting, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { publicUser, requireAuth, requireRole, signToken } from "./auth.mjs";
-import { argentinaDateISO, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
-import { CLASS_HOURS, COURT_DAY_END, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
+import { argentinaDateISO, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
+import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
+import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
+import { randomUUID } from "node:crypto";
 
 const app = express();
 
@@ -41,6 +43,12 @@ function isPastDate(date) {
   return String(date || "") < todayString();
 }
 
+function isValidDateISO(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function addDaysString(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -67,10 +75,6 @@ function moneyBucket(items, from, getDate, getValue) {
   return items
     .filter((item) => String(getDate(item) || "") >= from)
     .reduce((acc, item) => acc + Number(getValue(item) || 0), 0);
-}
-
-function isCollectedBooking(booking) {
-  return booking.paymentStatus === "pagado";
 }
 
 function minutesFromHour(hour = "00:00") {
@@ -139,7 +143,7 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 
 app.get("/api/availability", async (req, res) => {
   const date = String(req.query.date || "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: "Fecha invalida." });
+  if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha invalida." });
   const occupied = await Booking.find({ date, status: { $ne: "cancelado" } }).select("date time durationMinutes courtId status").lean();
   res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({ date: bookingDate, time, durationMinutes, courtId: canonicalCourtId(courtId), status })) });
 });
@@ -170,14 +174,14 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     description: z.string().optional().default(""),
   });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Datos de reserva invalidos." });
+  if (!parsed.success || !isValidDateISO(parsed.data?.date)) return res.status(400).json({ message: "Datos de reserva invalidos." });
   if (isPastDate(parsed.data.date)) return res.status(400).json({ message: "No se pueden crear reservas en fechas pasadas." });
   if (isPastSlot(parsed.data.date, parsed.data.time)) return res.status(400).json({ message: "Ese horario ya paso. Elegi un horario futuro." });
   const court = COURTS.find((item) => item.id === parsed.data.courtId);
   const isClass = parsed.data.type === "class";
   const validTime = isClass ? CLASS_HOURS.includes(parsed.data.time) : COURT_HOURS.includes(parsed.data.time);
   const validDuration = isClass ? parsed.data.durationMinutes === 60 : DURATION_OPTIONS.some((item) => item.minutes === parsed.data.durationMinutes);
-  if (!court || !validTime || !validDuration || (!isClass && minutesFromTime(parsed.data.time) + parsed.data.durationMinutes > minutesFromTime(COURT_DAY_END))) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
+  if (!court || !validTime || !validDuration || !fitsOperatingHours(parsed.data.time, parsed.data.durationMinutes)) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
   if (!["cash", "deposit", "full"].includes(parsed.data.paymentOption)) return res.status(400).json({ message: "Forma de pago invalida." });
   const settings = await Setting.findOne();
   if (!settings) return res.status(503).json({ message: "La configuracion del club no esta disponible." });
@@ -241,18 +245,56 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (
   res.json({ booking: booking.toJSON() });
 });
 
-app.patch("/api/bookings/:id/payment", requireAuth, requireRole("admin"), async (req, res) => {
+app.post("/api/bookings/:id/payments", requireAuth, requireRole("admin"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
-  const schema = z.object({ paymentStatus: z.enum(["pagado", "pendiente_pago"]) });
+  const schema = z.object({ amount: z.number().int().positive(), method: z.enum(PAYMENT_METHODS), note: z.string().max(300).optional().default("") });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Estado de pago invalido." });
+  if (!parsed.success) return res.status(400).json({ message: "Datos del cobro invalidos." });
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
   if (booking.status === "cancelado") return res.status(409).json({ message: "No se puede registrar un pago en una reserva cancelada." });
-  booking.paymentStatus = parsed.data.paymentStatus;
-  await booking.save();
-  await addActivity({ type: "booking_payment_updated", title: "Pago actualizado", detail: `${booking.playerName} - ${booking.paymentStatus}`, actor: req.user.name, bookingId: booking.id });
+  const current = paymentSummary(booking);
+  if (parsed.data.amount > current.due) return res.status(400).json({ message: "El cobro supera el saldo pendiente." });
+  const amountPaid = current.paid + parsed.data.amount;
+  const entry = { id: randomUUID(), amount: parsed.data.amount, method: parsed.data.method, note: parsed.data.note.trim(), actor: req.user.name, at: new Date() };
+  const updated = await Booking.findOneAndUpdate({ _id: booking.id, amountPaid: booking.amountPaid, status: { $ne: "cancelado" } }, {
+    $set: { amountPaid, paymentStatus: amountPaid >= current.total ? "pagado" : "parcial" }, $push: { paymentEntries: entry },
+  }, { new: true });
+  if (!updated) return res.status(409).json({ message: "La reserva cambió. Actualizá la página y volvé a intentar." });
+  await addActivity({ type: "booking_payment_recorded", title: "Cobro registrado", detail: `${updated.playerName} - $${parsed.data.amount}`, actor: req.user.name, bookingId: updated.id });
+  res.json({ booking: updated.toJSON() });
+});
+
+app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
+  const ownsBooking = booking.userId === req.user.id || cleanEmail(booking.userEmail) === cleanEmail(req.user.email);
+  if (req.user.role !== "admin" && !ownsBooking) return res.status(403).json({ message: "No podés cancelar esta reserva." });
+  if (isPastSlot(booking.date, booking.time)) return res.status(409).json({ message: "El turno ya comenzó. Contactá al club para resolver la cancelación." });
+  if (booking.status !== "cancelado") {
+    booking.status = "cancelado";
+    await booking.save();
+    await addActivity({ type: "booking_cancelado", title: "Reserva cancelada", detail: `${booking.playerName} - ${booking.date} ${booking.time}`, actor: req.user.name, bookingId: booking.id });
+  }
   res.json({ booking: booking.toJSON() });
+});
+
+app.post("/api/bookings/:id/payments/reverse", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
+  const last = lastReversiblePayment(booking);
+  if (!last) return res.status(409).json({ message: "No hay cobros para revertir." });
+  const amountPaid = paymentSummary(booking).paid - Number(last.amount);
+  const paymentStatus = amountPaid <= 0 ? booking.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago" : "parcial";
+  const entry = { id: randomUUID(), amount: -Number(last.amount), method: last.method, note: "Reversión del cobro anterior", actor: req.user.name, at: new Date(), reversalOf: last.id };
+  const updated = await Booking.findOneAndUpdate({ _id: booking.id, amountPaid: booking.amountPaid, "paymentEntries.id": last.id, "paymentEntries.reversalOf": { $ne: last.id } }, {
+    $set: { amountPaid, paymentStatus }, $push: { paymentEntries: entry },
+  }, { new: true });
+  if (!updated) return res.status(409).json({ message: "El cobro cambió. Actualizá la página." });
+  await addActivity({ type: "booking_payment_reversed", title: "Cobro revertido", detail: `${updated.playerName} - $${last.amount}`, actor: req.user.name, bookingId: updated.id });
+  res.json({ booking: updated.toJSON() });
 });
 
 app.get("/api/tournaments", async (_req, res) => {
@@ -341,42 +383,34 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
 });
 
 app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, res) => {
-  const [bookings, tournaments, expenses, settingsDoc] = await Promise.all([
+  const [bookings, expenses, settingsDoc] = await Promise.all([
     Booking.find().sort({ date: -1, time: -1 }),
-    Tournament.find().sort({ date: -1 }),
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(80),
     Setting.findOne().sort({ createdAt: 1 }),
   ]);
 
   const settings = settingsDoc?.toJSON?.() || {};
   const commissionPercent = Number(settings.teacherCommissionPercent ?? 50);
-  const activeBookings = bookings.map((booking) => booking.toJSON()).filter((booking) => booking.status !== "cancelado");
-  const activeTournaments = tournaments.map((tournament) => tournament.toJSON()).filter((tournament) => tournament.status !== "cancelado");
+  const allBookings = bookings.map((booking) => booking.toJSON());
+  const activeBookings = allBookings.filter((booking) => booking.status !== "cancelado");
   const expenseRows = expenses.map((expense) => expense.toJSON());
-  const collectedBookings = activeBookings.filter(isCollectedBooking);
-  const pendingBookings = activeBookings.filter((booking) => !isCollectedBooking(booking));
-
-  const tournamentRevenue = activeTournaments.map((tournament) => ({
-    date: tournament.date,
-    amount: Number(tournament.pricePerPlayer || 0) * Number(tournament.currentPlayers || 0),
-    name: tournament.name,
-  }));
-
-  const incomeRows = [
-    ...collectedBookings.map((booking) => ({ date: booking.date, amount: Number(booking.price || 0), type: booking.type, label: booking.courtName })),
-    ...tournamentRevenue,
-  ];
+  const collectedBookings = allBookings.filter((booking) => paymentSummary(booking).paid > 0);
+  const pendingBookings = activeBookings.filter((booking) => paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
+  const incomeRows = allBookings.flatMap((booking) => {
+    const entries = booking.paymentEntries || [];
+    return entries.length ? entries.map((entry) => ({ date: String(entry.at).slice(0, 10), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
+      : paymentSummary(booking).paid > 0 ? [{ date: String(booking.updatedAt || booking.date).slice(0, 10), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : [];
+  });
 
   const teacherCommissions = collectedBookings
     .filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName)
-    .map((booking) => ({
-      date: booking.date,
-      teacherName: booking.teacherName || "Profesor",
-      bookingId: booking.id,
-      gross: Number(booking.price || 0),
-      amount: Math.round((Number(booking.price || 0) * commissionPercent) / 100),
-      percent: commissionPercent,
-    }));
+    .flatMap((booking) => {
+      const entries = booking.paymentEntries?.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
+      return entries.map((entry) => ({
+        date: String(entry.at).slice(0, 10), teacherName: booking.teacherName || "Profesor", bookingId: booking.id,
+        gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent,
+      }));
+    });
 
   const expenseTotal = expenseRows.reduce((acc, item) => acc + Number(item.amount || 0), 0);
   const commissionTotal = teacherCommissions.reduce((acc, item) => acc + Number(item.amount || 0), 0);
@@ -403,9 +437,9 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
   });
 
   const incomeByCategory = [
-    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class").reduce((acc, booking) => acc + Number(booking.price || 0), 0) },
-    { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName).reduce((acc, booking) => acc + Number(booking.price || 0), 0) },
-    { label: "Torneos", amount: tournamentRevenue.reduce((acc, item) => acc + Number(item.amount || 0), 0) },
+    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class").reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
+    { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName).reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
+    { label: "Torneos", amount: 0 },
   ];
 
   res.json({
@@ -413,8 +447,8 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
       byPeriod,
       totals: {
         grossIncome: incomeRows.reduce((acc, item) => acc + Number(item.amount || 0), 0),
-        collected: collectedBookings.reduce((acc, booking) => acc + Number(booking.price || 0), 0),
-        pending: pendingBookings.reduce((acc, booking) => acc + Number(booking.price || 0), 0),
+        collected: collectedBookings.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0),
+        pending: pendingBookings.reduce((acc, booking) => acc + booking.amountDue, 0),
         expenses: expenseTotal,
         teacherCommissions: commissionTotal,
       },

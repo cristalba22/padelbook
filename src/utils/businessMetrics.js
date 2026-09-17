@@ -1,6 +1,5 @@
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
-import { sameSlot } from "../hooks/useSchedule.jsx";
-import { argentinaDateISO } from "./bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "./bookingDomain.js";
 
 export function money(value) {
   return Number(value || 0).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -57,8 +56,10 @@ export function buildAdminMetrics(bookings = [], blocks = [], date = todayISO())
 export function getAvailabilityForHome({ bookings = [], blocks = [], date = todayISO() }) {
   return COURTS.map((court) => {
     const freeHour = COURT_HOURS.find((hour) => {
-      const blocked = blocks.some((block) => block.date === date && String(block.courtId) === String(court.id) && block.hour === hour);
-      const reserved = bookings.some((booking) => sameSlot(booking, date, court.id, hour));
+      if (!fitsOperatingHours(hour, 60) || isPastSlot(date, hour)) return false;
+      const candidate = { date, courtId: court.id, time: hour, durationMinutes: 60 };
+      const blocked = blocks.some((block) => blockOverlapsBooking(block, candidate));
+      const reserved = bookings.some((booking) => bookingsOverlap(booking, candidate));
       return !blocked && !reserved;
     });
     return { court, freeHour, isAvailable: Boolean(freeHour) };

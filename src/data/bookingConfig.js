@@ -21,8 +21,12 @@ export const COURTS = [
 ];
 
 export const CLASS_HOURS = ["09:00", "10:00", "11:00", "12:00"];
-export const COURT_HOURS = ["13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
-export const COURT_DAY_END = "23:00";
+export const COURT_DAY_START = "09:00";
+export const COURT_DAY_END = "22:00";
+export const COURT_HOURS = Array.from({ length: 26 }, (_, index) => {
+  const totalMinutes = 9 * 60 + index * 30;
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+});
 
 export const DURATION_OPTIONS = [
   { minutes: 60, label: "1 h", shortLabel: "1h" },

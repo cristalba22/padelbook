@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { argentinaDateISO, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsOperatingHours, isPastSlot, minutesFromTime } from "../src/utils/bookingDomain.js";
+import { COURT_HOURS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
+import { applyPayment, paymentSummary, reversePayment } from "../src/utils/paymentDomain.js";
 
 test("normaliza identificadores heredados de cancha", () => {
   assert.equal(canonicalCourtId(1), "court1");
@@ -39,4 +41,38 @@ test("usa la fecha de Argentina cerca del cambio de día UTC", () => {
   assert.equal(argentinaDateISO(new Date("2026-09-18T01:30:00Z")), "2026-09-17");
   assert.equal(isPastSlot("2026-09-17", "13:00", new Date("2026-09-17T17:00:00Z")), true);
   assert.equal(isPastSlot("2026-09-17", "15:00", new Date("2026-09-17T17:00:00Z")), false);
+});
+
+test("acepta los cuatro turnos entre 09:00 y 22:00, con inicios cada media hora", () => {
+  assert.equal(COURT_HOURS[0], "09:00");
+  assert.equal(COURT_HOURS.at(-1), "21:30");
+  for (const { minutes } of DURATION_OPTIONS) {
+    const valid = COURT_HOURS.filter((hour) => fitsOperatingHours(hour, minutes));
+    assert.equal(valid[0], "09:00");
+    assert.equal(minutesFromTime(valid.at(-1)) + minutes, 22 * 60);
+  }
+  assert.equal(fitsOperatingHours("21:30", 60), false);
+  assert.equal(fitsOperatingHours("08:30", 60), false);
+  assert.equal(fitsOperatingHours("19:15", 90), false);
+});
+
+test("un bloqueo de media hora impide turnos que se crucen", () => {
+  const block = { date: "2026-09-20", courtId: "court1", hour: "10:30", durationMinutes: 30 };
+  assert.equal(blockOverlapsBooking(block, { date: block.date, courtId: "court1", time: "09:00", durationMinutes: 120 }), true);
+  assert.equal(blockOverlapsBooking(block, { date: block.date, courtId: "court1", time: "11:00", durationMinutes: 60 }), false);
+});
+
+test("la seña mantiene saldo y el segundo cobro completa el turno", () => {
+  const booking = { price: 30000, paymentOption: "deposit", paymentStatus: "pendiente_pago", status: "confirmado" };
+  assert.deepEqual(paymentSummary(booking), { total: 30000, paid: 0, due: 30000, deposit: 9000, suggested: 9000, status: "pendiente_pago" });
+  const partial = applyPayment(booking, { amount: 9000, method: "transferencia" });
+  assert.equal(paymentSummary(partial).due, 21000);
+  assert.equal(partial.paymentStatus, "parcial");
+  const full = applyPayment(partial, { amount: 21000, method: "efectivo" });
+  assert.equal(paymentSummary(full).due, 0);
+  assert.equal(full.paymentStatus, "pagado");
+  assert.throws(() => applyPayment(partial, { amount: 22000, method: "efectivo" }));
+  const reversed = reversePayment(full);
+  assert.equal(paymentSummary(reversed).due, 21000);
+  assert.equal(reversePayment(reversed).amountPaid, 0);
 });
