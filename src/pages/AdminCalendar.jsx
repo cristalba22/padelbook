@@ -40,7 +40,7 @@ export default function AdminCalendar() {
   const { bookings: userBookings = [] } = useBooking();
   const { apiOnline } = useAuth();
   const { demoBookings } = useAdminDemoBookings();
-  const { blocks, addBlocks, clearDate, toggleBlock, removeBlock, removeBlocksWhere } = useSchedule();
+  const { blocks, loading: blocksLoading, error: blocksError, addBlocks, clearDate, toggleBlock, removeBlock, removeBlocksWhere } = useSchedule();
   const today = argentinaDateISO();
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedReason, setSelectedReason] = useState(BLOCK_REASONS[0]);
@@ -70,6 +70,7 @@ export default function AdminCalendar() {
   }
 
   function handleToggle(court, hour) {
+    if (blocksLoading || blocksError) return;
     if (findBooking(court, hour)) return;
     const existing = findBlock(court, hour);
     if (existing) return removeBlock(existing.date, existing.courtId, existing.hour);
@@ -90,6 +91,7 @@ export default function AdminCalendar() {
   }
 
   function applyCustomBlock() {
+    if (blocksLoading || blocksError) return;
     const selectedHours = getSelectedHours();
     const selectedCourts = getSelectedCourts();
     const newBlocks = [];
@@ -103,17 +105,20 @@ export default function AdminCalendar() {
   }
 
   function releaseCustomBlock() {
+    if (blocksLoading || blocksError) return;
     const selectedHours = new Set(getSelectedHours());
     const selectedCourtIds = new Set(getSelectedCourts().map((court) => String(court.id)));
     removeBlocksWhere((block) => block.date === selectedDate && selectedCourtIds.has(String(block.courtId)) && selectedHours.has(block.hour));
   }
 
   function closeClub() {
+    if (blocksLoading || blocksError) return;
     addBlocks(COURTS.flatMap((court) => ALL_HOURS.map((hour) => ({ date: selectedDate, courtId: court.id, hour, durationMinutes: 30, reason: "Club cerrado" }))));
   }
 
   return (
     <AdminLayout title="Calendario operativo" subtitle="Bloqueá horarios y administrá la disponibilidad real que ven los jugadores al reservar.">
+      {blocksError && <p role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-100">{blocksError} Actualizá la página para reintentar.</p>}
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_340px]">
         <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-5 shadow-xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -152,10 +157,10 @@ export default function AdminCalendar() {
           <label className="mt-4 block"><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-400">Motivo</span><select value={selectedReason} onChange={(e) => setSelectedReason(e.target.value)} className="field">{BLOCK_REASONS.map((r) => <option key={r}>{r}</option>)}</select></label>
 
           <div className="mt-5 grid gap-2">
-            <button onClick={applyCustomBlock} className="btn-primary justify-center">Bloquear rango seleccionado</button>
-            <button onClick={releaseCustomBlock} className="btn-outline justify-center">Liberar rango seleccionado</button>
-            <button onClick={closeClub} className="btn-outline justify-center">Cerrar club todo el día</button>
-            <button onClick={() => clearDate(selectedDate)} className="btn-outline justify-center">Liberar bloqueos del día</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={applyCustomBlock} className="btn-primary justify-center">Bloquear rango seleccionado</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={releaseCustomBlock} className="btn-outline justify-center">Liberar rango seleccionado</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={closeClub} className="btn-outline justify-center">Cerrar club todo el día</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={() => clearDate(selectedDate)} className="btn-outline justify-center">Liberar bloqueos del día</button>
           </div>
         </aside>
       </section>

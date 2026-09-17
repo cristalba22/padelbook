@@ -58,6 +58,13 @@ export function fitsOperatingHours(time, durationMinutes) {
     [60, 90, 120, 150].includes(duration) && start + duration <= 22 * 60;
 }
 
+export function fitsBlockHours(time, durationMinutes) {
+  const start = minutesFromTime(time);
+  const duration = Number(durationMinutes);
+  return Number.isFinite(start) && start >= 9 * 60 && start % 30 === 0 &&
+    Number.isInteger(duration) && duration >= 30 && duration <= 150 && duration % 30 === 0 && start + duration <= 22 * 60;
+}
+
 export function calculateBookingPrice({ date, time, type, durationMinutes }, settings) {
   if (type === "class") return Number(settings.classPrice);
   const day = new Date(`${date}T00:00:00`).getDay();

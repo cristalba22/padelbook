@@ -43,7 +43,7 @@ export default function Home() {
   const { prices } = usePricing();
   const { settings } = useClubSettings();
   const { bookings } = useBooking();
-  const { blocks } = useSchedule();
+  const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
   const { notify } = useToast();
   const { apiOnline } = useAuth();
   const [consultingProduct, setConsultingProduct] = useState("");
@@ -55,7 +55,7 @@ export default function Home() {
   const today = argentinaDateISO();
   const { occupied, loading: availabilityLoading } = useAvailability(today);
   const courtAvailability = COURTS.map((court) => {
-    const freeHour = !availabilityLoading && COURT_HOURS.find((hour) => {
+    const freeHour = !availabilityLoading && !blocksLoading && !blocksError && COURT_HOURS.find((hour) => {
       if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
       const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
       return !blocks.some((block) => blockOverlapsBooking(block, candidate)) && ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
@@ -64,13 +64,13 @@ export default function Home() {
       id: court.id,
       name: court.name.replace("Cancha ", ""),
       detail: court.description,
-      free: availabilityLoading ? "Consultando" : freeHour || "Completa",
-      status: availabilityLoading ? "Cargando" : freeHour ? "Libre" : "Sin turnos",
+      free: availabilityLoading || blocksLoading ? "Consultando" : blocksError ? "No disponible" : freeHour || "Completa",
+      status: availabilityLoading || blocksLoading ? "Cargando" : blocksError ? "Sin datos" : freeHour ? "Libre" : "Sin turnos",
       tone: freeHour ? "lime" : "amber",
     };
   });
   const liveSlots = courtAvailability.slice(0, 3).map((court) => ({ hour: court.free, court: court.name, status: court.status, tone: court.tone }));
-  const availableCount = availabilityLoading ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
+  const availableCount = availabilityLoading || blocksLoading || blocksError ? 0 : courtAvailability.filter((court) => court.free !== "Completa").length;
   const handleShopConsult = (product) => {
     setConsultingProduct(product.name);
     notify({

@@ -1,7 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { safeRead, safeWrite } from "../utils/storage.js";
 import { addActivity } from "../utils/activityLog.js";
 import { canonicalCourtId } from "../utils/bookingDomain.js";
+import { apiRequest } from "../utils/apiClient.js";
+import { useAuth } from "./useAuth.jsx";
 
 const ScheduleCtx = createContext(null);
 const BLOCKS_KEY = "padel_schedule_blocks";
@@ -36,6 +38,7 @@ function normalizeBlock(block = {}) {
     durationMinutes: Number(block.durationMinutes || 60),
     reason: block.reason || "No disponible",
     type: block.type || "block",
+    ownerId: block.ownerId || "",
     createdAt: block.createdAt || new Date().toISOString(),
   };
 }
@@ -59,15 +62,37 @@ export function sameSlot(booking, date, courtId, hour) {
 }
 
 export function ScheduleProvider({ children }) {
+  const { apiOnline } = useAuth();
   const [blocks, setBlocks] = useState(readBlocks);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const blocksRef = useRef(blocks);
+  const mutationQueue = useRef(Promise.resolve());
+
+  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
 
   useEffect(() => {
-    safeWrite(BLOCKS_KEY, blocks.map(normalizeBlock));
-  }, [blocks]);
+    if (!apiOnline) safeWrite(BLOCKS_KEY, blocks.map(normalizeBlock));
+  }, [blocks, apiOnline]);
+
+  useEffect(() => {
+    if (!apiOnline) return;
+    let active = true;
+    setLoading(true);
+    apiRequest("/blocks").then(({ blocks: remote }) => {
+      if (!active) return;
+      const normalized = (remote || []).map(normalizeBlock);
+      blocksRef.current = normalized;
+      setBlocks(normalized);
+      setError("");
+    }).catch((cause) => { if (active) setError(cause.message || "No se pudieron cargar los bloqueos."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [apiOnline]);
 
   useEffect(() => {
     const sync = (event) => {
-      if (!event || event.key === BLOCKS_KEY) setBlocks(readBlocks());
+      if (!apiOnline && (!event || event.key === BLOCKS_KEY)) setBlocks(readBlocks());
     };
     window.addEventListener("storage", sync);
     window.addEventListener("padel:schedule-updated", sync);
@@ -75,17 +100,45 @@ export function ScheduleProvider({ children }) {
       window.removeEventListener("storage", sync);
       window.removeEventListener("padel:schedule-updated", sync);
     };
-  }, []);
+  }, [apiOnline]);
 
   const commit = useCallback((updater) => {
-    setBlocks((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      const normalized = next.map(normalizeBlock).filter((b) => b.date && b.courtId && b.hour);
+    const previous = blocksRef.current;
+    const next = typeof updater === "function" ? updater(previous) : updater;
+    const normalized = next.map(normalizeBlock).filter((b) => b.date && b.courtId && b.hour);
+    blocksRef.current = normalized;
+    setBlocks(normalized);
+    setError("");
+    if (!apiOnline) {
       safeWrite(BLOCKS_KEY, normalized);
       window.dispatchEvent(new Event("padel:schedule-updated"));
-      return normalized;
+      return;
+    }
+    const oldMap = new Map(previous.map((block) => [block.id, block]));
+    const newMap = new Map(normalized.map((block) => [block.id, block]));
+    const removed = previous.filter((block) => !newMap.has(block.id));
+    const upserted = normalized.filter((block) => {
+      const old = oldMap.get(block.id);
+      return !old || old.reason !== block.reason || old.durationMinutes !== block.durationMinutes || old.type !== block.type;
     });
-  }, []);
+    const task = mutationQueue.current.then(async () => {
+      if (removed.length) {
+        const result = await apiRequest("/blocks/batch", { method: "DELETE", body: JSON.stringify({ keys: removed.map(({ date, courtId, hour }) => ({ date, courtId, hour })) }) });
+        if (result.deleted !== removed.length) throw new Error("Algunos bloqueos ya habían cambiado. La agenda se actualizará.");
+      }
+      if (upserted.length) await apiRequest("/blocks/batch", { method: "POST", body: JSON.stringify({ blocks: upserted }) });
+      window.dispatchEvent(new Event("padel:schedule-updated"));
+    });
+    mutationQueue.current = task.catch(async (cause) => {
+      setError(cause.message || "No se pudo guardar el calendario.");
+      try {
+        const { blocks: remote } = await apiRequest("/blocks");
+        const fresh = (remote || []).map(normalizeBlock);
+        blocksRef.current = fresh;
+        setBlocks(fresh);
+      } catch { /* La operación sigue marcada como fallida. */ }
+    });
+  }, [apiOnline]);
 
   const addBlock = useCallback((block) => {
     const normalized = normalizeBlock(block);
@@ -154,7 +207,7 @@ export function ScheduleProvider({ children }) {
     return blocks.find((item) => item.date === date && canonicalCourtId(item.courtId) === canonicalCourtId(courtId) && normalizeHour(item.hour) === normalizedHour) || null;
   }, [blocks]);
 
-  const value = useMemo(() => ({ blocks, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock }), [blocks, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock]);
+  const value = useMemo(() => ({ blocks, loading, error, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock }), [blocks, loading, error, addBlock, addBlocks, removeBlock, removeBlocksWhere, toggleBlock, clearDate, isBlocked, getBlock]);
 
   return <ScheduleCtx.Provider value={value}>{children}</ScheduleCtx.Provider>;
 }

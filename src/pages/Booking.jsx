@@ -38,7 +38,7 @@ export default function Booking() {
   const { user, openLogin } = useAuth();
   const { bookings, addBooking, setSelectedBooking } = useBooking();
   const { notify } = useToast();
-  const { blocks } = useSchedule();
+  const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
   const { prices } = usePricing();
   const activeTeachers = useMemo(() => loadTeachers(prices.classPrice).filter((teacher) => teacher.status === "activo"), [prices.classPrice]);
   const primaryTeacher = activeTeachers[0] || null;
@@ -70,7 +70,8 @@ export default function Booking() {
     const candidate = { date: selectedDate, courtId, time: hour, durationMinutes };
     const block = blocks.find((item) => blockOverlapsBooking(item, candidate));
     const reserved = [...bookings, ...occupied].find((booking) => bookingsOverlap(booking, candidate));
-    return { block, reserved, taken: Boolean(block || reserved || availabilityLoading) };
+    return { block: blocksError ? { reason: "Agenda no disponible" } : blocksLoading ? { reason: "Consultando agenda" } : block,
+      reserved, taken: Boolean(block || reserved || availabilityLoading || blocksLoading || blocksError) };
   }
 
   function isSlotTaken(courtId, hour, type = "court", durationMinutes = selectedDuration) {
@@ -232,6 +233,7 @@ export default function Booking() {
           </div>
         </div>
       </section>
+      {blocksError && <p role="alert" className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudo consultar la agenda del club. Actualizá la página para volver a intentar.</p>}
 
       <div className="mb-5" role="tablist" aria-label="Elegí cancha">
         <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-white/50">Elegí una cancha</p>

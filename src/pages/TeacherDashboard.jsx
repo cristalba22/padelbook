@@ -22,10 +22,10 @@ function formatDateLabel(value) {
 }
 
 export default function TeacherDashboard() {
-  const { user } = useAuth();
+  const { user, apiOnline } = useAuth();
   const { bookings } = useBooking();
   const { prices } = usePricing();
-  const { blocks, addBlocks, getBlock, removeBlocksWhere } = useSchedule();
+  const { blocks, loading: blocksLoading, error: blocksError, addBlocks, getBlock, removeBlocksWhere } = useSchedule();
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [selectedCourtId, setSelectedCourtId] = useState("all");
   const [rangeStart, setRangeStart] = useState(CLASS_HOURS[0]);
@@ -62,6 +62,7 @@ export default function TeacherDashboard() {
   }
 
   function blockSelectedRange() {
+    if (blocksLoading || blocksError) return;
     const selectedHours = getSelectedHours();
     const selectedCourts = getSelectedCourts();
     const newBlocks = [];
@@ -75,16 +76,18 @@ export default function TeacherDashboard() {
   }
 
   function freeSelectedRange() {
+    if (blocksLoading || blocksError) return;
     const selectedHours = new Set(getSelectedHours());
     const selectedCourtIds = new Set(getSelectedCourts().map((court) => String(court.id)));
     removeBlocksWhere((block) => {
-      const mine = block.reason?.includes(teacherName) || block.type === "teacher";
+      const mine = apiOnline ? block.ownerId === user?.id : block.reason?.includes(teacherName) || block.type === "teacher";
       return mine && block.date === selectedDate && selectedCourtIds.has(String(block.courtId)) && selectedHours.has(block.hour);
     });
   }
 
   return (
     <main className="main-container text-white">
+      {blocksError && <p role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-100">{blocksError} Actualizá la página para reintentar.</p>}
       <header className="mb-5 grid gap-4 lg:grid-cols-[1fr_340px]">
         <section className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl sm:p-6">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">Panel del profesor</p>
@@ -133,8 +136,8 @@ export default function TeacherDashboard() {
             </label>
           </div>
           <div className="mt-4 grid gap-2">
-            <button onClick={blockSelectedRange} className="btn-primary justify-center">Bloquear rango</button>
-            <button onClick={freeSelectedRange} className="btn-outline justify-center">Liberar rango</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={blockSelectedRange} className="btn-primary justify-center">Bloquear rango</button>
+            <button disabled={blocksLoading || Boolean(blocksError)} onClick={freeSelectedRange} className="btn-outline justify-center">Liberar rango</button>
           </div>
         </aside>
       </header>
