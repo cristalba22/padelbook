@@ -114,6 +114,7 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="club-dashboard">
+        <div className="club-dashboard__hero">
         <div className="club-dashboard__intro">
           <div><p className="club-dashboard__eyebrow">{formatDate(date)}</p><h1>Todo listo para jugar.</h1><p>Tu agenda y tus reservas, en el mismo lugar.</p></div>
           <Link to={ROUTES.ADMIN_CALENDAR} className="club-dashboard__primary"><Plus size={17} aria-hidden="true" /> Gestionar agenda</Link>
@@ -123,6 +124,7 @@ export default function AdminDashboard() {
           <Metric Icon={CircleDollarSign} label="Valor de reservas" value={money(bookedValue)} note="Reservas activas del día" />
           <Metric Icon={Clock3} label="Por confirmar" value={pendingBookings.length} note={pendingBookings.length === 1 ? "1 reserva requiere seguimiento" : `${pendingBookings.length} reservas requieren seguimiento`} />
           <Metric Icon={TrendingUp} label="Ocupación" value={`${occupancy}%`} note={`${freeMinutes / 60} h libres entre 18 y 22`} />
+        </div>
         </div>
 
         <div className="club-dashboard__workspace">

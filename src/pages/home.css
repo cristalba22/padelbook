@@ -3,9 +3,6 @@
 .home-experience .site-header .site-brand__mark{background:#c5f268;color:#12231d;box-shadow:0 0 22px rgba(197,242,104,.3)}
 .home-experience .site-header nav a.text-lime-300{color:#c5f268}
 .home-experience .site-header nav a::after{background:#c5f268}
-.home-experience .demo-notice{background:#e8ecd9;border-color:#ccd7b6;color:#334238;font-size:12px;letter-spacing:0;padding:8px 16px;gap:8px}
-.home-experience .demo-notice__label{color:#245d42}
-.home-experience .demo-notice span:last-child{color:#334238}
 .home-experience .site-footer{background:#0d201b;border-color:#274336}
 .home-experience .site-footer__column h2,.home-experience .site-footer__address svg,.home-experience .site-footer__eyebrow{color:#c5f268}
 .home-experience .site-footer__brand span{background:#c5f268;color:#15251c}

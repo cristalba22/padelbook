@@ -41,7 +41,7 @@ function GroupCard({ group, phone }) {
   const digits = cleanPhone(phone);
   const message = encodeURIComponent(`Hola, quiero consultar por jugadores de ${group.id} en el club.`);
   return (
-    <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35">
+    <article className="interior-paper-card rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35">
       <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{group.level}</p>
       <h3 className="mt-1 text-2xl font-black text-white">{group.label}</h3>
       <p className="mt-4 text-sm leading-6 text-slate-400">{group.vibe}</p>
