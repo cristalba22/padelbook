@@ -152,10 +152,10 @@ export function BookingProvider({ children }) {
     return updated;
   }
 
-  async function undoLastPayment(id) {
+  async function undoLastPayment(id, idempotencyKey) {
     if (user?.role !== "admin") throw new Error("Solo el club puede revertir cobros.");
     if (apiOnline) {
-      const { booking } = await apiRequest(`/bookings/${id}/payments/reverse`, { method: "POST" });
+      const { booking } = await apiRequest(`/bookings/${id}/payments/reverse`, { method: "POST", body: JSON.stringify({ idempotencyKey }) });
       setBookings((current) => current.map((item) => item.id === id ? booking : item));
       window.dispatchEvent(new Event("padel:bookings-updated"));
       return booking;

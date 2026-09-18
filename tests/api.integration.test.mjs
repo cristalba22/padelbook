@@ -60,8 +60,23 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request(`/bookings/${bookingId}/status`, { method: "PATCH", token: admin, body: { status: "confirmado" } })).status, 409);
     assert.equal((await request("/blocks/batch", { method: "DELETE", token: admin, body: { keys: [{ date, courtId: "court1", hour: "09:00" }] } })).status, 200);
     assert.equal((await request(`/bookings/${bookingId}/status`, { method: "PATCH", token: admin, body: { status: "confirmado" } })).status, 200);
-    assert.equal((await request(`/bookings/${bookingId}/payments`, { method: "POST", token: admin, body: { amount: 10000, method: "transferencia" } })).status, 200);
-    assert.equal((await request(`/bookings/${bookingId}/payments/reverse`, { method: "POST", token: admin })).status, 200);
+    const paymentPath = `/bookings/${bookingId}/payments`;
+    const paymentBody = { amount: 10000, method: "transferencia", idempotencyKey: "f76a3799-d05b-4dd9-874d-f84c8a347225" };
+    const [firstPayment, duplicatePayment] = await Promise.all([
+      request(paymentPath, { method: "POST", token: admin, body: paymentBody }),
+      request(paymentPath, { method: "POST", token: admin, body: paymentBody }),
+    ]);
+    assert.deepEqual([firstPayment.status, duplicatePayment.status], [200, 200]);
+    assert.equal(firstPayment.data.booking.amountPaid, 10000);
+    assert.equal(duplicatePayment.data.booking.amountPaid, 10000);
+    assert.equal((await request(paymentPath, { method: "POST", token: admin, body: { ...paymentBody, amount: 20000 } })).status, 409);
+    const reversalBody = { idempotencyKey: "cb4a318a-4808-405e-94ec-0860b7532825" };
+    const reversalPath = `${paymentPath}/reverse`;
+    assert.equal((await request(reversalPath, { method: "POST", token: admin, body: reversalBody })).data.booking.amountPaid, 0);
+    const repeatedReversal = await request(reversalPath, { method: "POST", token: admin, body: reversalBody });
+    assert.equal(repeatedReversal.status, 200);
+    assert.equal(repeatedReversal.data.booking.amountPaid, 0);
+    assert.equal(repeatedReversal.data.booking.paymentEntries.length, 2);
 
     const [raceBooking, raceBlock] = await Promise.all([
       request("/bookings", { method: "POST", token: player, body: { date, time: "11:00", courtId: "court2", type: "court", durationMinutes: 90, paymentOption: "cash" } }),

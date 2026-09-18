@@ -14,6 +14,7 @@ import { useTournaments } from "../hooks/useTournaments.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
+import { cleanPhone } from "../utils/whatsapp.js";
 import "./home.css";
 
 const formatMoney = (amount) => `$${Number(amount).toLocaleString("es-AR")}`;
@@ -71,7 +72,7 @@ export default function Home() {
   const courts = getCourtAvailability({ today, bookings, occupied, blocks, loading, error });
   const availableCourts = courts.filter((court) => court.available).length;
   const nextTournament = tournaments.find((tournament) => tournament.status === "abierto" && tournament.date >= today);
-  const whatsapp = String(settings.whatsapp || "").replace(/\D/g, "");
+  const whatsapp = cleanPhone(settings.whatsapp);
   const shopUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hola, quiero consultar por productos de pádel en ${settings.clubName}.`)}` : null;
   const courtPrice = getCourtPrice("15:00", new Date(), prices);
   const editorialHeadline = settings.homeHeadline === "Tu próximo partido empieza antes de llegar a la cancha.";
@@ -138,7 +139,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="home-shop" data-reveal aria-labelledby="home-shop-title"><div className="home-shop__image"><img src={shopImg} alt="Paletas y accesorios de pádel" loading="lazy" /></div><div className="home-shop__copy"><p className="home-eyebrow"><span>EXTRA</span> / EN EL CLUB</p><h2 id="home-shop-title">Equipate para<br /><em>el próximo punto.</em></h2><p>Consultá al club por paletas, pelotas y accesorios. Te confirman modelos, precios y disponibilidad por WhatsApp.</p>{shopUrl && <a className="home-text-link" href={shopUrl} target="_blank" rel="noreferrer">Consultar productos <ArrowUpRight size={17} aria-hidden="true" /></a>}</div></section>
+      <section className="home-shop" data-reveal aria-labelledby="home-shop-title"><div className="home-shop__image"><img src={shopImg} alt="Paletas y accesorios de pádel" loading="lazy" /></div><div className="home-shop__copy"><p className="home-eyebrow"><span>EXTRA</span> / EN EL CLUB</p><h2 id="home-shop-title">Equipate para<br /><em>el próximo punto.</em></h2><p>Consultá al club por paletas, pelotas y accesorios. Te confirman modelos, precios y disponibilidad.</p>{shopUrl && <a className="home-text-link" href={shopUrl} target="_blank" rel="noreferrer">Consultar productos <ArrowUpRight size={17} aria-hidden="true" /></a>}</div></section>
 
       <section className="home-end" data-reveal><span>EL PARTIDO EMPIEZA ACÁ</span><h2>Nos vemos<br /><em>en la cancha.</em></h2><Link to={ROUTES.BOOKING} className="home-button home-button--primary">Reservar mi turno <ArrowUpRight size={20} aria-hidden="true" /></Link></section>
     </main>

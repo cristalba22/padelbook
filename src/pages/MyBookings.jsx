@@ -8,6 +8,7 @@ import { usePricing } from "../context/PricingContext.jsx";
 import { ROUTES } from "../constants/routes.js";
 import { useTournaments } from "../hooks/useTournaments.jsx";
 import { paymentSummary } from "../utils/paymentDomain.js";
+import { cleanPhone } from "../utils/whatsapp.js";
 import { useToast } from "../components/ToastProvider.jsx";
 
 const STATUS_LABELS = {
@@ -195,7 +196,7 @@ export default function MyBookings() {
   if (filter === "history") listToShow = history;
   if (filter === "cancelled") listToShow = cancelled;
 
-  const clubPhone = settings.whatsapp || "5493510000000";
+  const clubPhone = cleanPhone(settings.whatsapp);
   const bookingTimeLabel = (booking) => {
     const start = booking.hora || booking.time || "";
     return booking.endTime ? `${start} a ${booking.endTime}` : (start || "Horario a confirmar");
@@ -261,7 +262,7 @@ export default function MyBookings() {
           <h1 className="page-title">Tu agenda de pádel</h1>
           <p className="page-subtitle max-w-xl">
             Acá ves todos tus turnos: próximos, pendientes, cancelados e
-            historial. Podés pagar, cancelar o escribirle al club en un toque.
+            historial. Podés consultar el saldo, cancelar o escribirle al club en un toque.
           </p>
         </div>
 
@@ -410,7 +411,8 @@ export default function MyBookings() {
 
                       {/* Acciones */}
                       <div className="flex flex-col items-stretch gap-2 text-xs md:text-[0.8rem] z-10">
-                        {status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && (
+                        {!clubPhone && status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && <p className="rounded-lg border border-white/15 px-3 py-2 text-slate-300">Consultá en recepción para coordinar el saldo.</p>}
+                        {clubPhone && status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && (
                           <button
                             onClick={() => handlePayNow(booking)}
                             className="rounded-full bg-gradient-to-r from-lime-400 to-lime-300 px-4 py-2 font-semibold text-zinc-950 shadow-lg shadow-lime-400/40 hover:shadow-lime-400/60 transition"
@@ -419,12 +421,12 @@ export default function MyBookings() {
                           </button>
                         )}
 
-                        <button
+                        {clubPhone && <button
                           onClick={() => handleWhatsApp(booking)}
                           className="rounded-full border border-emerald-400/60 bg-emerald-500/15 px-4 py-2 font-medium text-emerald-200 hover:bg-emerald-500/25 transition"
                         >
                           Escribir al club por WhatsApp
-                        </button>
+                        </button>}
 
                         {booking.source === "tournament" && (
                           <Link

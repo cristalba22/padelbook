@@ -20,7 +20,7 @@ Sin `VITE_API_URL` ni API accesible, el frontend usa cuentas y datos de demostra
 ## Límites antes de venderlo a clubes
 
 1. **Tenencia por club:** usuarios, canchas, reservas, torneos, ajustes y finanzas aún carecen de `clubId`. La API actual representa un solo club.
-2. **Pagos:** reservas y torneos tienen registro manual de cobros, pero no hay cobro ni conciliación automática. Los textos de la interfaz hablan de coordinación, no de dinero cobrado.
+2. **Pagos:** reservas y torneos tienen registro manual de cobros, pero no hay cobro ni conciliación automática. Los cobros y reversiones de reservas exigen una clave UUID de idempotencia por operación para evitar duplicados por reintento. Los textos de la interfaz hablan de coordinación, no de dinero cobrado.
 4. **Alta segura de clubes:** una base nueva exige `ADMIN_EMAIL` y `ADMIN_PASSWORD`; los perfiles de prueba solo se insertan con `PADELBOOK_DEMO_SEED=true`. Aún falta un flujo de alta autoservicio.
 5. **Operación:** faltan deploy y observabilidad del backend, backups y migraciones versionadas. La suite ya incluye integración con MongoDB temporal, pero falta prueba del despliegue real.
 6. **Datos comerciales:** tienda, algunos textos y contenido inicial son de muestra. El panel de configuración debe gobernar el catálogo y los datos públicos del club.

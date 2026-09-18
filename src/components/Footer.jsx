@@ -2,13 +2,14 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, MapPin } from "lucide-react";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { ROUTES } from "../constants/routes.js";
+import { cleanPhone } from "../utils/whatsapp.js";
 import "./siteFooter.css";
 
 export default function Footer() {
   const { settings } = useClubSettings();
   const mapsQuery = encodeURIComponent(settings.mapsQuery || settings.address || settings.clubName);
-  const phone = String(settings.whatsapp || "").replace(/\D/g, "");
-  const whatsappUrl = phone && phone !== "5493510000000" ? `https://wa.me/${phone}?text=${encodeURIComponent(`Hola, quiero consultar por reservas en ${settings.clubName}.`)}` : null;
+  const phone = cleanPhone(settings.whatsapp);
+  const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(`Hola, quiero consultar por reservas en ${settings.clubName}.`)}` : null;
   const instagram = String(settings.instagram || "").replace(/^@/, "").trim();
 
   return <footer className="site-footer">

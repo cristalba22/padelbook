@@ -55,6 +55,8 @@ export default function AdminBookings() {
   const [paymentMethod, setPaymentMethod] = useState("transferencia");
   const [paymentNote, setPaymentNote] = useState("");
   const paymentDialogRef = useRef(null);
+  const paymentRequestRef = useRef(null);
+  const reversalRequestRef = useRef(null);
 
   useEffect(() => {
     if (!paymentBooking) return;
@@ -134,6 +136,8 @@ export default function AdminBookings() {
     setPaymentAmount(String(summary.suggested));
     setPaymentMethod("transferencia");
     setPaymentNote("");
+    paymentRequestRef.current = null;
+    reversalRequestRef.current = null;
   }
 
   async function submitPayment(event) {
@@ -141,8 +145,10 @@ export default function AdminBookings() {
     if (!paymentBooking) return;
     setBusyId(`${paymentBooking.id}-payment`);
     try {
-      await recordPayment(paymentBooking.id, { amount: Number(paymentAmount), method: paymentMethod, note: paymentNote });
+      paymentRequestRef.current ||= crypto.randomUUID();
+      await recordPayment(paymentBooking.id, { amount: Number(paymentAmount), method: paymentMethod, note: paymentNote, idempotencyKey: paymentRequestRef.current });
       notify({ type: "success", title: "Cobro registrado", message: `${paymentBooking.playerOrGroup} · ${money(paymentAmount)}` });
+      paymentRequestRef.current = null;
       setPaymentBooking(null);
     } catch (error) {
       notify({ type: "error", title: "No se pudo registrar el cobro", message: error.message || "Revisá la conexión." });
@@ -155,8 +161,10 @@ export default function AdminBookings() {
     if (!paymentBooking || !window.confirm("¿Revertir el último cobro registrado? El movimiento quedará en el historial.")) return;
     setBusyId(`${paymentBooking.id}-payment`);
     try {
-      await undoLastPayment(paymentBooking.id);
+      reversalRequestRef.current ||= crypto.randomUUID();
+      await undoLastPayment(paymentBooking.id, reversalRequestRef.current);
       notify({ type: "success", title: "Cobro revertido", message: paymentBooking.playerOrGroup });
+      reversalRequestRef.current = null;
       setPaymentBooking(null);
     } catch (error) {
       notify({ type: "error", title: "No se pudo revertir", message: error.message });
@@ -176,7 +184,12 @@ export default function AdminBookings() {
   }
 
   function handleWhatsApp(b) {
-    window.open(buildBookingWhatsAppUrl({ phone: b.phone, player: b.playerOrGroup, date: b.date, time: b.time, endTime: b.endTime, court: b.courtOrClass, status: b.status, price: b.price, mode: "admin" }), "_blank");
+    const url = buildBookingWhatsAppUrl({ phone: b.phone, player: b.playerOrGroup, date: b.date, time: b.time, endTime: b.endTime, court: b.courtOrClass, status: b.status, price: b.price, mode: "admin" });
+    if (!url) {
+      notify({ type: "warning", title: "Sin teléfono", message: "Cargá el teléfono del jugador para escribirle por WhatsApp." });
+      return;
+    }
+    window.open(url, "_blank");
     notify({ type: "info", title: "WhatsApp preparado", message: "Se abrió el mensaje con el detalle de la reserva." });
   }
 
@@ -260,9 +273,9 @@ export default function AdminBookings() {
           <p className="mt-2 text-sm text-slate-300">{paymentBooking.playerOrGroup} · {paymentBooking.date} {paymentBooking.timeLabel}</p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><Info label="Total" value={money(paymentSummary(paymentBooking).total)} /><Info label="Cobrado" value={money(paymentSummary(paymentBooking).paid)} /><Info label="Saldo" value={money(paymentSummary(paymentBooking).due)} /></div>
           {paymentBooking.paymentOption === "deposit" && <p className="mt-3 text-xs text-lime-200">Seña sugerida: {money(paymentSummary(paymentBooking).deposit)}. Podés registrar un importe distinto hasta completar el saldo.</p>}
-          {paymentBooking.status !== "cancelado" && paymentSummary(paymentBooking).due > 0 && <><label className="mt-5 block text-sm">Importe recibido<input className="field mt-2" type="number" min="1" max={paymentSummary(paymentBooking).due} step="1" required value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></label>
-          <label className="mt-4 block text-sm">Medio de cobro<select className="field mt-2" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method[0].toUpperCase() + method.slice(1)}</option>)}</select></label>
-          <label className="mt-4 block text-sm">Nota (opcional)<input className="field mt-2" maxLength={300} value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Ej. seña por transferencia" /></label></>}
+          {paymentBooking.status !== "cancelado" && paymentSummary(paymentBooking).due > 0 && <><label className="mt-5 block text-sm">Importe recibido<input className="field mt-2" type="number" min="1" max={paymentSummary(paymentBooking).due} step="1" required value={paymentAmount} onChange={(event) => { paymentRequestRef.current = null; setPaymentAmount(event.target.value); }} /></label>
+          <label className="mt-4 block text-sm">Medio de cobro<select className="field mt-2" value={paymentMethod} onChange={(event) => { paymentRequestRef.current = null; setPaymentMethod(event.target.value); }}>{PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method[0].toUpperCase() + method.slice(1)}</option>)}</select></label>
+          <label className="mt-4 block text-sm">Nota (opcional)<input className="field mt-2" maxLength={300} value={paymentNote} onChange={(event) => { paymentRequestRef.current = null; setPaymentNote(event.target.value); }} placeholder="Ej. seña por transferencia" /></label></>}
           {paymentBooking.paymentEntries.length > 0 && <div className="mt-4 max-h-36 space-y-1 overflow-y-auto border-t border-white/10 pt-3 text-xs text-slate-300"><p className="font-bold text-white">Historial de cobros</p>{[...paymentBooking.paymentEntries].reverse().map((entry) => <p key={entry.id}>{new Date(entry.at).toLocaleString("es-AR")} · {entry.amount < 0 ? "Reversión " : "Cobro "}{money(Math.abs(entry.amount))} · {entry.method}</p>)}</div>}
           <div className="mt-6 flex gap-2"><button type="button" className="btn-outline flex-1" onClick={() => setPaymentBooking(null)}>Cerrar</button>{paymentBooking.status !== "cancelado" && paymentSummary(paymentBooking).due > 0 && <button type="submit" disabled={Boolean(busyId)} className="btn-primary flex-1">{busyId ? "Guardando..." : "Registrar cobro"}</button>}</div>
           {lastReversiblePayment(paymentBooking) && <button type="button" disabled={Boolean(busyId)} onClick={undoPayment} className="mt-3 w-full text-xs text-rose-200 underline underline-offset-2">Revertir último cobro</button>}

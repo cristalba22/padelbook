@@ -53,7 +53,7 @@ const bookingSchema = new mongoose.Schema({
   paymentOption: { type: String, default: "cash" },
   paymentStatus: { type: String, default: "pendiente_pago" },
   amountPaid: { type: Number, default: 0 },
-  paymentEntries: { type: [new mongoose.Schema({ id: String, amount: Number, method: String, note: String, actor: String, at: Date, reversalOf: String }, { _id: false })], default: [] },
+  paymentEntries: { type: [new mongoose.Schema({ id: String, idempotencyKey: String, amount: Number, method: String, note: String, actor: String, at: Date, reversalOf: String }, { _id: false })], default: [] },
   status: { type: String, enum: ["pendiente", "confirmado", "cancelado"], default: "pendiente" },
 }, baseOptions);
 
