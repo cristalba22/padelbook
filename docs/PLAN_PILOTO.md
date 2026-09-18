@@ -11,6 +11,7 @@
 - Dependencias actualizadas y pruebas unitarias y de integración añadidas.
 
 **Verificación:** `npm test`, `npm run build`, `npm audit --audit-level=high`. La integración usa un replica set temporal de MongoDB y comprueba permisos, perfil, reserva, bloqueo, carrera entre ambos, torneos, privacidad y caja.
+GitHub Actions ejecuta esas comprobaciones en cada PR y cambio de `main`.
 
 ## 2. Puesta en marcha de un club piloto — requiere infraestructura y datos del club
 
