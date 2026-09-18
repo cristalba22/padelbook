@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App.jsx";
 import "./index.css";
+import "./styles/interior.css";
 
 import { AuthProvider } from "./hooks/useAuth.jsx";
 import { BookingProvider } from "./hooks/useBooking.jsx";

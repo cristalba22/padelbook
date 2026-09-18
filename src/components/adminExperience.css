@@ -1,0 +1,35 @@
+.club-admin{--admin-bg:#0a110d;--admin-surface:#132019;--admin-raised:#1d3022;--admin-border:#334c37;--admin-text:#f6faef;--admin-muted:#a9bba8;--admin-accent:#cbfb69;background:radial-gradient(circle at 90% 0,rgba(203,251,105,.07),transparent 30%),var(--admin-bg);font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.club-admin__topbar{min-height:75px;background:#101c14;border-color:var(--admin-border);padding-inline:clamp(16px,3vw,46px)}
+.club-admin__brand{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-weight:900;letter-spacing:-.07em}
+.club-admin__mark{border-radius:3px;background:#cbfb69;transform:none}
+.club-admin__brand-suffix{color:#b1d09d}
+.club-admin__site-link{color:#cbfb69;font-weight:750}
+.club-admin__site-link:hover{color:#e4ffa8}
+.club-admin__tabs{gap:4px;margin:0 clamp(16px,3vw,46px);padding-top:12px}
+.club-admin__tab{min-height:48px;padding:10px 18px;font-weight:750;transition:background .2s,color .2s,border-color .2s}
+.club-admin__tab:hover{background:#1d3022}
+.club-admin__tab.is-active{background:rgba(203,251,105,.08);border-color:#cbfb69;color:#dcffa2}
+.club-admin__main{padding:clamp(18px,3vw,46px)}
+.club-admin__context{margin-bottom:24px;font-size:11px;text-transform:uppercase;letter-spacing:.17em}
+.club-admin__context strong{color:#cbfb69}
+.club-admin__mode{border:1px solid #4c6944;border-radius:3px;background:#1a2b1d;color:#cdeba8;letter-spacing:0;text-transform:none}
+.club-admin__page-heading{position:relative;overflow:hidden;margin-bottom:25px;padding:32px clamp(20px,3vw,42px);border:1px solid #3e5b3d;border-left:4px solid #cbfb69;background:linear-gradient(110deg,rgba(203,251,105,.1),transparent 58%),#132019;animation:clubHeadingIn .65s ease both}
+.club-admin__page-heading:after{content:"";position:absolute;right:-55px;top:-90px;width:230px;height:230px;border:1px solid rgba(203,251,105,.13);border-radius:50%;pointer-events:none}
+.club-admin__page-heading h1{font-family:Inter,ui-sans-serif,system-ui,sans-serif;font-weight:900;font-size:clamp(27px,3vw,45px);line-height:1.08;letter-spacing:-.06em}
+.club-admin__page-heading p{font-size:14px;line-height:1.6;max-width:750px;margin-top:12px;color:#becfba}
+.club-admin .admin-panel,.club-admin .club-bookings__filters,.club-admin .club-bookings__list,.club-admin .club-dashboard__calendar,.club-admin .club-dashboard__detail,.club-admin .club-dashboard__lower-panel{border-radius:6px;background:#132019;border-color:#334c37;box-shadow:none}
+.club-admin :is(article,aside,section)[class*="rounded-\[2rem\]"]{border-radius:7px!important;background-color:#132019!important;border-color:#334c37!important;box-shadow:none!important}
+.club-admin .btn-primary,.club-admin__primary,.club-dashboard__primary,.club-dashboard__detail-action{border-radius:3px;background:#cbfb69;color:#122012;font-weight:850;box-shadow:none}
+.club-admin .btn-outline{border-radius:3px;border-color:#698165;color:#f3f8e9}
+.club-admin .field,.club-admin input,.club-admin select,.club-admin textarea{color-scheme:dark}
+.club-admin .field{border-radius:4px;border-color:#435b43;background:#0b1710;min-height:42px}
+.club-admin :is(button,a,input,select,textarea):focus-visible{outline:2px solid #cbfb69;outline-offset:3px}
+.club-admin .club-dashboard__intro h1{font-size:clamp(28px,3vw,43px);font-weight:900;letter-spacing:-.06em}
+.club-admin .club-dashboard__metrics{border-color:#334c37}
+.club-admin .club-dashboard__metric>strong{color:#e9ffcc}
+.club-admin .club-dashboard__slot{border-radius:3px}
+.club-admin .club-dashboard__slot--reserved{background:#223d44}.club-admin .club-dashboard__slot--pending{background:#493927}.club-admin .club-dashboard__slot--paid{background:#26432b}
+.club-admin .club-dashboard__demo,.club-admin__notice{border:1px solid #4c6944;border-radius:3px;background:#1b2e1d;color:#d2ecbc}
+@keyframes clubHeadingIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:660px){.club-admin__topbar{padding:11px 15px}.club-admin__tabs{margin:0 12px;gap:0}.club-admin__tab{min-height:46px;padding:9px 12px}.club-admin__main{padding:18px 13px}.club-admin__page-heading{padding:24px 18px}.club-admin__page-heading h1{font-size:28px}.club-admin__context{margin-bottom:15px}}
+@media(prefers-reduced-motion:reduce){.club-admin__page-heading{animation:none}}

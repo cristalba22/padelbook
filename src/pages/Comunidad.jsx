@@ -19,8 +19,8 @@ export default function Comunidad() {
   const visible = useMemo(() => filter === "todas" ? GROUPS : GROUPS.filter((g) => g.id === filter), [filter]);
 
   return (
-    <main className="main-container max-w-7xl text-white">
-      <section className="relative mb-7 overflow-hidden rounded-[2.4rem] border border-lime-300/20 bg-[#050814] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.9)] md:p-8">
+    <main className="main-container interior-page community-page max-w-7xl text-white">
+      <section className="interior-hero relative mb-7 overflow-hidden rounded-[2.4rem] border border-lime-300/20 bg-[#050814] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.9)] md:p-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(190,242,100,0.22),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(45,212,191,0.14),transparent_34%)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1fr_360px]">
           <div><p className="section-eyebrow">Comunidad del club</p><h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Encontrá con quién jugar.</h1><p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Elegí tu categoría y consultá al club por jugadores y partidos. Cuando tengas grupo, reservá la cancha desde acá.</p><div className="mt-6 flex flex-wrap gap-3"><Link to={ROUTES.BOOKING} className="btn-primary">Reservar cancha</Link><Link to={ROUTES.TOURNAMENTS} className="btn-outline">Ver torneos</Link></div></div>

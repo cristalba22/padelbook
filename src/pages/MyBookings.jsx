@@ -237,8 +237,8 @@ export default function MyBookings() {
 
   if (!user) {
     return (
-      <div className="main-container max-w-4xl text-white">
-        <section className="rounded-[2rem] border border-lime-300/20 bg-[#0B1326]/80 p-8 text-center shadow-xl">
+      <div className="main-container interior-page mybookings-page max-w-4xl text-white">
+        <section className="interior-hero rounded-[2rem] border border-lime-300/20 bg-[#0B1326]/80 p-8 text-center shadow-xl">
           <p className="page-kicker">Mis turnos</p>
           <h1 className="page-title mt-2">Ingresá para ver tu agenda</h1>
           <p className="page-subtitle mx-auto mt-3 max-w-2xl">
@@ -253,9 +253,9 @@ export default function MyBookings() {
   }
 
   return (
-    <div className="main-container max-w-6xl">
+    <div className="main-container interior-page mybookings-page max-w-6xl">
       {/* Encabezado */}
-      <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <header className="interior-hero mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="page-kicker">Mis turnos</p>
           <h1 className="page-title">Tu agenda de pádel</h1>
