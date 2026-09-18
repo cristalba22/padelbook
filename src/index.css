@@ -26,6 +26,7 @@
 .demo-notice{position:relative;z-index:10;display:flex;justify-content:center;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.45rem 1rem;background:#182116;color:#d9efbb;border-bottom:1px solid #3b5135;font-size:.75rem;line-height:1.4;text-align:center}
 .demo-notice span:last-child{color:#afc49d}
 .demo-notice__dot{width:.45rem;height:.45rem;flex:none;border-radius:50%;background:#bef264}
+.demo-notice__label{font-size:10px;font-weight:850;letter-spacing:.12em;white-space:nowrap}
 
 html,body{
   margin:0;
