@@ -100,7 +100,7 @@ export default function Tournaments() {
         </div>
         <aside className="space-y-4">
           <Panel title="Actividad del club" kicker="Jugadores"><p className="text-4xl font-black text-lime-100">{registeredPlayers}</p><p className="mt-2 text-sm leading-6 text-slate-400">Cupos ocupados entre los torneos publicados. Tus propias inscripciones aparecen en tu cuenta.</p></Panel>
-          <Panel title="Inscripción" kicker="Funcionamiento"><p className="text-sm leading-6 text-slate-400">La inscripción queda pendiente hasta que el club confirme el cupo. Si el torneo es por pareja, cargá el nombre de tu compañero al anotarte.</p>{nextOpen && <a className="btn-outline mt-4 w-full justify-center" target="_blank" rel="noreferrer" href={`https://wa.me/${cleanPhone(settings.whatsapp)}?text=${encodeURIComponent(`Hola, quiero consultar por el torneo ${nextOpen.name} del ${nextOpen.date}.`)}`}>Consultar por WhatsApp</a>}</Panel>
+          <Panel title="Inscripción" kicker="Funcionamiento"><p className="text-sm leading-6 text-slate-400">La inscripción queda pendiente hasta que el club confirme el cupo. Si el torneo es por pareja, cargá el nombre de tu compañero al anotarte.</p>{nextOpen && cleanPhone(settings.whatsapp) && <a className="btn-outline mt-4 w-full justify-center" target="_blank" rel="noreferrer" href={`https://wa.me/${cleanPhone(settings.whatsapp)}?text=${encodeURIComponent(`Hola, quiero consultar por el torneo ${nextOpen.name} del ${nextOpen.date}.`)}`}>Consultar por WhatsApp</a>}</Panel>
         </aside>
       </section>
 

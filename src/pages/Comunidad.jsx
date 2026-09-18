@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ROUTES } from "../constants/routes.js";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
+import { cleanPhone } from "../utils/whatsapp.js";
 
 const GROUPS = [
   { id: "7ma", label: "7ma categoría", level: "Intermedio", vibe: "Partidos amistosos y ritmo tranquilo" },
@@ -24,7 +25,7 @@ export default function Comunidad() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(190,242,100,0.22),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(45,212,191,0.14),transparent_34%)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1fr_360px]">
           <div><p className="section-eyebrow">Comunidad del club</p><h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Encontrá con quién jugar.</h1><p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Elegí tu categoría y consultá al club por jugadores y partidos. Cuando tengas grupo, reservá la cancha desde acá.</p><div className="mt-6 flex flex-wrap gap-3"><Link to={ROUTES.BOOKING} className="btn-primary">Reservar cancha</Link><Link to={ROUTES.TOURNAMENTS} className="btn-outline">Ver torneos</Link></div></div>
-          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5"><p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Jugá a tu nivel</p><p className="mt-2 text-5xl font-black text-lime-100">6</p><p className="text-sm text-slate-400">categorías para consultar al club</p><div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Categorías" value="7ma–2da" /><Mini label="Contacto" value="WhatsApp" /></div></aside>
+          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5"><p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Jugá a tu nivel</p><p className="mt-2 text-5xl font-black text-lime-100">6</p><p className="text-sm text-slate-400">categorías para consultar al club</p><div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Categorías" value="7ma–2da" /><Mini label="Contacto" value={cleanPhone(settings.whatsapp) ? "WhatsApp" : "En el club"} /></div></aside>
         </div>
       </section>
 
@@ -37,7 +38,7 @@ export default function Comunidad() {
   );
 }
 function GroupCard({ group, phone }) {
-  const digits = String(phone || "").replace(/\D/g, "");
+  const digits = cleanPhone(phone);
   const message = encodeURIComponent(`Hola, quiero consultar por jugadores de ${group.id} en el club.`);
   return (
     <article className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl transition hover:-translate-y-1 hover:border-lime-300/35">

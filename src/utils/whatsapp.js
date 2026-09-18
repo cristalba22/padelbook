@@ -1,8 +1,11 @@
 export function cleanPhone(phone = "") {
-  return String(phone || "").replace(/\D/g, "") || "5493510000000";
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits === "5493510000000" ? "" : digits;
 }
 
 export function buildBookingWhatsAppUrl({ phone, player, date, time, endTime, court, status, price, mode = "admin" }) {
+  const recipient = cleanPhone(phone);
+  if (!recipient) return null;
   const timeLabel = endTime ? `${time || ""} a ${endTime}` : (time || "");
   const lines = mode === "admin"
     ? [
@@ -25,5 +28,5 @@ export function buildBookingWhatsAppUrl({ phone, player, date, time, endTime, co
         `Estado: ${status || "pendiente"}`,
       ];
   const text = encodeURIComponent(lines.filter(Boolean).join("\n"));
-  return `https://wa.me/${cleanPhone(phone)}?text=${text}`;
+  return `https://wa.me/${recipient}?text=${text}`;
 }
