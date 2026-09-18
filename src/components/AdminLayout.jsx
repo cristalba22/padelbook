@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, CalendarDays, ChartNoAxesCombined, CircleDollarSign, ClipboardList, GraduationCap, LogOut, Settings2, Trophy } from "lucide-react";
+import { ArrowUpRight, CalendarDays, ChartNoAxesCombined, CircleDollarSign, ClipboardList, GraduationCap, LogOut, Settings2, Trophy, UsersRound } from "lucide-react";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
@@ -8,18 +8,19 @@ import "./adminWorkspace.css";
 import "./adminExperience.css";
 
 const NAV_ITEMS = [
-  { to: "/admin", label: "Inicio", Icon: ChartNoAxesCombined },
+  { to: "/admin", label: "Inicio", Icon: ChartNoAxesCombined, ownerOnly: true },
   { to: "/admin/calendar", label: "Agenda", Icon: CalendarDays },
   { to: "/admin/bookings", label: "Reservas", Icon: ClipboardList },
-  { to: "/admin/finance", label: "Cobros", Icon: CircleDollarSign },
-  { to: "/admin/teachers", label: "Profes", Icon: GraduationCap },
-  { to: "/admin/tournaments", label: "Torneos", Icon: Trophy },
-  { to: "/admin/config", label: "Ajustes", Icon: Settings2 },
+  { to: "/admin/finance", label: "Cobros", Icon: CircleDollarSign, ownerOnly: true },
+  { to: "/admin/teachers", label: "Profes", Icon: GraduationCap, ownerOnly: true },
+  { to: "/admin/tournaments", label: "Torneos", Icon: Trophy, ownerOnly: true },
+  { to: "/admin/staff", label: "Equipo", Icon: UsersRound, ownerOnly: true },
+  { to: "/admin/config", label: "Ajustes", Icon: Settings2, ownerOnly: true },
 ];
 
 export default function AdminLayout({ title, subtitle, children }) {
   const { settings } = useClubSettings();
-  const { logout, apiOnline } = useAuth();
+  const { user, logout, apiOnline } = useAuth();
   const { bookings = [] } = useBooking();
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,7 +43,7 @@ export default function AdminLayout({ title, subtitle, children }) {
       </div>
       <div className="club-admin__shell">
         <nav ref={tabsRef} className="club-admin__tabs" aria-label="Secciones del panel">
-          {NAV_ITEMS.map(({ to, label, Icon }) => (
+          {NAV_ITEMS.filter((item) => user?.role === "admin" || !item.ownerOnly).map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} end={to === "/admin"} aria-label={label} className={({ isActive }) => `club-admin__tab${isActive ? " is-active" : ""}`}>
               <Icon size={17} strokeWidth={1.9} aria-hidden="true" /><span>{label}</span>
             </NavLink>

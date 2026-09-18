@@ -88,6 +88,7 @@ export function BookingProvider({ children }) {
       paymentStatus: bookingData.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
       createdAt: new Date().toISOString(),
       ...bookingData,
+      source: ["admin", "receptionist"].includes(user?.role) && bookingData.playerName ? "reception" : "online",
     };
     persist([...bookings, withId]);
     addActivity({
@@ -102,7 +103,7 @@ export function BookingProvider({ children }) {
 
   async function updateBookingStatus(id, status, extra = {}) {
     const normalizedStatus = normalizeStatus(status);
-    if (apiOnline && user?.role === "admin") {
+    if (apiOnline && ["admin", "receptionist"].includes(user?.role)) {
       const { booking } = await apiRequest(`/bookings/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status: normalizedStatus }),
@@ -139,7 +140,7 @@ export function BookingProvider({ children }) {
   }
 
   async function recordPayment(id, details) {
-    if (user?.role !== "admin") throw new Error("Solo el club puede registrar pagos.");
+    if (!["admin", "receptionist"].includes(user?.role)) throw new Error("Solo el club puede registrar pagos.");
     if (apiOnline) {
       const { booking } = await apiRequest(`/bookings/${id}/payments`, {
         method: "POST",
@@ -159,7 +160,7 @@ export function BookingProvider({ children }) {
   }
 
   async function undoLastPayment(id, idempotencyKey) {
-    if (user?.role !== "admin") throw new Error("Solo el club puede revertir cobros.");
+    if (!["admin", "receptionist"].includes(user?.role)) throw new Error("Solo el club puede revertir cobros.");
     if (apiOnline) {
       const { booking } = await apiRequest(`/bookings/${id}/payments/reverse`, { method: "POST", body: JSON.stringify({ idempotencyKey }) });
       setBookings((current) => current.map((item) => item.id === id ? booking : item));

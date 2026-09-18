@@ -20,7 +20,7 @@ export async function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(payload.sub);
-    if (!user) return res.status(401).json({ message: "Sesion invalida." });
+    if (!user || user.active === false) return res.status(401).json({ message: "Sesion invalida o cuenta desactivada." });
     req.user = publicUser(user);
     next();
   } catch {

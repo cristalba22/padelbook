@@ -12,6 +12,7 @@ Desde el botón **Ingresar** podés cargar perfiles preparados para recorrer cad
 | --- | --- | --- | --- |
 | Jugador | `crisalba@test.com` | `player123` | Reservas, mis turnos, torneos inscriptos y panel personal |
 | Profe | `lucio@club.com` | `profe123` | Clases del día, horarios y disponibilidad |
+| Recepción | `recepcion@club.com` | `recepcion123` | Agenda, reservas y cobros operativos |
 | Admin | `admin@club.com` | `admin123` | Dashboard ejecutivo, reservas, calendario, profesores, torneos y precios |
 
 ## Funcionalidades

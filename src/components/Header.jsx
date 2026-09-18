@@ -22,8 +22,8 @@ export default function Header() {
 
   const handleLoggedIn = (role) => {
     // Redirecciones según rol
-    if (role === "admin") {
-      navigate(ROUTES.ADMIN);
+    if (role === "admin" || role === "receptionist") {
+      navigate(role === "admin" ? ROUTES.ADMIN : ROUTES.ADMIN_BOOKINGS);
     } else if (role === "teacher") {
       navigate(ROUTES.TEACHER);
     } else {
@@ -138,12 +138,12 @@ export default function Header() {
                       {user.name || user.role?.toUpperCase()}
                     </span>
                   </span>
-                  {user.role === "admin" && (
+                  {["admin", "receptionist"].includes(user.role) && (
                     <button
                       className="text-xs text-zinc-300 hover:text-lime-300"
-                      onClick={() => navigate(ROUTES.ADMIN)}
+                      onClick={() => navigate(user.role === "admin" ? ROUTES.ADMIN : ROUTES.ADMIN_BOOKINGS)}
                     >
-                      Admin
+                      {user.role === "admin" ? "Admin" : "Recepción"}
                     </button>
                   )}
                   {user.role === "teacher" && (

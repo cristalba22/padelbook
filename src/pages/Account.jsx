@@ -52,6 +52,10 @@ export default function Account() {
     catch (err) { setError(err.message || "No se pudo guardar el perfil."); }
   }
 
+  if (user && ["admin", "receptionist"].includes(user.role)) {
+    return <main className="main-container interior-page account-page text-white"><section className="interior-hero mx-auto max-w-3xl rounded-[2rem] p-6 md:p-9"><p className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300">Perfil del equipo</p><h1 className="mt-3 text-3xl font-black">{user.name}</h1><p className="mt-2 text-sm text-slate-300">{user.role === "admin" ? "Propietario / administrador" : "Recepción"} · {user.email}</p><p className="mt-3 text-sm text-slate-400">Tu cuenta identifica las acciones que realizás en la agenda y los cobros del club.</p>{message && <p role="status" className="mt-5 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-3 text-sm text-lime-100">{message}</p>}{error && <p role="alert" className="mt-5 rounded-2xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}<form onSubmit={saveProfile} className="mt-6 grid gap-4 sm:grid-cols-2"><label className="text-sm">Nombre<input className="field mt-2" value={form.name} onChange={(event) => setField("name", event.target.value)} required minLength={2} /></label><label className="text-sm">Teléfono<input className="field mt-2" value={form.phone} onChange={(event) => setField("phone", event.target.value)} /></label><div className="flex flex-wrap gap-3 sm:col-span-2"><button type="submit" className="btn-primary">Guardar perfil</button><button type="button" onClick={() => navigate(routeForRole(user.role))} className="btn-outline">Ir al panel</button></div></form></section></main>;
+  }
+
   if (user && mode === "profile") {
     return (
       <main className="main-container interior-page account-page text-white">

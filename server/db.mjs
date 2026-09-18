@@ -28,7 +28,8 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
-  role: { type: String, enum: ["admin", "teacher", "player"], default: "player" },
+  role: { type: String, enum: ["admin", "receptionist", "teacher", "player"], default: "player" },
+  active: { type: Boolean, default: true },
   phone: { type: String, default: "" },
   category: { type: String, default: "Sin categoria" },
 }, baseOptions);
@@ -48,6 +49,8 @@ const bookingSchema = new mongoose.Schema({
   userId: { type: String, default: "" },
   userEmail: { type: String, default: "" },
   playerName: { type: String, default: "Jugador" },
+  createdBy: { type: String, default: "" },
+  source: { type: String, enum: ["online", "reception"], default: "online" },
   phone: { type: String, default: "" },
   price: { type: Number, default: 0 },
   paymentOption: { type: String, default: "cash" },
@@ -223,6 +226,7 @@ async function seedDatabase() {
 
   await User.insertMany([
     { name: "Admin Club", email: "admin@club.com", passwordHash: bcrypt.hashSync("admin123", 10), role: "admin", phone: "+5493510000000", category: "Gestión" },
+    { name: "Recepción Club", email: "recepcion@club.com", passwordHash: bcrypt.hashSync("recepcion123", 10), role: "receptionist", phone: "+5493510000001", category: "Recepción" },
     { name: "Lucio Profe", email: "lucio@club.com", passwordHash: bcrypt.hashSync("profe123", 10), role: "teacher", phone: "+5493511111111", category: "Profesor" },
     { name: "Cristian Alba", email: "crisalba@test.com", passwordHash: bcrypt.hashSync("player123", 10), role: "player", phone: "+5493512222222", category: "6ta" },
   ]);

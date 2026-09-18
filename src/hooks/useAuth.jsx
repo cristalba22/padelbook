@@ -8,6 +8,7 @@ const USERS_KEY = "padel_registered_users";
 
 const DEFAULT_USERS = [
   { id: "admin-1", name: "Admin Club", email: "admin@club.com", password: "admin123", role: "admin", phone: "+5493510000000", category: "Gestión" },
+  { id: "receptionist-1", name: "Recepción Club", email: "recepcion@club.com", password: "recepcion123", role: "receptionist", phone: "+5493510000001", category: "Recepción" },
   { id: "teacher-1", name: "Lucio Profe", email: "lucio@club.com", password: "profe123", role: "teacher", phone: "+5493511111111", category: "Profesor" },
   { id: "player-1", name: "Cristian Alba", email: "crisalba@test.com", password: "player123", role: "player", phone: "+5493512222222", category: "6ta" },
 ];
