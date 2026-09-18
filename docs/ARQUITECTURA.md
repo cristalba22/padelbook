@@ -15,7 +15,7 @@ Las rutas antiguas `/reservar` y `/panel-profe` redirigen a sus equivalentes act
 
 El frontend React/Vite usa los proveedores de `src/main.jsx` para sesión, reservas, precios, ajustes, torneos, profesores y bloqueos. Con `VITE_API_URL` configurada, el sistema exige la API Express/MongoDB y nunca guarda operaciones fallidas como cambios locales. La disponibilidad pública consulta `/api/availability`; la API calcula el precio y valida el turno. Reservas y bloqueos toman franjas únicas de 30 minutos en la colección `SlotClaim`, dentro de transacciones MongoDB. Los identificadores heredados de cancha se normalizan al iniciar la API.
 
-Sin `VITE_API_URL` ni API accesible, el frontend usa cuentas y datos de demostración guardados en `localStorage`. El despliegue actual de Vercel publica el frontend; **la demo en Vercel no es una operación multiusuario real**. El modo demo se indica en la interfaz. MongoDB debe ser un replica set para soportar transacciones; MongoDB Atlas cumple este requisito.
+Sin `VITE_API_URL` ni API accesible, el frontend usa cuentas y datos de demostración guardados en `localStorage`. Los despliegues actuales de Vercel y Cloudflare publican el frontend; **ninguna de esas demos es una operación multiusuario real**. El modo demo se indica en la interfaz. MongoDB debe ser un replica set para soportar transacciones; MongoDB Atlas cumple este requisito. `MONGODB_DB_NAME` permite aislar la base del primer club.
 
 ## Límites antes de venderlo a clubes
 

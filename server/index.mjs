@@ -281,11 +281,12 @@ app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "receptionist"
 });
 
 app.get("/api/bookings", requireAuth, async (req, res) => {
-  const query = ["admin", "receptionist"].includes(req.user.role)
-    ? {}
-    : req.user.role === "teacher"
-      ? { $or: [{ teacherId: req.user.id }, { teacherName: req.user.name }] }
-      : { $or: [{ userEmail: cleanEmail(req.user.email) }, { userId: req.user.id }] };
+  let query;
+  if (["admin", "receptionist"].includes(req.user.role)) query = {};
+  else if (req.user.role === "teacher") {
+    const teacher = await Teacher.findOne({ userId: req.user.id });
+    query = teacher ? { teacherId: teacher.id } : { _id: null };
+  } else query = { userId: req.user.id };
   const bookings = await Booking.find(query).sort({ date: 1, time: 1 });
   res.json({ bookings: bookings.map((booking) => booking.toJSON()) });
 });
@@ -450,7 +451,7 @@ app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
-  const ownsBooking = booking.userId === req.user.id || cleanEmail(booking.userEmail) === cleanEmail(req.user.email);
+  const ownsBooking = Boolean(booking.userId) && booking.userId === req.user.id;
   if (!["admin", "receptionist"].includes(req.user.role) && !ownsBooking) return res.status(403).json({ message: "No podés cancelar esta reserva." });
   if (isPastSlot(booking.date, booking.time)) return res.status(409).json({ message: "El turno ya comenzó. Contactá al club para resolver la cancelación." });
   if (booking.status !== "cancelado") {

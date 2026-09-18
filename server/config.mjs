@@ -4,6 +4,11 @@ export const PORT = Number(process.env.PORT || 4000);
 export const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 export const TOKEN_EXPIRES_IN = "7d";
 export const MONGODB_URI = process.env.MONGODB_URI || "";
+export const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "padelbook";
+
+if (!/^[a-zA-Z0-9_-]{3,64}$/.test(MONGODB_DB_NAME)) {
+  throw new Error("MONGODB_DB_NAME debe tener entre 3 y 64 caracteres: letras, números, guion o guion bajo.");
+}
 
 if (process.env.NODE_ENV === "production") {
   if (process.env.PADELBOOK_DEMO_SEED === "true") {
