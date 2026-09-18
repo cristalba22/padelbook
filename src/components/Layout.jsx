@@ -13,7 +13,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin, apiOnline } = useAuth();
+  const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminWorkspace = location.pathname.startsWith("/admin");
@@ -190,8 +190,6 @@ export default function Layout({ children }) {
             </div>
           )}
         </header>}
-
-        {!isAdminWorkspace && !apiOnline && <div className="demo-notice" role="status"><strong className="demo-notice__label">DEMO</strong><span>Datos de prueba guardados en este navegador.</span></div>}
 
         {/* CONTENIDO */}
         <div id="contenido" className="relative z-10 flex-1">{children}</div>
