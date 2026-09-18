@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowRight, ArrowUpRight, CalendarDays, Clock3, MapPin, Sparkles, Users, Zap } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUpRight, Clock3, MapPin } from "lucide-react";
 import heroImg from "../assets/hero-padel.webp";
-import shopImg from "../assets/shop-padel-products.jpg";
 import { ROUTES } from "../constants/routes.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
@@ -14,7 +13,6 @@ import { useTournaments } from "../hooks/useTournaments.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
 import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
-import { cleanPhone } from "../utils/whatsapp.js";
 import "./home.css";
 
 const formatMoney = (amount) => `$${Number(amount).toLocaleString("es-AR")}`;
@@ -50,9 +48,9 @@ function getCourtAvailability({ today, bookings, occupied, blocks, loading, erro
     return {
       ...court,
       number: String(index + 1).padStart(2, "0"),
-      nextHour: loading ? "Consultando" : error ? "Sin datos" : nextHour || "Sin turnos",
+      nextHour: loading ? "Consultando" : error ? "Sin datos" : nextHour || "Sin horarios hoy",
       available: Boolean(nextHour),
-      note: index === 0 ? "Césped sintético · Outdoor" : index === 1 ? "Blindex · Indoor" : "Césped fibrilado · Techada",
+      note: index === 0 ? "Césped sintético · Exterior" : index === 1 ? "Blindex · Interior" : "Césped fibrilado · Techada",
     };
   });
 }
@@ -72,76 +70,55 @@ export default function Home() {
   const courts = getCourtAvailability({ today, bookings, occupied, blocks, loading, error });
   const availableCourts = courts.filter((court) => court.available).length;
   const nextTournament = tournaments.find((tournament) => tournament.status === "abierto" && tournament.date >= today);
-  const whatsapp = cleanPhone(settings.whatsapp);
-  const shopUrl = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(`Hola, quiero consultar por productos de pádel en ${settings.clubName}.`)}` : null;
   const courtPrice = getCourtPrice("15:00", new Date(), prices);
-  const editorialHeadline = settings.homeHeadline === "Tu próximo partido empieza antes de llegar a la cancha.";
+  const defaultHeadline = settings.homeHeadline === "Tu próximo partido empieza antes de llegar a la cancha.";
+  const todayLabel = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
   return (
     <main className="home-page">
       <section className="home-hero" aria-labelledby="home-title">
-        <div className="home-hero__photo" aria-hidden="true"><img src={heroImg} alt="" loading="eager" /></div>
-        <div className="home-hero__grid" aria-hidden="true" />
-        <div className="home-hero__content">
-          <div className="home-kicker home-hero__enter"><span className="home-kicker__line" /> {settings.clubName} <span className="home-kicker__index">/ RESERVAS ONLINE</span></div>
-          <h1 id="home-title" className="home-hero__title home-hero__enter">{editorialHeadline ? <>El próximo<br /><em>gran partido</em><br />empieza acá<span className="home-hero__period">.</span></> : settings.homeHeadline}</h1>
-          <p className="home-hero__description home-hero__enter">{settings.homeSubtitle}</p>
-          <div className="home-hero__actions home-hero__enter">
-            <Link to={ROUTES.BOOKING} className="home-button home-button--primary">Reservar cancha <ArrowUpRight size={19} aria-hidden="true" /></Link>
-            <Link to={ROUTES.TOURNAMENTS} className="home-button home-button--ghost">Explorar torneos <ArrowRight size={18} aria-hidden="true" /></Link>
+        <div className="home-hero__copy">
+          <p className="home-hero__eyebrow">{settings.clubName} <span>· Reservas online</span></p>
+          <h1 id="home-title">{defaultHeadline ? <>Nos vemos<br />en la <span>cancha.</span></> : settings.homeHeadline}</h1>
+          <p className="home-hero__description">{settings.homeSubtitle}</p>
+          <div className="home-hero__actions">
+            <Link to={ROUTES.BOOKING} className="home-action home-action--primary">Buscar un turno <ArrowUpRight size={19} aria-hidden="true" /></Link>
+            <a href="#home-courts" className="home-action home-action--text">Ver canchas <ArrowDown size={18} aria-hidden="true" /></a>
           </div>
-          <div className="home-hero__facts home-hero__enter">
-            <span><Clock3 size={16} aria-hidden="true" /> {settings.openingHours}</span>
-            <span><MapPin size={16} aria-hidden="true" /> {settings.address}</span>
+          <div className="home-hero__details"><span><Clock3 size={16} aria-hidden="true" />{settings.openingHours}</span><span><MapPin size={16} aria-hidden="true" />{settings.address}</span></div>
+        </div>
+        <figure className="home-hero__image"><img src={heroImg} alt="Partido de pádel en una cancha" loading="eager" /><figcaption><span>01 / JUGAR</span><span>{settings.clubName}</span></figcaption></figure>
+      </section>
+
+      <section id="home-courts" className="home-courts" aria-labelledby="home-courts-title">
+        <div className="home-section-heading" data-reveal><div><span className="home-overline">La agenda</span><h2 id="home-courts-title">Elegí dónde jugar.</h2></div><p>Cancha, superficie y próximo horario en un vistazo. Después elegís el tiempo de juego y confirmás tu turno.</p></div>
+        <div className="home-schedule" data-reveal>
+          <div className="home-schedule__heading"><div><strong>Disponibilidad de hoy</strong><span>{todayLabel}</span></div><span className="home-schedule__mode">{apiOnline ? "Agenda en vivo" : "Vista demo"}</span></div>
+          <div className="home-schedule__summary" role="status" aria-live="polite">
+            {loading ? "Consultando horarios de hoy…" : error ? "No pudimos consultar la agenda ahora. Podés explorar otras fechas." : availableCourts ? `${availableCourts} ${availableCourts === 1 ? "cancha tiene" : "canchas tienen"} lugar hoy` : "Hoy no quedan horarios. Consultá otra fecha."}
           </div>
-        </div>
-        <div className="home-hero__side-label" aria-hidden="true">JUGÁ EL MOMENTO · PADELBOOK</div>
-        <a href="#home-courts" className="home-hero__scroll" aria-label="Ver disponibilidad de canchas"><ArrowDown size={19} aria-hidden="true" /></a>
-        <div className="home-hero__number" aria-hidden="true">01 / 03</div>
-      </section>
-
-      <div className="home-tape" aria-label="Todo tu pádel en un lugar"><span>RESERVÁ TU CANCHA</span><i /> <span>JUGÁ TORNEOS</span><i /> <span>ENCONTRÁ TU GRUPO</span><i /> <span>VIVÍ EL CLUB</span></div>
-
-      <section id="home-courts" className="home-section home-courts" aria-labelledby="home-courts-title">
-        <div className="home-section__intro" data-reveal>
-          <div><p className="home-eyebrow"><span>01</span> / LA AGENDA</p><h2 id="home-courts-title">Tu cancha<br /><em>te espera.</em></h2></div>
-          <div className="home-section__aside"><p>Elegí tu cancha y encontrá un horario que encaje con tu día. La disponibilidad se actualiza desde la agenda del club.</p><Link to={ROUTES.BOOKING} className="home-text-link">Ver todos los horarios <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
-        </div>
-        <div className="home-availability" data-reveal role="status">
-          <div className="home-availability__signal"><span className={`home-live-dot ${loading ? "is-loading" : ""}`} /> {loading ? "Consultando agenda" : error ? "Agenda temporalmente no disponible" : `${availableCourts} de ${courts.length} canchas con lugar hoy`}</div>
-          <span className="home-availability__mode">{apiOnline ? "AGENDA EN VIVO" : "VISTA DEMO"} · {today.split("-").reverse().join("/")}</span>
-        </div>
-        <div className="home-court-grid">
-          {courts.map((court, index) => <Link key={court.id} to={`${ROUTES.BOOKING}?court=${court.id}`} className="home-court" data-reveal style={{ "--reveal-delay": `${index * 90}ms` }}>
-            <div className="home-court__top"><span>CANCHA {court.number}</span><ArrowUpRight size={23} aria-hidden="true" /></div>
-            <div className="home-court__lines" aria-hidden="true"><span /><span /><span /></div>
-            <div className="home-court__bottom"><div><h3>{court.name.replace(/^Cancha \d+ - /, "")}</h3><p>{court.note}</p></div><div className="home-court__time"><span>PRÓXIMO LIBRE</span><strong className={court.available ? "" : "is-muted"}>{court.nextHour}</strong></div></div>
-          </Link>)}
-        </div>
-        <p className="home-courts__footnote">Turnos de 1, 1:30, 2 o 2:30 h · Desde {formatMoney(courtPrice)} por hora base · Precios finales visibles al elegir horario.</p>
-      </section>
-
-      <section className="home-feature" aria-labelledby="home-feature-title">
-        <div className="home-feature__copy" data-reveal><p className="home-eyebrow"><span>02</span> / SIN VUELTAS</p><h2 id="home-feature-title">Menos mensajes.<br /><em>Más pádel.</em></h2><p>Tu próximo turno, tus torneos y tu grupo, en un mismo lugar. Reservá en minutos y seguí todo desde tu cuenta.</p><Link to={ROUTES.BOOKING} className="home-button home-button--dark">Elegir un turno <ArrowUpRight size={19} aria-hidden="true" /></Link></div>
-        <div className="home-feature__steps" data-reveal>
-          <div><span>01 / ELEGÍ</span><CalendarDays size={27} aria-hidden="true" /><h3>Cancha y horario</h3><p>Ves las opciones disponibles para la duración de tu partido.</p></div>
-          <div><span>02 / CONFIRMÁ</span><Zap size={27} aria-hidden="true" /><h3>Reservá al instante</h3><p>Elegís cómo coordinar el pago y el turno queda en tu agenda.</p></div>
-          <div><span>03 / JUGÁ</span><Sparkles size={27} aria-hidden="true" /><h3>Todo listo</h3><p>Consultás el detalle del turno cuando lo necesites.</p></div>
+          <div className="home-schedule__rows">
+            {courts.map((court) => <Link key={court.id} to={`${ROUTES.BOOKING}?court=${court.id}`} className="home-court-row">
+              <span className="home-court-row__number">{court.number}</span>
+              <span className="home-court-row__identity"><strong>{court.name.replace(/^Cancha \d+ - /, "")}</strong><small>{court.note}</small></span>
+              <span className={`home-court-row__availability ${court.available ? "is-available" : ""}`}><small>{court.available ? "Próximo libre" : loading ? "Estado" : "Disponibilidad"}</small><strong>{court.nextHour}</strong></span>
+              <span className="home-court-row__link">Ver horarios <ArrowUpRight size={18} aria-hidden="true" /></span>
+            </Link>)}
+          </div>
+          <div className="home-schedule__footer"><span>Turnos de 1, 1:30, 2 o 2:30 h · Desde {formatMoney(courtPrice)} por hora base</span><Link to={ROUTES.BOOKING}>Abrir agenda completa <ArrowRight size={16} aria-hidden="true" /></Link></div>
         </div>
       </section>
 
-      <section className="home-section home-more" aria-labelledby="home-more-title">
-        <div className="home-section__intro" data-reveal><div><p className="home-eyebrow"><span>03</span> / MÁS QUE UNA CANCHA</p><h2 id="home-more-title">El juego<br /><em>sigue afuera.</em></h2></div><p className="home-section__aside">Conectá con jugadores, sumate a un torneo o volvé a tu agenda. Todo sucede alrededor de tu club.</p></div>
-        <div className="home-more__grid">
-          <Link to={ROUTES.TOURNAMENTS} className="home-story home-story--tournament" data-reveal><span className="home-story__index">01 / TORNEOS</span><div className="home-story__content"><div className="home-story__icon"><CalendarDays size={22} aria-hidden="true" /></div><h3>{nextTournament ? nextTournament.name : "Próximo desafío"}</h3><p>{nextTournament ? `${nextTournament.date.split("-").reverse().join("/")} · ${nextTournament.category}` : tournamentsLoading ? "Buscando torneos del club" : tournamentsError ? "No se pudieron cargar los torneos" : "Descubrí los torneos del club y preparate para jugar."}</p><span className="home-story__link">{nextTournament ? "Ver torneo" : "Explorar torneos"} <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
-          <Link to={ROUTES.COMMUNITY} className="home-story home-story--community" data-reveal style={{ "--reveal-delay": "90ms" }}><span className="home-story__index">02 / COMUNIDAD</span><div className="home-story__content"><div className="home-story__icon"><Users size={22} aria-hidden="true" /></div><h3>Siempre hay partido.</h3><p>Encontrá jugadores de tu nivel y armá el próximo encuentro.</p><span className="home-story__link">Buscar jugadores <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
-          <Link to={ROUTES.MY_BOOKINGS} className="home-story home-story--agenda" data-reveal style={{ "--reveal-delay": "180ms" }}><span className="home-story__index">03 / TU AGENDA</span><div className="home-story__content"><div className="home-story__icon"><Clock3 size={22} aria-hidden="true" /></div><h3>Todo bajo control.</h3><p>Tus turnos y su estado, siempre a mano desde el celular.</p><span className="home-story__link">Ver mis turnos <ArrowUpRight size={17} aria-hidden="true" /></span></div></Link>
+      <section className="home-life" aria-labelledby="home-life-title">
+        <div className="home-life__intro" data-reveal><span className="home-overline">Más allá del turno</span><h2 id="home-life-title">El club también<br />se vive afuera.</h2><p>Un lugar para competir, encontrar gente para jugar y tener tus partidos siempre a mano.</p></div>
+        <div className="home-life__links" data-reveal>
+          <Link to={ROUTES.TOURNAMENTS}><span className="home-life__index">01</span><span><strong>{nextTournament ? nextTournament.name : "Torneos del club"}</strong><small>{nextTournament ? `${nextTournament.date.split("-").reverse().join("/")} · ${nextTournament.category}` : tournamentsLoading ? "Consultando próximos torneos" : tournamentsError ? "Explorá los torneos cuando vuelva la conexión" : "Conocé los próximos torneos"}</small></span><ArrowUpRight size={22} aria-hidden="true" /></Link>
+          <Link to={ROUTES.COMMUNITY}><span className="home-life__index">02</span><span><strong>Encontrá tu grupo</strong><small>Jugadores y partidos de tu nivel</small></span><ArrowUpRight size={22} aria-hidden="true" /></Link>
+          <Link to={ROUTES.MY_BOOKINGS}><span className="home-life__index">03</span><span><strong>Tu agenda</strong><small>Turnos, pagos y actividad en un solo lugar</small></span><ArrowUpRight size={22} aria-hidden="true" /></Link>
         </div>
       </section>
 
-      <section className="home-shop" data-reveal aria-labelledby="home-shop-title"><div className="home-shop__image"><img src={shopImg} alt="Paletas y accesorios de pádel" loading="lazy" /></div><div className="home-shop__copy"><p className="home-eyebrow"><span>EXTRA</span> / EN EL CLUB</p><h2 id="home-shop-title">Equipate para<br /><em>el próximo punto.</em></h2><p>Consultá al club por paletas, pelotas y accesorios. Te confirman modelos, precios y disponibilidad.</p>{shopUrl && <a className="home-text-link" href={shopUrl} target="_blank" rel="noreferrer">Consultar productos <ArrowUpRight size={17} aria-hidden="true" /></a>}</div></section>
-
-      <section className="home-end" data-reveal><span>EL PARTIDO EMPIEZA ACÁ</span><h2>Nos vemos<br /><em>en la cancha.</em></h2><Link to={ROUTES.BOOKING} className="home-button home-button--primary">Reservar mi turno <ArrowUpRight size={20} aria-hidden="true" /></Link></section>
+      <section className="home-closing" data-reveal><div><span className="home-overline">Tu próximo partido</span><h2>Nos encontramos<br />en la cancha.</h2></div><Link to={ROUTES.BOOKING} className="home-action home-action--primary">Reservar ahora <ArrowUpRight size={19} aria-hidden="true" /></Link></section>
     </main>
   );
 }

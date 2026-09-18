@@ -60,7 +60,7 @@ function PlayerRoute({ children }) {
 export default function App() {
   const location = useLocation();
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${location.pathname === ROUTES.HOME ? "home-experience" : ""}`}>
       {/* HEADER + MODAL LOGIN */}
       <Layout>
         <Routes>

@@ -191,7 +191,7 @@ export default function Layout({ children }) {
           )}
         </header>}
 
-        {!isAdminWorkspace && !apiOnline && <div className="demo-notice" role="status"><span className="demo-notice__dot" />Demo interactiva: los cambios se guardan en este navegador. <span>La versión para clubes requiere el servidor activo.</span></div>}
+        {!isAdminWorkspace && !apiOnline && <div className="demo-notice" role="status"><strong className="demo-notice__label">DEMO</strong><span>Datos de prueba guardados en este navegador.</span></div>}
 
         {/* CONTENIDO */}
         <div id="contenido" className="relative z-10 flex-1">{children}</div>
