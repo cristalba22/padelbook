@@ -63,8 +63,8 @@ export function sameSlot(booking, date, courtId, hour) {
 
 export function ScheduleProvider({ children }) {
   const { apiOnline } = useAuth();
-  const [blocks, setBlocks] = useState(readBlocks);
-  const [loading, setLoading] = useState(false);
+  const [blocks, setBlocks] = useState(() => import.meta.env.VITE_API_URL ? [] : readBlocks());
+  const [loading, setLoading] = useState(Boolean(import.meta.env.VITE_API_URL));
   const [error, setError] = useState("");
   const blocksRef = useRef(blocks);
   const mutationQueue = useRef(Promise.resolve());
@@ -79,7 +79,7 @@ export function ScheduleProvider({ children }) {
     if (!apiOnline) return;
     let active = true;
     setLoading(true);
-    apiRequest("/blocks").then(({ blocks: remote }) => {
+    const refresh = () => apiRequest("/blocks").then(({ blocks: remote }) => {
       if (!active) return;
       const normalized = (remote || []).map(normalizeBlock);
       blocksRef.current = normalized;
@@ -87,7 +87,9 @@ export function ScheduleProvider({ children }) {
       setError("");
     }).catch((cause) => { if (active) setError(cause.message || "No se pudieron cargar los bloqueos."); })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("focus", refresh); };
   }, [apiOnline]);
 
   useEffect(() => {

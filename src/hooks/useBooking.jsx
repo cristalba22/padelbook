@@ -28,6 +28,7 @@ export function BookingProvider({ children }) {
   const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
+    if (apiOnline) return;
     const sync = (event) => {
       if (!event || event.key === BOOKINGS_KEY) setBookings(readBookings());
     };
@@ -37,17 +38,22 @@ export function BookingProvider({ children }) {
       window.removeEventListener("storage", sync);
       window.removeEventListener("padel:bookings-updated", sync);
     };
-  }, []);
+  }, [apiOnline]);
 
   useEffect(() => {
     if (!apiOnline) return;
+    let active = true;
     setBookings([]);
     if (!user) return;
-    apiRequest("/bookings")
+    const refresh = () => apiRequest("/bookings")
       .then(({ bookings: remoteBookings }) => {
-        setBookings(remoteBookings.map((booking) => ({ ...booking, status: normalizeStatus(booking.status) })));
+        if (active) setBookings(remoteBookings.map((booking) => ({ ...booking, status: normalizeStatus(booking.status) })));
       })
-      .catch(() => setBookings([]));
+      .catch(() => {});
+    refresh();
+    window.addEventListener("padel:bookings-updated", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("padel:bookings-updated", refresh); window.removeEventListener("focus", refresh); };
   }, [apiOnline, user?.id, user?.role]);
 
   function persist(next) {

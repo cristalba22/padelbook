@@ -38,9 +38,11 @@ export async function apiRequest(path, options = {}) {
 
 export async function checkApiHealth() {
   try {
-    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(1200) });
+    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
     const contentType = response.headers.get("content-type") || "";
-    return response.ok && contentType.includes("application/json");
+    if (!response.ok || !contentType.includes("application/json")) return false;
+    const health = await response.json();
+    return health.ok === true && health.database === "connected";
   } catch {
     return false;
   }

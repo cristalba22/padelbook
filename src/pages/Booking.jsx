@@ -55,6 +55,7 @@ export default function Booking() {
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingCompleted, setBookingCompleted] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(false);
 
   useEffect(() => {
@@ -125,10 +126,11 @@ export default function Booking() {
       description: type === "class" ? "Clase con profesor" : `Turno de pádel de ${formatDuration(durationMinutes)}`,
     });
     setConfirmationMsg("");
+    setBookingCompleted(false);
   };
 
   const handleConfirm = async () => {
-    if (!selectedSlot || !paymentOption || isSubmitting) return;
+    if (!selectedSlot || !paymentOption || isSubmitting || bookingCompleted) return;
     if (selectedDate < todayISO()) {
       setConfirmationMsg("No se pueden confirmar reservas en fechas pasadas.");
       notify({ type: "warning", title: "Fecha no disponible", message: "Elegí una fecha desde hoy en adelante." });
@@ -174,10 +176,11 @@ export default function Booking() {
       }
 
       setSelectedBooking(savedBooking);
+      setBookingCompleted(true);
 
       let message = "";
       if (paymentOption === "deposit") {
-        const deposit = Math.round(selectedSlot.price * 0.3);
+        const deposit = Math.round(Number(savedBooking.price) * 0.3);
         message = `Reserva guardada. Seña de $${deposit.toLocaleString("es-AR")} pendiente de coordinación con el club.`;
       } else if (paymentOption === "full") {
         message = "Reserva guardada. El pago total queda pendiente de coordinación con el club.";
@@ -221,6 +224,7 @@ export default function Booking() {
                 setSelectedSlot(null);
                 setPaymentOption(null);
                 setConfirmationMsg("");
+                setBookingCompleted(false);
               }}
               className="rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-lime-300/60"
             />
@@ -249,6 +253,7 @@ export default function Booking() {
                       setPaymentOption(null);
                     }
                     setConfirmationMsg("");
+                    setBookingCompleted(false);
                   }}
                   className={`rounded-2xl border px-2 py-2 text-xs font-black transition ${
                     active ? "border-lime-300 bg-lime-300 text-black shadow-lg shadow-lime-500/20" : "border-white/10 bg-black/35 text-white hover:border-lime-300/35"
@@ -267,7 +272,7 @@ export default function Booking() {
 
       <div className="mb-5" role="group" aria-label="Elegí cancha">
         <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-white/50">Elegí una cancha</p>
-        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" aria-pressed={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
+        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" aria-pressed={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); setBookingCompleted(false); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
       </div>
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] lg:gap-8">
         <div className="mobile-snap-row wide lg:block lg:space-y-5">
@@ -407,13 +412,13 @@ export default function Booking() {
 
                 <button
                   onClick={handleConfirm}
-                  disabled={!selectedSlot || !paymentOption || isSubmitting}
+                  disabled={!selectedSlot || !paymentOption || isSubmitting || bookingCompleted}
                   className={`tap-action mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                    !selectedSlot || !paymentOption || isSubmitting ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-lime-300 text-black shadow-lg shadow-lime-500/30 hover:bg-lime-200"
+                    !selectedSlot || !paymentOption || isSubmitting || bookingCompleted ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-lime-300 text-black shadow-lg shadow-lime-500/30 hover:bg-lime-200"
                   }`}
                 >
                   {isSubmitting && <span className="mini-spinner mini-spinner-dark" aria-hidden="true" />}
-                  {isSubmitting ? "Guardando reserva" : paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Confirmar reserva"}
+                  {isSubmitting ? "Guardando reserva" : bookingCompleted ? "Reserva guardada" : paymentOption === "cash" ? "Confirmar reserva y pagar en el club" : "Confirmar reserva"}
                 </button>
 
                 {confirmationMsg && <p className="mt-3 text-[11px] text-white/60">{confirmationMsg}</p>}
