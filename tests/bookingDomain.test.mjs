@@ -19,6 +19,13 @@ test("detecta cruces entre reservas de distinta duración", () => {
   assert.equal(bookingsOverlap({ ...existing, status: "cancelado" }, { date: "2026-09-20", time: "19:00", courtId: "court1" }), false);
 });
 
+test("un único turno de una hora bloquea los inicios superpuestos, no turnos adicionales", () => {
+  const existing = { date: "2026-09-20", time: "13:00", courtId: "court1", durationMinutes: 60, status: "confirmado" };
+  const candidate = (time) => ({ date: existing.date, time, courtId: existing.courtId, durationMinutes: 60 });
+  assert.deepEqual(["12:00", "12:30", "13:00", "13:30", "14:00"].map((time) => bookingsOverlap(existing, candidate(time))),
+    [false, true, true, true, false]);
+});
+
 test("rechaza horas fuera de formato", () => {
   assert.equal(minutesFromTime("09:30"), 570);
   assert.equal(Number.isNaN(minutesFromTime("25:00")), true);

@@ -31,6 +31,17 @@ function formatDuration(minutes) {
   return `${hours}:${String(rest).padStart(2, "0")} h`;
 }
 
+function reservationConflict(reserved, hour, durationMinutes) {
+  if (!reserved) return null;
+  const start = reserved.time || reserved.hour;
+  const end = addMinutesToHour(start, Number(reserved.durationMinutes || 60));
+  const exact = start === hour && Number(reserved.durationMinutes || 60) === durationMinutes;
+  return {
+    label: exact ? "Reservado" : "Se cruza",
+    detail: `Hay un turno de ${start} a ${end}. Elegí una opción que no se superponga.`,
+  };
+}
+
 function todayISO() {
   return argentinaDateISO();
 }
@@ -323,21 +334,23 @@ export default function Booking() {
 
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de 09:00 a 22:00 · {formatDuration(selectedDuration)} · salidas cada 30 min</p>
+                <p className="mb-3 text-xs text-white/55">Cada botón es una opción de inicio. Un turno reservado también bloquea las opciones que se cruzan con él.</p>
                 <div className="flex flex-wrap gap-2">
                   {COURT_HOURS.filter((hour) => fitsOperatingHours(hour, selectedDuration) && !isPastSlot(selectedDate, hour)).map((hour) => {
                     const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, prices);
                     const endTime = addMinutesToHour(hour, selectedDuration);
                     const isSelected = selectedSlot?.courtId === court.id && selectedSlot.hour === hour && selectedSlot.type === "court";
                     const slotState = getSlotState(court.id, hour, "court", selectedDuration);
+                    const conflict = reservationConflict(slotState.reserved, hour, selectedDuration);
                     return (
                       <SlotChoice
                         key={hour}
                         disabled={slotState.taken}
                         selected={isSelected}
-                        title={slotState.block?.reason || (slotState.reserved ? "Horario reservado" : `${hour} a ${endTime}`)}
+                        title={slotState.block?.reason || conflict?.detail || `${hour} a ${endTime}`}
                         onClick={() => handleSelectSlot(court, hour, "court")}
                         main={`${hour} - ${endTime}`}
-                        side={slotState.block ? slotState.block.reason : slotState.reserved ? "Reservado" : `$${price.toLocaleString("es-AR")}`}
+                        side={slotState.block ? slotState.block.reason : conflict?.label || `$${price.toLocaleString("es-AR")}`}
                       />
                     );
                   })}
