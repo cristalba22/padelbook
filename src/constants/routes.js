@@ -18,10 +18,12 @@ export const ROUTES = Object.freeze({
   ADMIN_FINANCE: "/admin/finance",
   ADMIN_TOURNAMENTS: "/admin/tournaments",
   ADMIN_CONFIG: "/admin/config",
+  ADMIN_STAFF: "/admin/staff",
 });
 
 export function routeForRole(role) {
   if (role === "admin") return ROUTES.ADMIN;
+  if (role === "receptionist") return ROUTES.ADMIN_BOOKINGS;
   if (role === "teacher") return ROUTES.TEACHER;
   return ROUTES.MY_BOOKINGS;
 }

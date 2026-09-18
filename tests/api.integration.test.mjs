@@ -104,6 +104,36 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal(finance.data.summary.incomeByCategory.find((item) => item.label === "Clases").amount, 0);
     assert.equal((await request(`/admin/tournaments/${tournamentId}/registrations/${registration.data.registration.id}`, { method: "PATCH", token: admin, body: { paymentStatus: "pendiente" } })).status, 200);
     assert.equal((await request("/finance/summary", { token: admin })).data.summary.incomeByCategory.find((item) => item.label === "Torneos").amount, 0);
+
+    const staffPath = "/admin/staff";
+    assert.equal((await request(staffPath, { token: player })).status, 403);
+    const createdStaff = await request(staffPath, { method: "POST", token: admin, body: { name: "Recepción QA", email: "recepcion@club.test", password: "recepcion-segura-123", phone: "3515557777" } });
+    assert.equal(createdStaff.status, 201);
+    assert.equal("passwordHash" in createdStaff.data.employee, false);
+    const receptionistId = createdStaff.data.employee.id;
+    const receptionistLogin = await request("/auth/login", { method: "POST", body: { email: "recepcion@club.test", password: "recepcion-segura-123" } });
+    assert.equal(receptionistLogin.status, 200);
+    const receptionist = receptionistLogin.data.token;
+    assert.equal((await request("/settings", { method: "PUT", token: receptionist, body: {} })).status, 403);
+    assert.equal((await request("/finance/summary", { token: receptionist })).status, 403);
+    assert.equal((await request(staffPath, { token: receptionist })).status, 403);
+    const walkIn = await request("/bookings", { method: "POST", token: receptionist, body: { date, time: "17:00", courtId: "court3", type: "court", durationMinutes: 60, paymentOption: "cash", playerName: "Jugador WhatsApp", phone: "3514443333", price: 1 } });
+    assert.equal(walkIn.status, 201);
+    assert.equal(walkIn.data.booking.playerName, "Jugador WhatsApp");
+    assert.equal(walkIn.data.booking.source, "reception");
+    assert.notEqual(walkIn.data.booking.price, 1);
+    assert.equal((await request("/bookings", { token: receptionist })).data.bookings.some((item) => item.id === walkIn.data.booking.id), true);
+    assert.equal((await request("/bookings", { token: player })).data.bookings.some((item) => item.id === walkIn.data.booking.id), false);
+    const spoofed = await request("/bookings", { method: "POST", token: player, body: { date, time: "16:00", courtId: "court3", type: "court", durationMinutes: 60, paymentOption: "cash", playerName: "Otra persona", phone: "000" } });
+    assert.equal(spoofed.status, 201);
+    assert.equal(spoofed.data.booking.playerName, "Jugadora Actualizada");
+    assert.equal(spoofed.data.booking.source, "online");
+    assert.equal((await request("/blocks/batch", { method: "POST", token: receptionist, body: { blocks: [{ date, courtId: "court1", hour: "17:00", durationMinutes: 30 }] } })).status, 200);
+    assert.equal((await request(`/bookings/${walkIn.data.booking.id}/status`, { method: "PATCH", token: receptionist, body: { status: "confirmado" } })).status, 200);
+    assert.equal((await request(`/bookings/${walkIn.data.booking.id}/payments`, { method: "POST", token: receptionist, body: { amount: 1000, method: "efectivo", idempotencyKey: "83284a55-1976-4862-8805-8e0888a41aa7" } })).status, 200);
+    assert.equal((await request(`${staffPath}/${receptionistId}`, { method: "PATCH", token: admin, body: { active: false } })).status, 200);
+    assert.equal((await request("/bookings", { token: receptionist })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: "recepcion@club.test", password: "recepcion-segura-123" } })).status, 401);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();

@@ -25,6 +25,7 @@ import AdminBookings from "./pages/AdminBookings.jsx";
 import AdminFinance from "./pages/AdminFinance.jsx";
 import AdminTournaments from "./pages/AdminTournaments.jsx";
 import AdminConfig from "./pages/AdminConfig.jsx";
+import AdminStaff from "./pages/AdminStaff.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
 import { useAuth } from "./hooks/useAuth.jsx";
@@ -36,7 +37,14 @@ import { ROUTES } from "./constants/routes.js";
 function AdminRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to={ROUTES.HOME} replace />;
-  if (user.role !== "admin") return <Navigate to={ROUTES.HOME} replace />;
+  if (user.role !== "admin") return <Navigate to={user.role === "receptionist" ? ROUTES.ADMIN_BOOKINGS : ROUTES.HOME} replace />;
+  return children;
+}
+
+function ClubOperationsRoute({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to={ROUTES.HOME} replace />;
+  if (!["admin", "receptionist"].includes(user.role)) return <Navigate to={ROUTES.HOME} replace />;
   return children;
 }
 
@@ -107,9 +115,9 @@ export default function App() {
           <Route
             path={ROUTES.ADMIN_CALENDAR}
             element={
-              <AdminRoute>
+              <ClubOperationsRoute>
                 <AdminCalendar />
-              </AdminRoute>
+              </ClubOperationsRoute>
             }
           />
           <Route
@@ -123,9 +131,9 @@ export default function App() {
           <Route
             path={ROUTES.ADMIN_BOOKINGS}
             element={
-              <AdminRoute>
+              <ClubOperationsRoute>
                 <AdminBookings />
-              </AdminRoute>
+              </ClubOperationsRoute>
             }
           />
           <Route
@@ -152,6 +160,7 @@ export default function App() {
               </AdminRoute>
             }
           />
+          <Route path={ROUTES.ADMIN_STAFF} element={<AdminRoute><AdminStaff /></AdminRoute>} />
 
           {/* CUALQUIER OTRA RUTA */}
           <Route path="*" element={<NotFound />} />

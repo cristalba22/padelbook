@@ -53,9 +53,9 @@ export default function Layout({ children }) {
         </NavLink>
       ))}
 
-      {user?.role === "admin" && (
+      {["admin", "receptionist"].includes(user?.role) && (
         <NavLink
-          to={ROUTES.ADMIN}
+          to={routeForRole(user.role)}
           onClick={closeMobile}
           className={({ isActive }) =>
             [
@@ -66,7 +66,7 @@ export default function Layout({ children }) {
             ].join(" ")
           }
         >
-          Admin
+          {user.role === "admin" ? "Admin" : "Recepción"}
         </NavLink>
       )}
       {user?.role === "teacher" && <NavLink to={ROUTES.TEACHER} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Panel profe</NavLink>}

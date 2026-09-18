@@ -103,7 +103,7 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: "Email o contrasena invalidos." });
   const { email, password } = parsed.data;
   const account = await User.findOne({ email: cleanEmail(email) });
-  if (!account || !bcrypt.compareSync(password, account.passwordHash)) {
+  if (!account || account.active === false || !bcrypt.compareSync(password, account.passwordHash)) {
     return res.status(401).json({ message: "Credenciales incorrectas." });
   }
   res.json({ user: publicUser(account), token: signToken(account) });
@@ -149,6 +149,34 @@ app.patch("/api/auth/me", requireAuth, async (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
+app.get("/api/admin/staff", requireAuth, requireRole("admin"), async (_req, res) => {
+  const staff = await User.find({ role: "receptionist" }).sort({ name: 1 });
+  res.json({ staff: staff.map(publicUser) });
+});
+
+app.post("/api/admin/staff", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email(), password: z.string().min(12), phone: z.string().trim().max(40).optional().default("") }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Revisá nombre, email y contraseña (mínimo 12 caracteres)." });
+  const email = cleanEmail(parsed.data.email);
+  if (await User.exists({ email })) return res.status(409).json({ message: "Ya existe una cuenta con ese email." });
+  const employee = await User.create({ name: parsed.data.name, email, passwordHash: await bcrypt.hash(parsed.data.password, 12), phone: parsed.data.phone, role: "receptionist", category: "Recepción", active: true });
+  await addActivity({ type: "staff_created", title: "Recepcionista creado", detail: employee.name, actor: req.user.name });
+  res.status(201).json({ employee: publicUser(employee) });
+});
+
+app.patch("/api/admin/staff/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de empleado inválido." });
+  const parsed = z.object({ active: z.boolean().optional(), password: z.string().min(12).optional() }).strict().refine((value) => Object.keys(value).length > 0).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Cambio inválido. La contraseña debe tener al menos 12 caracteres." });
+  const employee = await User.findOne({ _id: req.params.id, role: "receptionist" });
+  if (!employee) return res.status(404).json({ message: "Recepcionista no encontrado." });
+  if (parsed.data.active !== undefined) employee.active = parsed.data.active;
+  if (parsed.data.password) employee.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  await employee.save();
+  await addActivity({ type: "staff_updated", title: "Acceso de recepcionista actualizado", detail: employee.name, actor: req.user.name });
+  res.json({ employee: publicUser(employee) });
+});
+
 app.get("/api/availability", async (req, res) => {
   const date = String(req.query.date || "");
   if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha invalida." });
@@ -191,7 +219,7 @@ const blockInput = z.object({
   type: z.enum(["block", "teacher"]).optional().default("block"),
 });
 
-app.post("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+app.post("/api/blocks/batch", requireAuth, requireRole("admin", "receptionist", "teacher"), async (req, res) => {
   const parsed = z.object({ blocks: z.array(blockInput).min(1).max(120) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
   const blocks = parsed.data.blocks.map((block) => ({ ...block, ownerId: req.user.role === "teacher" ? req.user.id : "",
@@ -238,7 +266,7 @@ app.post("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), asyn
   res.json({ blocks: (await ScheduleBlock.find({ date: { $in: dates } })).map((block) => block.toJSON()) });
 });
 
-app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "receptionist", "teacher"), async (req, res) => {
   const parsed = z.object({ keys: z.array(z.object({ date: z.string(), courtId: z.string(), hour: z.string() })).min(1).max(120) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
   const keys = parsed.data.keys.map((item) => ({ date: item.date, courtId: canonicalCourtId(item.courtId), hour: item.hour }));
@@ -253,7 +281,7 @@ app.delete("/api/blocks/batch", requireAuth, requireRole("admin", "teacher"), as
 });
 
 app.get("/api/bookings", requireAuth, async (req, res) => {
-  const query = req.user.role === "admin"
+  const query = ["admin", "receptionist"].includes(req.user.role)
     ? {}
     : req.user.role === "teacher"
       ? { $or: [{ teacherId: req.user.id }, { teacherName: req.user.name }] }
@@ -276,6 +304,9 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     teacherId: z.string().nullable().optional(),
     teacherName: z.string().optional().default(""),
     description: z.string().optional().default(""),
+    playerName: z.string().trim().min(2).max(100).optional(),
+    phone: z.string().trim().max(40).optional(),
+    userEmail: z.union([z.string().email(), z.literal("")]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success || !isValidDateISO(parsed.data?.date)) return res.status(400).json({ message: "Datos de reserva invalidos." });
@@ -310,6 +341,7 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     durationMinutes: Number(parsed.data.durationMinutes || 60),
     endTime: addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
   };
+  const staffBooking = ["admin", "receptionist"].includes(req.user.role) && Boolean(parsed.data.playerName);
 
   const sameDayBookings = await Booking.find({
     date: parsed.data.date,
@@ -329,10 +361,12 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
         _id: id, ...incoming,
         status: "pendiente",
         paymentStatus: parsed.data.paymentOption === "cash" ? "a_pagar_en_club" : "pendiente_pago",
-        userId: req.user.id,
-        userEmail: req.user.email,
-        playerName: req.user.name,
-        phone: req.user.phone || "",
+        userId: staffBooking ? "" : req.user.id,
+        userEmail: staffBooking ? cleanEmail(parsed.data.userEmail || "") : req.user.email,
+        playerName: staffBooking ? parsed.data.playerName : req.user.name,
+        phone: staffBooking ? parsed.data.phone || "" : req.user.phone || "",
+        createdBy: req.user.id,
+        source: staffBooking ? "reception" : "online",
       }], { session });
       return created;
     });
@@ -340,11 +374,11 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     if (error.code === 11000 || error.code === 112) return res.status(409).json({ message: "Ese horario ya fue reservado o bloqueado.", duplicated: true });
     throw error;
   }
-  await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: booking.playerName, bookingId: booking.id });
+  await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: req.user.name, bookingId: booking.id });
   res.status(201).json({ booking: booking.toJSON() });
 });
 
-app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (req, res) => {
+app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin", "receptionist"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
   const schema = z.object({ status: z.enum(["pendiente", "confirmado", "cancelado"]) });
   const parsed = schema.safeParse(req.body);
@@ -380,7 +414,7 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin"), async (
   res.json({ booking: booking.toJSON() });
 });
 
-app.post("/api/bookings/:id/payments", requireAuth, requireRole("admin"), async (req, res) => {
+app.post("/api/bookings/:id/payments", requireAuth, requireRole("admin", "receptionist"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
   const schema = z.object({ amount: z.number().int().positive(), method: z.enum(PAYMENT_METHODS), note: z.string().max(300).optional().default(""), idempotencyKey: z.string().uuid() });
   const parsed = schema.safeParse(req.body);
@@ -417,7 +451,7 @@ app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
   const booking = await Booking.findById(req.params.id);
   if (!booking) return res.status(404).json({ message: "Reserva no encontrada." });
   const ownsBooking = booking.userId === req.user.id || cleanEmail(booking.userEmail) === cleanEmail(req.user.email);
-  if (req.user.role !== "admin" && !ownsBooking) return res.status(403).json({ message: "No podés cancelar esta reserva." });
+  if (!["admin", "receptionist"].includes(req.user.role) && !ownsBooking) return res.status(403).json({ message: "No podés cancelar esta reserva." });
   if (isPastSlot(booking.date, booking.time)) return res.status(409).json({ message: "El turno ya comenzó. Contactá al club para resolver la cancelación." });
   if (booking.status !== "cancelado") {
     await withAgendaTransaction(async (session) => {
@@ -433,7 +467,7 @@ app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
   res.json({ booking: booking.toJSON() });
 });
 
-app.post("/api/bookings/:id/payments/reverse", requireAuth, requireRole("admin"), async (req, res) => {
+app.post("/api/bookings/:id/payments/reverse", requireAuth, requireRole("admin", "receptionist"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
   const parsed = z.object({ idempotencyKey: z.string().uuid() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de reversión invalidos." });

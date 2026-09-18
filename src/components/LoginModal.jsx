@@ -28,14 +28,15 @@ const DEMO_PROFILES = [
     detail: "Reservas, calendario, staff y métricas.",
     tone: "border-emerald-300/30 text-emerald-100",
   },
+  { id: "receptionist", label: "Recepción", email: "recepcion@club.com", password: "recepcion123", detail: "Agenda, reservas y cobros del día.", tone: "border-amber-300/30 text-amber-100" },
 ];
 
 export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
-  const { login, register } = useAuth();
+  const { login, register, apiOnline } = useAuth();
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("crisalba@test.com");
-  const [password, setPassword] = useState("player123");
+  const [email, setEmail] = useState(apiOnline ? "" : "crisalba@test.com");
+  const [password, setPassword] = useState(apiOnline ? "" : "player123");
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("6ta");
   const [error, setError] = useState("");
@@ -57,8 +58,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
       setPhone("");
       setCategory("Sin categoría");
     } else {
-      setEmail("crisalba@test.com");
-      setPassword("player123");
+      setEmail(apiOnline ? "" : "crisalba@test.com");
+      setPassword(apiOnline ? "" : "player123");
     }
   };
 
@@ -99,12 +100,12 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">PadelBook</p>
           <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Acceso al club</h2>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            Una entrada clara para mostrar el producto completo: jugador, profe y administración.
+            Una entrada para jugadores, profesores, recepción y administración.
           </p>
 
           <div className="mt-7 space-y-3">
             <SidePoint value="30s" label="para reservar un turno" />
-            <SidePoint value="3" label="roles navegables" />
+            <SidePoint value="4" label="roles navegables" />
             <SidePoint value="24/7" label="agenda disponible" />
           </div>
         </aside>
@@ -116,7 +117,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {mode === "login"
-              ? "Usá un perfil de prueba o ingresá con una cuenta registrada."
+              ? apiOnline ? "Ingresá con la cuenta que te dio el club." : "Usá un perfil de prueba o ingresá con una cuenta registrada."
               : "Creá un perfil de jugador con datos útiles para reservas, torneos y comunidad."}
           </p>
 
@@ -159,7 +160,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             </button>
           </form>
 
-          <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+          {!apiOnline && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Perfiles de prueba</p>
               <span className="text-[10px] text-slate-400">Click y entrar</span>
@@ -180,7 +181,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
         </section>
       </div>
     </div>

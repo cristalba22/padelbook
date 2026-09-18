@@ -13,9 +13,9 @@ import { readActivity } from "../utils/activityLog.js";
 import { apiRequest } from "../utils/apiClient.js";
 import { paymentSummary } from "../utils/paymentDomain.js";
 
-const START_MINUTES = 18 * 60;
+const START_MINUTES = 9 * 60;
 const END_MINUTES = 22 * 60;
-const GRID_TIMES = Array.from({ length: 8 }, (_, index) => `${String(18 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`);
+const GRID_TIMES = Array.from({ length: (END_MINUTES - START_MINUTES) / 30 }, (_, index) => `${String(9 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`);
 
 function localDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
   COURTS.forEach((court) => GRID_TIMES.forEach((time, index) => {
     const start = minutes(time);
     const taken = courtBookings.some((booking) => booking.courtId === court.id && minutes(booking.time) < start + 30 && minutes(booking.time) + booking.durationMinutes > start);
-    const blocked = dayBlocks.some((block) => String(block.courtId) === court.id && minutes(block.hour || block.time) < start + 30 && minutes(block.hour || block.time) + 60 > start);
+    const blocked = dayBlocks.some((block) => String(block.courtId) === court.id && minutes(block.hour || block.time) < start + 30 && minutes(block.hour || block.time) + Number(block.durationMinutes || 60) > start);
     if (taken || blocked) occupied.add(`${court.id}:${index}`);
   }));
   const capacity = COURTS.length * GRID_TIMES.length;
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
         <div className="club-dashboard__metrics" aria-label="Resumen del día">
           <Metric Icon={CircleDollarSign} label="Valor de reservas" value={money(bookedValue)} note="Reservas activas del día" />
           <Metric Icon={Clock3} label="Por confirmar" value={pendingBookings.length} note={pendingBookings.length === 1 ? "1 reserva requiere seguimiento" : `${pendingBookings.length} reservas requieren seguimiento`} />
-          <Metric Icon={TrendingUp} label="Ocupación" value={`${occupancy}%`} note={`${freeMinutes / 60} h libres entre 18 y 22`} />
+          <Metric Icon={TrendingUp} label="Ocupación" value={`${occupancy}%`} note={`${freeMinutes / 60} h libres entre 09 y 22`} />
         </div>
         </div>
 
@@ -141,8 +141,9 @@ export default function AdminDashboard() {
               {dayBlocks.filter((block) => minutes(block.hour || block.time) >= START_MINUTES && minutes(block.hour || block.time) < END_MINUTES && COURTS.some((court) => court.id === String(block.courtId))).map((block) => {
                 const column = COURTS.findIndex((court) => court.id === String(block.courtId)) + 2;
                 const row = Math.floor((minutes(block.hour || block.time) - START_MINUTES) / 30) + 2;
-                const overlaps = courtBookings.some((booking) => booking.courtId === String(block.courtId) && minutes(booking.time) < minutes(block.hour || block.time) + 60 && minutes(booking.time) + booking.durationMinutes > minutes(block.hour || block.time));
-                return overlaps ? null : <div key={block.id} className="club-dashboard__blocked" style={{ gridColumn: column, gridRow: `${row} / span 2` }} aria-label={`${block.reason || "Horario bloqueado"}, ${block.hour || block.time}`}><strong>Bloqueado</strong><small>{block.reason || "No disponible"}</small></div>;
+                const duration = Number(block.durationMinutes || 60);
+                const overlaps = courtBookings.some((booking) => booking.courtId === String(block.courtId) && minutes(booking.time) < minutes(block.hour || block.time) + duration && minutes(booking.time) + booking.durationMinutes > minutes(block.hour || block.time));
+                return overlaps ? null : <div key={block.id} className="club-dashboard__blocked" style={{ gridColumn: column, gridRow: `${row} / span ${Math.max(1, Math.ceil(duration / 30))}` }} aria-label={`${block.reason || "Horario bloqueado"}, ${block.hour || block.time}`}><strong>Bloqueado</strong><small>{block.reason || "No disponible"}</small></div>;
               })}
               {COURTS.flatMap((court, courtIndex) => GRID_TIMES.map((time, rowIndex) => {
                 const key = `${court.id}:${rowIndex}`;

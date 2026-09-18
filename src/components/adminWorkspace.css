@@ -55,7 +55,7 @@
 .club-dashboard__section-header h2, .club-dashboard__lower-title h2 { font: 700 16px/1.3 Manrope, sans-serif; letter-spacing: -.025em; margin-top: 3px; }
 .club-dashboard__date { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 8px; background: var(--admin-bg); color: var(--admin-muted); }
 .club-dashboard__date input { max-width: 128px; min-height: 25px; border: 0; background: transparent; color: var(--admin-text); font-size: 12px; color-scheme: dark; }
-.club-dashboard__grid-scroll { overflow-x: auto; }.club-dashboard__grid { display: grid; min-width: 465px; grid-template-columns: 42px repeat(3, minmax(0, 1fr)); grid-template-rows: 44px repeat(8, 39px); gap: 4px; padding: 0 12px 12px; }
+.club-dashboard__grid-scroll { overflow: auto; max-height: min(72vh, 780px); }.club-dashboard__grid { display: grid; min-width: 465px; grid-template-columns: 42px repeat(3, minmax(0, 1fr)); grid-template-rows: 44px repeat(26, 39px); gap: 4px; padding: 0 12px 12px; }
 .club-dashboard__court { display: grid; place-items: center; font-size: 12px; font-weight: 700; }.club-dashboard__time { color: var(--admin-muted); font-size: 11px; padding-top: 3px; font-variant-numeric: tabular-nums; }
 .club-dashboard__slot { position: relative; z-index: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 8px 10px; overflow: hidden; border: 0; border-radius: 7px; text-align: left; color: #b8d4ba; background: #213229; }
 .club-dashboard__slot--reserved { background: #29364d; color: #c3d8fa; }.club-dashboard__slot--pending { background: #3c3022; color: #f3d4a0; }.club-dashboard__slot--paid { background: #243b2b; }

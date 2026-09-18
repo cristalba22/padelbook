@@ -29,6 +29,7 @@ Esta guía prepara **una instalación para un solo club**. La URL pública actua
 4. Verificar `GET https://<api>/api/health`: debe responder `200` con `ok: true` y `database: "connected"`.
 5. Configurar `VITE_API_URL=https://<api>/api` en **Production** de Vercel y generar un despliegue nuevo. Esta URL se incorpora durante el build. Con la API configurada, la app no opera como demo si la API falla.
 6. Entrar con el administrador inicial, cambiar textos y precios en Configuración, crear profesores y revisar la web pública. No cargar datos de prueba en la base del piloto.
+7. En **Equipo**, crear un acceso individual para cada recepcionista. El dueño puede desactivar la cuenta y renovar la contraseña. Recepción puede cargar turnos de mostrador o WhatsApp, operar la agenda y registrar cobros; no puede cambiar precios, ver finanzas generales ni administrar al equipo.
 
 ## Prueba de aceptación antes de invitar jugadores
 
@@ -40,6 +41,7 @@ Usar dos dispositivos o ventanas privadas con un administrador y dos jugadores d
 - Registrar una seña y el saldo restante; repetir la misma solicitud con igual clave de idempotencia y comprobar un solo cobro. Revertir el último cobro y revisar caja.
 - Cortar la API mientras se usa el frontend: debe indicar indisponibilidad o fallar la operación sin crear una reserva local. Restaurar la API y reintentar.
 - Verificar acceso por roles, inscripción a torneo y que jugadores no puedan abrir la caja ni ver reservas ajenas.
+- Verificar que recepción cree una reserva a nombre de un jugador, registre un cobro y no acceda a Ajustes, Finanzas ni Equipo. Desactivar su cuenta y comprobar que la sesión abierta deja de funcionar.
 - Restaurar un backup de prueba en una base separada y comprobar que agenda, usuarios y caja siguen legibles.
 
 ## Operación del piloto
@@ -47,6 +49,7 @@ Usar dos dispositivos o ventanas privadas con un administrador y dos jugadores d
 - Designar quién recibe avisos de fallas y quién puede registrar/revertir pagos.
 - Vigilar `/api/health`, errores del servicio y espacio/estado de la base de datos.
 - Revisar diariamente reservas pendientes, pagos registrados y cierre de caja.
+- Medir semanalmente reservas `online` y `reception`, cancelaciones y cobros pendientes. El porcentaje de autogestión es reservas online / total de reservas creadas. El sistema todavía no mide intentos de reserva abandonados ni envía confirmaciones por email; no usar esas métricas ni prometer esos avisos en el piloto.
 - Conservar la URL demo separada del piloto hasta completar esta prueba. Para más clubes se necesita aislamiento por `clubId` antes de compartir una misma API o base de datos.
 
 ## Vuelta atrás
