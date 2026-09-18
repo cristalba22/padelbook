@@ -15,7 +15,9 @@ export function useAvailability(date) {
       .catch(() => { if (active) setState({ date, occupied: [], teacherBusy: [], loading: false, error: "No se pudo consultar la disponibilidad." }); });
     load();
     window.addEventListener("padel:bookings-updated", load);
-    return () => { active = false; window.removeEventListener("padel:bookings-updated", load); };
+    window.addEventListener("focus", load);
+    const interval = window.setInterval(() => { if (!document.hidden) load(); }, 30000);
+    return () => { active = false; window.removeEventListener("padel:bookings-updated", load); window.removeEventListener("focus", load); window.clearInterval(interval); };
   }, [apiOnline, date]);
 
   return { occupied: state.date === date ? state.occupied : [], teacherBusy: state.date === date ? state.teacherBusy : [],

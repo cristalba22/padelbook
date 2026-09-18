@@ -5,6 +5,21 @@ export const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173
 export const TOKEN_EXPIRES_IN = "7d";
 export const MONGODB_URI = process.env.MONGODB_URI || "";
 
+if (process.env.NODE_ENV === "production") {
+  if (process.env.PADELBOOK_DEMO_SEED === "true") {
+    throw new Error("PADELBOOK_DEMO_SEED no puede estar activo en producción.");
+  }
+  if (!CLIENT_ORIGIN.startsWith("https://")) {
+    throw new Error("CLIENT_ORIGIN debe ser una URL HTTPS en producción.");
+  }
+  if (!MONGODB_URI) {
+    throw new Error("Falta MONGODB_URI en producción.");
+  }
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 || process.env.JWT_SECRET.includes("change-this-secret")) {
+    throw new Error("JWT_SECRET debe tener al menos 32 caracteres privados en producción.");
+  }
+}
+
 if (!process.env.JWT_SECRET) {
   throw new Error("Falta JWT_SECRET en .env. Configura una clave larga y privada antes de iniciar la API.");
 }

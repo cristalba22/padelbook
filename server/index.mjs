@@ -19,7 +19,7 @@ const app = express();
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
-    if (origin === CLIENT_ORIGIN || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
+    if (origin === CLIENT_ORIGIN || (process.env.NODE_ENV !== "production" && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin))) return callback(null, true);
     return callback(new Error("Origin no permitido por CORS"));
   },
   credentials: true,
@@ -113,7 +113,7 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
   const schema = z.object({
     name: z.string().min(2),
     email: z.string().email(),
-    password: z.string().min(4),
+    password: z.string().min(8),
     phone: z.string().optional().default(""),
     category: z.string().optional().default("Sin categoria"),
   });

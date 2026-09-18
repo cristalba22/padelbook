@@ -151,7 +151,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="field" placeholder="tu@email.com" autoComplete="email" required />
             </Field>
             <Field label="Contraseña">
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field" placeholder="********" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field" placeholder="********" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 8 : undefined} required />
             </Field>
 
             <button type="submit" className="btn-primary w-full justify-center py-3">

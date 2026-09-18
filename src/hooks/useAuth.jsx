@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiRequest, checkApiHealth, getAuthToken, setAuthToken } from "../utils/apiClient.js";
 import { safeRead, safeRemove, safeWrite } from "../utils/storage.js";
 
@@ -35,34 +35,56 @@ function publicProfile(user) {
 
 export function AuthProvider({ children }) {
   const configuredApi = Boolean(import.meta.env.VITE_API_URL);
-  const [user, setUser] = useState(() => configuredApi && !getAuthToken() ? null : safeRead(AUTH_KEY, null));
+  const [user, setUser] = useState(() => configuredApi ? null : safeRead(AUTH_KEY, null));
   const [showLogin, setShowLogin] = useState(false);
-  const [apiOnline, setApiOnline] = useState(configuredApi);
-  const [apiReady, setApiReady] = useState(configuredApi);
+  const [apiOnline, setApiOnline] = useState(false);
+  const [apiReady, setApiReady] = useState(false);
+  const [apiError, setApiError] = useState(false);
+
+  const initialize = useCallback(async (isActive) => {
+    const online = await checkApiHealth();
+    if (!isActive()) return;
+    if (configuredApi && !online) {
+      setApiError(true);
+      return;
+    }
+    if (online) {
+      const token = getAuthToken();
+      if (token) {
+        try {
+          const { user: profile } = await apiRequest("/auth/me");
+          if (!isActive()) return;
+          setUser(profile);
+          safeWrite(AUTH_KEY, profile);
+        } catch (error) {
+          if (!isActive()) return;
+          if (error.status !== 401 && configuredApi) {
+            setApiError(true);
+            return;
+          }
+          setUser(null);
+          safeRemove(AUTH_KEY);
+        }
+      } else {
+        setUser(null);
+        safeRemove(AUTH_KEY);
+      }
+    }
+    if (!isActive()) return;
+    setApiOnline(online);
+    setApiError(false);
+    setApiReady(true);
+  }, [configuredApi]);
 
   useEffect(() => {
     let alive = true;
-    checkApiHealth().then((online) => {
-      if (alive) {
-        if (!configuredApi) setApiOnline(online);
-        setApiReady(true);
-      }
-    });
+    initialize(() => alive);
     return () => { alive = false; };
-  }, []);
+  }, [initialize]);
 
-  useEffect(() => {
-    if (!apiOnline) return;
-    const token = getAuthToken();
-    if (!token) { setUser(null); safeRemove(AUTH_KEY); return; }
-    apiRequest("/auth/me")
-      .then(({ user: profile }) => {
-        setApiOnline(true);
-        setUser(profile);
-        safeWrite(AUTH_KEY, profile);
-      })
-      .catch((error) => { if (error.status === 401) { setUser(null); safeRemove(AUTH_KEY); } });
-  }, [apiOnline]);
+  function retryApi() {
+    initialize(() => true);
+  }
 
   useEffect(() => {
     const handleExpired = () => {
@@ -117,7 +139,7 @@ export function AuthProvider({ children }) {
     const lower = cleanEmail(email);
     if (!name?.trim()) throw new Error("Ingresa tu nombre.");
     if (!lower.includes("@")) throw new Error("Ingresa un email valido.");
-    if (!password || password.length < 4) throw new Error("La contraseña debe tener al menos 4 caracteres.");
+    if (!password || password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres.");
     const users = getUsers();
     if (users.some((u) => cleanEmail(u.email) === lower)) throw new Error("Ya existe una cuenta con ese email.");
     const account = { id: `user-${Date.now()}`, name: name.trim(), email: lower, password, role: "player", phone, category };
@@ -157,7 +179,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, updateProfile, logout }), [user, showLogin, apiOnline, apiReady]);
-  return <AuthContext.Provider value={value}>{apiReady ? children : <div role="status" className="grid min-h-screen place-items-center bg-[#080c16] text-sm text-white">Consultando el estado del club...</div>}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{apiReady ? children : <div role={apiError ? "alert" : "status"} className="grid min-h-screen place-items-center bg-[#080c16] px-6 text-center text-white"><div className="max-w-md"><h1 className="text-2xl font-bold">{apiError ? "El club no está disponible en este momento" : "Consultando el estado del club..."}</h1>{apiError && <><p className="mt-3 text-sm text-white/65">No podemos consultar la agenda. Para proteger tus reservas, esperá a que se restablezca la conexión.</p><button type="button" onClick={retryApi} className="mt-6 rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Volver a intentar</button></>}</div></div>}</AuthContext.Provider>;
 }
 
 export function useAuth() {
