@@ -106,7 +106,7 @@ npm test
 
 ## Estado actual
 
-La URL de Vercel publica solo el frontend y funciona en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB Atlas (replica set para transacciones) y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md) y en el [plan del piloto](docs/PLAN_PILOTO.md).
+Las URL de Vercel y [Cloudflare](https://padelbook-clubes-demo.crisalbavideografo.workers.dev) publican solo el frontend y funcionan en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB Atlas (replica set para transacciones) y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md), el [plan del piloto](docs/PLAN_PILOTO.md) y la [guía de despliegue Cloudflare/MonsterAPI](docs/DESPLIEGUE_CLOUDFLARE_MONSTER.md).
 
 La secuencia concreta de infraestructura, configuración y aceptación está en [Despliegue del piloto](docs/DESPLIEGUE_PILOTO.md). La API dispone de `Dockerfile.api` para un servicio persistente; el modo productivo rechaza semilla demo y configuración insegura.
 

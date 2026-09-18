@@ -23,4 +23,5 @@ test("producción rechaza datos demo, HTTP y secretos débiles", () => {
   assert.notEqual(check({ PADELBOOK_DEMO_SEED: "true" }).status, 0);
   assert.notEqual(check({ CLIENT_ORIGIN: "http://club.example" }).status, 0);
   assert.notEqual(check({ JWT_SECRET: "change-this-secret" }).status, 0);
+  assert.notEqual(check({ MONGODB_DB_NAME: "club/invalido" }).status, 0);
 });

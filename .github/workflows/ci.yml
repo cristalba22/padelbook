@@ -25,3 +25,11 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm audit --audit-level=high
+  api-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: docker build -f Dockerfile.api -t padelbook-api:ci .

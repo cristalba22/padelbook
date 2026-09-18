@@ -6,6 +6,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", async (t) => {
   const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   process.env.MONGODB_URI = mongo.getUri();
+  process.env.MONGODB_DB_NAME = "padelbook_qa";
   process.env.JWT_SECRET = "integration-test-secret-long-enough-to-be-private";
   process.env.PADELBOOK_DEMO_SEED = "false";
   process.env.ADMIN_NAME = "Admin QA";
@@ -17,6 +18,7 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
   let server;
   try {
     await connectDb();
+    assert.equal(mongoose.connection.name, "padelbook_qa");
     server = app.listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     const base = `http://127.0.0.1:${server.address().port}/api`;
@@ -117,13 +119,17 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/settings", { method: "PUT", token: receptionist, body: {} })).status, 403);
     assert.equal((await request("/finance/summary", { token: receptionist })).status, 403);
     assert.equal((await request(staffPath, { token: receptionist })).status, 403);
-    const walkIn = await request("/bookings", { method: "POST", token: receptionist, body: { date, time: "17:00", courtId: "court3", type: "court", durationMinutes: 60, paymentOption: "cash", playerName: "Jugador WhatsApp", phone: "3514443333", price: 1 } });
+    const walkIn = await request("/bookings", { method: "POST", token: receptionist, body: { date, time: "17:00", courtId: "court3", type: "court", durationMinutes: 60, paymentOption: "cash", playerName: "Jugador WhatsApp", phone: "3514443333", userEmail: "contacto-externo@club.test", price: 1 } });
     assert.equal(walkIn.status, 201);
     assert.equal(walkIn.data.booking.playerName, "Jugador WhatsApp");
     assert.equal(walkIn.data.booking.source, "reception");
     assert.notEqual(walkIn.data.booking.price, 1);
     assert.equal((await request("/bookings", { token: receptionist })).data.bookings.some((item) => item.id === walkIn.data.booking.id), true);
     assert.equal((await request("/bookings", { token: player })).data.bookings.some((item) => item.id === walkIn.data.booking.id), false);
+    const sameEmailSignup = await request("/auth/register", { method: "POST", body: { name: "Contacto externo", email: "contacto-externo@club.test", password: "external-qa-123" } });
+    assert.equal(sameEmailSignup.status, 201);
+    assert.equal((await request("/bookings", { token: sameEmailSignup.data.token })).data.bookings.some((item) => item.id === walkIn.data.booking.id), false);
+    assert.equal((await request(`/bookings/${walkIn.data.booking.id}/cancel`, { method: "POST", token: sameEmailSignup.data.token })).status, 403);
     const spoofed = await request("/bookings", { method: "POST", token: player, body: { date, time: "16:00", courtId: "court3", type: "court", durationMinutes: 60, paymentOption: "cash", playerName: "Otra persona", phone: "000" } });
     assert.equal(spoofed.status, 201);
     assert.equal(spoofed.data.booking.playerName, "Jugadora Actualizada");

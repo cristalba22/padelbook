@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { MONGODB_URI } from "./config.mjs";
+import { MONGODB_DB_NAME, MONGODB_URI } from "./config.mjs";
 import { bookingSlotStarts, canonicalCourtId } from "../src/utils/bookingDomain.js";
 
 const today = new Date();
@@ -182,7 +182,7 @@ export async function connectDb() {
   if (!MONGODB_URI) {
     throw new Error("Falta MONGODB_URI. Configura MongoDB Atlas o una instancia local en .env.");
   }
-  await mongoose.connect(MONGODB_URI, { dbName: "padelbook" });
+  await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB_NAME, serverSelectionTimeoutMS: 10000 });
   await seedDatabase();
   await Booking.init();
   await ScheduleBlock.init();
