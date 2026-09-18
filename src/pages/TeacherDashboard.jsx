@@ -86,10 +86,10 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <main className="main-container text-white">
+    <main className="main-container interior-page teacher-page text-white">
       {blocksError && <p role="alert" className="mb-4 rounded-2xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm text-rose-100">{blocksError} Actualizá la página para reintentar.</p>}
       <header className="mb-5 grid gap-4 lg:grid-cols-[1fr_340px]">
-        <section className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl sm:p-6">
+        <section className="interior-hero rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-5 shadow-xl sm:p-6">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">Panel del profesor</p>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -218,7 +218,7 @@ export default function TeacherDashboard() {
 }
 
 function Kpi({ label, value, detail, warn = false }) {
-  return <div className={`rounded-3xl border p-3 sm:p-4 ${warn ? "border-amber-300/30 bg-amber-300/10" : "border-white/10 bg-black/25"}`}><p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{label}</p><p className="mt-1 truncate text-xl font-black text-white sm:text-2xl">{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
+  return <div className={`interior-metric rounded-3xl border p-3 sm:p-4 ${warn ? "border-amber-300/30 bg-amber-300/10" : "border-white/10 bg-black/25"}`}><p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{label}</p><p className="mt-1 truncate text-xl font-black text-white sm:text-2xl">{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
 }
 
 function StatusDot({ tone }) {

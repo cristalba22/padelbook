@@ -1,94 +1,22 @@
-import React from "react";
+import { Link } from "react-router-dom";
+import { ArrowUpRight, MapPin } from "lucide-react";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
-
-function cleanPhone(value = "") {
-  return String(value).replace(/\D/g, "");
-}
-
-function instagramUrl(handle = "") {
-  const clean = String(handle).replace(/^@/, "").trim();
-  return clean ? `https://www.instagram.com/${clean}/` : "https://www.instagram.com/";
-}
+import { ROUTES } from "../constants/routes.js";
+import "./siteFooter.css";
 
 export default function Footer() {
   const { settings } = useClubSettings();
   const mapsQuery = encodeURIComponent(settings.mapsQuery || settings.address || settings.clubName);
-  const phone = cleanPhone(settings.whatsapp);
-  const whatsappText = encodeURIComponent(`Hola, quiero consultar por reservas en ${settings.clubName}.`);
-  const whatsappUrl = phone ? `https://wa.me/${phone}?text=${whatsappText}` : "#";
-  const instagram = settings.instagram || "padelbook.club";
+  const phone = String(settings.whatsapp || "").replace(/\D/g, "");
+  const whatsappUrl = phone && phone !== "5493510000000" ? `https://wa.me/${phone}?text=${encodeURIComponent(`Hola, quiero consultar por reservas en ${settings.clubName}.`)}` : null;
+  const instagram = String(settings.instagram || "").replace(/^@/, "").trim();
 
-  return (
-    <footer className="border-t border-white/10 bg-[#020617] text-white">
-      <div className="mx-auto grid max-w-[1360px] gap-5 px-5 py-8 lg:grid-cols-[1fr_420px] lg:items-stretch">
-        <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#071022] p-5 shadow-xl">
-          <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-lime-300/10 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-lime-300 to-emerald-300 text-xs font-black text-black shadow-[0_0_28px_rgba(61,247,168,0.35)]">
-                PB
-              </div>
-              <div>
-                <p className="text-sm font-black text-white">{settings.clubShortName}</p>
-                <p className="text-xs text-slate-300">Reservas, torneos y comunidad de pádel</p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Club</p>
-                <h2 className="mt-2 text-xl font-black text-white">{settings.clubName}</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-400">{settings.address}</p>
-                <p className="mt-2 text-xs font-bold text-lime-100">Horario: {settings.openingHours}</p>
-              </div>
-
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">Contactanos</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <a className="btn-primary px-4 py-2 text-xs" href={whatsappUrl} target="_blank" rel="noreferrer">
-                    WhatsApp
-                  </a>
-                  <a className="btn-outline px-4 py-2 text-xs" href={instagramUrl(instagram)} target="_blank" rel="noreferrer">
-                    Instagram
-                  </a>
-                  <a className="btn-outline px-4 py-2 text-xs" href={`https://www.google.com/maps?q=${mapsQuery}`} target="_blank" rel="noreferrer">
-                    Cómo llegar
-                  </a>
-                </div>
-                <p className="mt-3 text-xs text-slate-500">@{instagram.replace(/^@/, "")}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[2rem] border border-lime-300/20 bg-lime-300/10 shadow-xl">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-lime-100">Ubicación</p>
-              <p className="text-sm font-bold text-white">{settings.clubName}</p>
-            </div>
-            <a
-              className="rounded-full border border-lime-300/30 px-3 py-1 text-xs font-bold text-lime-100 transition hover:bg-lime-300/10"
-              href={`https://www.google.com/maps?q=${mapsQuery}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Ver mapa
-            </a>
-          </div>
-          <div className="h-56 bg-[#050814] sm:h-64 lg:h-full lg:min-h-[230px]">
-            <iframe
-              title={`Mapa ${settings.clubName}`}
-              src={`https://www.google.com/maps?q=${mapsQuery}&output=embed`}
-              width="100%"
-              height="100%"
-              style={{ border: 0, filter: "saturate(0.9) contrast(1.05)" }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </section>
-      </div>
-    </footer>
-  );
+  return <footer className="site-footer">
+    <div className="site-footer__inner">
+      <div className="site-footer__intro"><span className="site-footer__eyebrow">EL PARTIDO SIGUE</span><Link to={ROUTES.HOME} className="site-footer__brand"><span aria-hidden="true">p.</span>padelbook</Link><p>Tu club, tu cancha, tu próximo partido. Reservá, competí y volvé a jugar.</p></div>
+      <div className="site-footer__column"><h2>Explorá</h2><Link to={ROUTES.BOOKING}>Reservar cancha <ArrowUpRight size={15} aria-hidden="true" /></Link><Link to={ROUTES.TOURNAMENTS}>Torneos <ArrowUpRight size={15} aria-hidden="true" /></Link><Link to={ROUTES.COMMUNITY}>Comunidad <ArrowUpRight size={15} aria-hidden="true" /></Link><Link to={ROUTES.MY_BOOKINGS}>Mis turnos <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+      <div className="site-footer__column"><h2>{settings.clubName}</h2><p className="site-footer__address"><MapPin size={16} aria-hidden="true" />{settings.address}</p><p>Horario · {settings.openingHours}</p><a href={`https://www.google.com/maps?q=${mapsQuery}`} target="_blank" rel="noreferrer">Cómo llegar <ArrowUpRight size={15} aria-hidden="true" /></a>{whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noreferrer">WhatsApp <ArrowUpRight size={15} aria-hidden="true" /></a>}{instagram && <a href={`https://www.instagram.com/${instagram}/`} target="_blank" rel="noreferrer">Instagram <ArrowUpRight size={15} aria-hidden="true" /></a>}</div>
+    </div>
+    <div className="site-footer__base"><span>© {new Date().getFullYear()} PadelBook</span><span>Hecho para jugar más.</span></div>
+  </footer>;
 }

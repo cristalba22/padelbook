@@ -129,15 +129,15 @@ export default function PlayerDashboard() {
   if (!user) return <Navigate to={ROUTES.HOME} replace />;
 
   return (
-    <main className="main-container max-w-7xl text-white">
+    <main className="main-container interior-page player-page max-w-7xl text-white">
       <section className="mb-6 grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#060B18] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="interior-hero relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#060B18] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.9)] md:p-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(190,242,100,0.20),transparent_36%),radial-gradient(circle_at_100%_0%,rgba(20,184,166,0.12),transparent_34%)]" />
           <div className="relative">
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-lime-200">Panel jugador</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.05em] text-white md:text-5xl">Hola, {user.name || "jugador"}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Tu agenda de pádel ordenada: próximo turno, pagos pendientes, historial reciente y progreso para la reserva bonificada.
+              Tu agenda de pádel ordenada: próximo turno, pagos pendientes, historial reciente y torneos.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link to={ROUTES.BOOKING} className="btn-primary">Nueva reserva</Link>
@@ -298,7 +298,7 @@ function EmptyState() {
 
 function Metric({ label, value, detail, alert = false }) {
   return (
-    <div className={`rounded-3xl border p-4 shadow-xl ${alert ? "border-amber-300/25 bg-amber-300/10" : "border-white/10 bg-[#0B1326]/80"}`}>
+    <div className={`interior-metric rounded-3xl border p-4 shadow-xl ${alert ? "border-amber-300/25 bg-amber-300/10" : "border-white/10 bg-[#0B1326]/80"}`}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-2xl font-black text-white">{value}</p>
       <p className="mt-1 text-xs text-slate-400">{detail}</p>

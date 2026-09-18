@@ -200,8 +200,8 @@ export default function Booking() {
   const totalAmount = selectedSlot?.price || 0;
 
   return (
-    <main className="main-container pt-24 text-white">
-      <header className="mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
+    <main className="main-container interior-page booking-page text-white">
+      <header className="interior-hero mb-5 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">Reservas online</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Reservar turno</h1>

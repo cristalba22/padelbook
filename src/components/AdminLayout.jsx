@@ -5,6 +5,7 @@ import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import "./adminWorkspace.css";
+import "./adminExperience.css";
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Inicio", Icon: ChartNoAxesCombined },

@@ -69,8 +69,8 @@ export default function Tournaments() {
   }
 
   return (
-    <main className="main-container max-w-7xl text-white">
-      <section className="relative mb-7 overflow-hidden rounded-[2.4rem] border border-lime-300/20 bg-[#050814] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.9)] md:p-8">
+    <main className="main-container interior-page tournaments-page max-w-7xl text-white">
+      <section className="interior-hero relative mb-7 overflow-hidden rounded-[2.4rem] border border-lime-300/20 bg-[#050814] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.9)] md:p-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(190,242,100,0.2),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(45,212,191,0.14),transparent_30%)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1fr_410px]">
           <div>
