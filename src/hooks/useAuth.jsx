@@ -35,7 +35,8 @@ function publicProfile(user) {
 }
 
 export function AuthProvider({ children }) {
-  const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+  const hostedVercelDemo = typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
+  const demoMode = import.meta.env.VITE_DEMO_MODE === "true" || hostedVercelDemo;
   const configuredApi = Boolean(import.meta.env.VITE_API_URL) || (import.meta.env.PROD && !demoMode);
   const [user, setUser] = useState(() => configuredApi ? null : safeRead(AUTH_KEY, null));
   const [showLogin, setShowLogin] = useState(false);

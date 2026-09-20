@@ -33,7 +33,7 @@ Este documento describe los controles incluidos en el código y los controles qu
 - Content Security Policy que bloquea scripts ajenos, ejecución inline de scripts, objetos y framing.
 - HSTS, protección contra MIME sniffing y clickjacking, política de permisos y aislamiento de origen.
 - HTML y respuestas de API marcados `no-store`.
-- Los builds productivos fallan de forma segura si la API no responde; el modo demo requiere `VITE_DEMO_MODE=true` explícito.
+- Los builds productivos del dominio del club fallan de forma segura si la API no responde. El modo local requiere `VITE_DEMO_MODE=true`; los subdominios de preview `*.vercel.app` se consideran demos sin datos reales.
 - Dependabot para npm, GitHub Actions y Docker.
 - CI ejecuta pruebas, build, auditoría de dependencias, validación de Wrangler y revisión de dependencias de cada PR.
 - CodeQL analiza JavaScript y TypeScript en pushes, PR y semanalmente.
