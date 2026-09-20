@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../hooks/useAuth.jsx";
+import PasswordField from "./PasswordField.jsx";
 
 const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da"];
 
@@ -132,10 +133,10 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             {mode === "register" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nombre">
-                  <input value={name} onChange={(event) => setName(event.target.value)} className="field" placeholder="Tu nombre" autoComplete="name" required />
+                  <input name="name" value={name} onChange={(event) => setName(event.target.value)} className="field" placeholder="Tu nombre" autoComplete="name" required />
                 </Field>
                 <Field label="Teléfono">
-                  <input value={phone} onChange={(event) => setPhone(event.target.value)} className="field" placeholder="+54 9..." autoComplete="tel" />
+                  <input name="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="field" placeholder="+54 9..." autoComplete="tel" />
                 </Field>
                 <Field label="Categoría">
                   <select value={category} onChange={(event) => setCategory(event.target.value)} className="field">
@@ -149,11 +150,9 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             )}
 
             <Field label="Email">
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="field" placeholder="tu@email.com" autoComplete="email" required />
+              <input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="field" placeholder="tu@email.com" autoComplete={mode === "login" ? "username" : "email"} required />
             </Field>
-            <Field label="Contraseña">
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field" placeholder="********" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} maxLength={72} required />
-            </Field>
+            <PasswordField id="access-password" value={password} onValueChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} required showGenerator={mode === "register"} />
 
             <button type="submit" className="btn-primary w-full justify-center py-3">
               {mode === "login" ? "Entrar al panel" : "Crear cuenta de jugador"}
