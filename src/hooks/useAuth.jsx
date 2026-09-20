@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { apiRequest, checkApiHealth, getAuthToken, setAuthToken } from "../utils/apiClient.js";
+import { apiRequest, checkApiHealth, setCsrfToken } from "../utils/apiClient.js";
 import { safeRead, safeRemove, safeWrite } from "../utils/storage.js";
 
 const AuthContext = createContext(null);
@@ -35,7 +35,8 @@ function publicProfile(user) {
 }
 
 export function AuthProvider({ children }) {
-  const configuredApi = Boolean(import.meta.env.VITE_API_URL);
+  const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+  const configuredApi = Boolean(import.meta.env.VITE_API_URL) || (import.meta.env.PROD && !demoMode);
   const [user, setUser] = useState(() => configuredApi ? null : safeRead(AUTH_KEY, null));
   const [showLogin, setShowLogin] = useState(false);
   const [apiOnline, setApiOnline] = useState(false);
@@ -50,23 +51,18 @@ export function AuthProvider({ children }) {
       return;
     }
     if (online) {
-      const token = getAuthToken();
-      if (token) {
-        try {
-          const { user: profile } = await apiRequest("/auth/me");
-          if (!isActive()) return;
-          setUser(profile);
-          safeWrite(AUTH_KEY, profile);
-        } catch (error) {
-          if (!isActive()) return;
-          if (error.status !== 401 && configuredApi) {
-            setApiError(true);
-            return;
-          }
-          setUser(null);
-          safeRemove(AUTH_KEY);
+      try {
+        const { user: profile, csrfToken } = await apiRequest("/auth/me");
+        if (!isActive()) return;
+        setCsrfToken(csrfToken);
+        setUser(profile);
+        safeRemove(AUTH_KEY);
+      } catch (error) {
+        if (!isActive()) return;
+        if (error.status !== 401 && configuredApi) {
+          setApiError(true);
+          return;
         }
-      } else {
         setUser(null);
         safeRemove(AUTH_KEY);
       }
@@ -102,13 +98,13 @@ export function AuthProvider({ children }) {
 
   async function login(email, password = "") {
     if (apiOnline) {
-      const { user: profile, token } = await apiRequest("/auth/login", {
+      const { user: profile, csrfToken } = await apiRequest("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      setAuthToken(token);
+      setCsrfToken(csrfToken);
       setUser(profile);
-      safeWrite(AUTH_KEY, profile);
+      safeRemove(AUTH_KEY);
       closeLogin();
       return profile;
     }
@@ -126,13 +122,13 @@ export function AuthProvider({ children }) {
 
   async function register({ name, email, password, phone = "", category = "Sin categoría" }) {
     if (apiOnline) {
-      const { user: profile, token } = await apiRequest("/auth/register", {
+      const { user: profile, csrfToken } = await apiRequest("/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, password, phone, category }),
       });
-      setAuthToken(token);
+      setCsrfToken(csrfToken);
       setUser(profile);
-      safeWrite(AUTH_KEY, profile);
+      safeRemove(AUTH_KEY);
       closeLogin();
       return profile;
     }
@@ -140,7 +136,7 @@ export function AuthProvider({ children }) {
     const lower = cleanEmail(email);
     if (!name?.trim()) throw new Error("Ingresa tu nombre.");
     if (!lower.includes("@")) throw new Error("Ingresa un email valido.");
-    if (!password || password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres.");
+    if (!password || password.length < 12 || password.length > 72) throw new Error("La contraseña debe tener entre 12 y 72 caracteres.");
     const users = getUsers();
     if (users.some((u) => cleanEmail(u.email) === lower)) throw new Error("Ya existe una cuenta con ese email.");
     const account = { id: `user-${Date.now()}`, name: name.trim(), email: lower, password, role: "player", phone, category };
@@ -160,7 +156,7 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ name: updates.name, phone: updates.phone, category: updates.category }),
       });
       setUser(saved);
-      safeWrite(AUTH_KEY, saved);
+      safeRemove(AUTH_KEY);
       return saved;
     }
     const users = getUsers();
@@ -172,9 +168,10 @@ export function AuthProvider({ children }) {
     return nextUser;
   }
 
-  function logout() {
+  async function logout() {
+    if (apiOnline) await apiRequest("/auth/logout", { method: "POST" }).catch(() => {});
     setUser(null);
-    setAuthToken(null);
+    setCsrfToken();
     safeRemove(AUTH_KEY);
     closeLogin();
   }

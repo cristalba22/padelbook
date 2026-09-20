@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["admin", "receptionist", "teacher", "player"], default: "player" },
   active: { type: Boolean, default: true },
+  sessionVersion: { type: Number, default: 0, select: false },
   phone: { type: String, default: "" },
   category: { type: String, default: "Sin categoria" },
 }, baseOptions);
@@ -127,6 +128,10 @@ const activitySchema = new mongoose.Schema({
   detail: String,
   actor: String,
   bookingId: String,
+  actorId: { type: String, default: "" },
+  actorRole: { type: String, default: "" },
+  requestId: { type: String, default: "" },
+  ipHash: { type: String, default: "" },
 }, baseOptions);
 
 const expenseSchema = new mongoose.Schema({
@@ -202,10 +207,12 @@ export function makeId(prefix) {
 }
 
 export async function addActivity(item) {
-  await Activity.create(item);
+  const { requestContext } = await import("./requestContext.mjs");
+  const context = requestContext.getStore() || {};
+  await Activity.create({ ...item, actorId: item.actorId || context.actorId || "", actorRole: item.actorRole || context.actorRole || "", requestId: context.requestId || "", ipHash: context.ipHash || "" });
   const count = await Activity.countDocuments();
-  if (count > 80) {
-    const old = await Activity.find().sort({ createdAt: -1 }).skip(80).select("_id");
+  if (count > 5000) {
+    const old = await Activity.find().sort({ createdAt: -1 }).skip(5000).select("_id");
     await Activity.deleteMany({ _id: { $in: old.map((item) => item._id) } });
   }
 }
@@ -216,8 +223,8 @@ async function seedDatabase() {
   if (process.env.PADELBOOK_DEMO_SEED !== "true") {
     const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
     const password = String(process.env.ADMIN_PASSWORD || "");
-    if (!email.includes("@") || password.length < 12) {
-      throw new Error("Para iniciar una base vacia, configura ADMIN_EMAIL y ADMIN_PASSWORD (12 caracteres minimo), o activa PADELBOOK_DEMO_SEED=true solo en desarrollo.");
+    if (!email.includes("@") || password.length < 12 || password.length > 72) {
+      throw new Error("Para iniciar una base vacía, configurá ADMIN_EMAIL y ADMIN_PASSWORD (12 a 72 caracteres), o activá PADELBOOK_DEMO_SEED=true solo en desarrollo.");
     }
     await User.create({ name: process.env.ADMIN_NAME || "Administrador del club", email, passwordHash: bcrypt.hashSync(password, 12), role: "admin" });
     await Setting.create({});

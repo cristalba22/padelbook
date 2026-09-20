@@ -43,6 +43,12 @@ Desde el botón **Ingresar** podés cargar perfiles preparados para recorrer cad
 - Mongoose
 - JWT
 
+## Seguridad
+
+La sesión productiva usa una cookie `HttpOnly`, `Secure` y `SameSite=Strict`, con protección CSRF y revocación al cambiar accesos. La API aplica roles, rate limits, límites de payload, validación de entradas, headers seguros y un canal privado desde Cloudflare mediante secreto de proxy. CI incluye auditoría de dependencias, revisión de cambios y CodeQL.
+
+Los pasos obligatorios de infraestructura, riesgos pendientes y respuesta a incidentes están en [Seguridad](docs/SEGURIDAD.md). El sistema debe desplegarse con una API y una base separadas por club hasta implementar aislamiento multiclub completo.
+
 ## Cómo correrlo
 
 Instalá dependencias:
@@ -106,7 +112,7 @@ npm test
 
 ## Estado actual
 
-Las URL de Vercel y [Cloudflare](https://padelbook-clubes-demo.crisalbavideografo.workers.dev) publican solo el frontend y funcionan en modo demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB Atlas (replica set para transacciones) y configurar `VITE_API_URL` durante el build. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md), el [plan del piloto](docs/PLAN_PILOTO.md) y la [guía de despliegue Cloudflare/MonsterAPI](docs/DESPLIEGUE_CLOUDFLARE_MONSTER.md).
+Las URL de Vercel y [Cloudflare](https://padelbook-clubes-demo.crisalbavideografo.workers.dev) funcionan todavía como demo por navegador. Para reservas compartidas entre jugadores hace falta desplegar la API con MongoDB Atlas. En producción, Cloudflare debe reenviar `/api` por el proxy seguro del Worker; no se debe configurar una URL pública de API en el JavaScript. El frontend productivo bloquea la operación si la API falla. `VITE_DEMO_MODE=true` se reserva para una demo explícita sin datos reales. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md), el [plan del piloto](docs/PLAN_PILOTO.md) y la [guía de despliegue Cloudflare/MonsterAPI](docs/DESPLIEGUE_CLOUDFLARE_MONSTER.md).
 
 La secuencia concreta de infraestructura, configuración y aceptación está en [Despliegue del piloto](docs/DESPLIEGUE_PILOTO.md). La API dispone de `Dockerfile.api` para un servicio persistente; el modo productivo rechaza semilla demo y configuración insegura.
 
