@@ -33,6 +33,7 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
 
     const adminLogin = await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD } });
     assert.equal(adminLogin.status, 200);
+    assert.match(adminLogin.headers.get("content-security-policy"), /default-src 'self'/);
     const admin = adminLogin.data.token;
     const adminCookie = adminLogin.headers.get("set-cookie").split(";")[0];
     assert.match(adminLogin.headers.get("set-cookie"), /HttpOnly/i);

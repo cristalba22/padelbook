@@ -22,7 +22,7 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder"
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(requestContextMiddleware);
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "same-site" } }));
+app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
 app.use("/api", (req, res, next) => {
   if (process.env.NODE_ENV !== "production" || req.path === "/health") return next();
   const received = Buffer.from(String(req.get("X-PadelBook-Proxy") || ""));
