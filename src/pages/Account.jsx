@@ -7,6 +7,7 @@ import { money } from "../utils/businessMetrics.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useTournaments } from "../hooks/useTournaments.jsx";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
+import PasswordField from "../components/PasswordField.jsx";
 
 const CATEGORIES = ["Sin categoría", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "Profesor"];
 
@@ -153,9 +154,9 @@ export default function Account() {
         <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold"><button type="button" onClick={() => setMode("login")} className={`rounded-full py-2 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button><button type="button" onClick={() => setMode("register")} className={`rounded-full py-2 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button></div>
         {error && <div className="mt-4 rounded-2xl border border-red-300/30 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-100">{error}</div>}
         <form onSubmit={submitAccess} className="mt-5 space-y-3">
-          {mode === "register" && <label className="block"><span className="mb-1 block text-xs text-slate-400">Nombre</span><input className="field" value={form.name} onChange={(e) => setField("name", e.target.value)} required /></label>}
-          <label className="block"><span className="mb-1 block text-xs text-slate-400">Email</span><input type="email" className="field" value={form.email} onChange={(e) => setField("email", e.target.value)} required /></label>
-          <label className="block"><span className="mb-1 block text-xs text-slate-400">Contraseña</span><input type="password" className="field" value={form.password} onChange={(e) => setField("password", e.target.value)} minLength={mode === "register" ? 12 : undefined} maxLength={72} required /></label>
+          {mode === "register" && <label className="block"><span className="mb-1 block text-xs text-slate-400">Nombre</span><input name="name" autoComplete="name" className="field" value={form.name} onChange={(e) => setField("name", e.target.value)} required /></label>}
+          <label className="block"><span className="mb-1 block text-xs text-slate-400">Email</span><input name="email" autoComplete={mode === "login" ? "username" : "email"} type="email" className="field" value={form.email} onChange={(e) => setField("email", e.target.value)} required /></label>
+          <PasswordField id="account-password" value={form.password} onValueChange={(value) => setField("password", value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} required showGenerator={mode === "register"} />
           <button className="btn-primary w-full justify-center">{mode === "login" ? "Entrar" : "Crear cuenta"}</button>
         </form>
       </div>
