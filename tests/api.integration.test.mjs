@@ -22,10 +22,10 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     server = app.listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     const base = `http://127.0.0.1:${server.address().port}/api`;
-    const request = async (path, { method = "GET", token, body } = {}) => {
-      const response = await fetch(`${base}${path}`, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    const request = async (path, { method = "GET", token, cookie, csrf, body } = {}) => {
+      const response = await fetch(`${base}${path}`, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cookie ? { Cookie: cookie } : {}), ...(csrf ? { "X-CSRF-Token": csrf } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-      return { status: response.status, data: await response.json() };
+      return { status: response.status, data: response.status === 204 ? {} : await response.json(), headers: response.headers };
     };
     const future = new Date();
     future.setDate(future.getDate() + 7);
@@ -33,7 +33,15 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
 
     const adminLogin = await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD } });
     assert.equal(adminLogin.status, 200);
+    assert.match(adminLogin.headers.get("content-security-policy"), /default-src 'self'/);
     const admin = adminLogin.data.token;
+    const adminCookie = adminLogin.headers.get("set-cookie").split(";")[0];
+    assert.match(adminLogin.headers.get("set-cookie"), /HttpOnly/i);
+    assert.equal((await request("/auth/me", { cookie: adminCookie })).status, 200);
+    assert.equal((await request("/auth/me", { cookie: "padelbook_session=%ZZ" })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "x".repeat(73) } })).status, 400);
+    assert.equal((await request("/auth/me", { method: "PATCH", cookie: adminCookie, body: { name: "Admin QA", phone: "", category: "Gestión" } })).status, 403);
+    assert.equal((await request("/auth/me", { method: "PATCH", cookie: adminCookie, csrf: adminLogin.data.csrfToken, body: { name: "Admin QA", phone: "", category: "Gestión" } })).status, 200);
     const playerSignup = await request("/auth/register", { method: "POST", body: { name: "Jugadora QA", email: "jugadora@club.test", password: "player-qa-123", phone: "3511234567" } });
     assert.equal(playerSignup.status, 201);
     const player = playerSignup.data.token;
@@ -137,9 +145,13 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/blocks/batch", { method: "POST", token: receptionist, body: { blocks: [{ date, courtId: "court1", hour: "17:00", durationMinutes: 30 }] } })).status, 200);
     assert.equal((await request(`/bookings/${walkIn.data.booking.id}/status`, { method: "PATCH", token: receptionist, body: { status: "confirmado" } })).status, 200);
     assert.equal((await request(`/bookings/${walkIn.data.booking.id}/payments`, { method: "POST", token: receptionist, body: { amount: 1000, method: "efectivo", idempotencyKey: "83284a55-1976-4862-8805-8e0888a41aa7" } })).status, 200);
-    assert.equal((await request(`${staffPath}/${receptionistId}`, { method: "PATCH", token: admin, body: { active: false } })).status, 200);
+    assert.equal((await request(`${staffPath}/${receptionistId}`, { method: "PATCH", token: admin, body: { password: "recepcion-renovada-456" } })).status, 200);
     assert.equal((await request("/bookings", { token: receptionist })).status, 401);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: "recepcion@club.test", password: "recepcion-segura-123" } })).status, 401);
+    const renewedLogin = await request("/auth/login", { method: "POST", body: { email: "recepcion@club.test", password: "recepcion-renovada-456" } });
+    assert.equal(renewedLogin.status, 200);
+    assert.equal((await request(`${staffPath}/${receptionistId}`, { method: "PATCH", token: admin, body: { active: false } })).status, 200);
+    assert.equal((await request("/bookings", { token: renewedLogin.data.token })).status, 401);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();

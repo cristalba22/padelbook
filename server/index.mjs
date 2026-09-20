@@ -2,19 +2,34 @@ import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { CLIENT_ORIGIN, PORT } from "./config.mjs";
 import { Activity, Booking, Expense, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
-import { publicUser, requireAuth, requireRole, signToken } from "./auth.mjs";
+import { clearSessionCookie, createSession, publicUser, requireAuth, requireRole, sessionCookie } from "./auth.mjs";
+import { requestContextMiddleware } from "./requestContext.mjs";
 import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
 import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
+import { API_PROXY_SECRET } from "./config.mjs";
 
 const app = express();
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(requestContextMiddleware);
+app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
+app.use("/api", (req, res, next) => {
+  if (process.env.NODE_ENV !== "production" || req.path === "/health") return next();
+  const received = Buffer.from(String(req.get("X-PadelBook-Proxy") || ""));
+  const expected = Buffer.from(API_PROXY_SECRET);
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) return res.status(404).json({ message: "Recurso no encontrado." });
+  next();
+});
 
 app.use(cors({
   origin(origin, callback) {
@@ -24,18 +39,25 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "32kb", strict: true }));
+app.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 
 const cleanEmail = (email = "") => String(email).toLowerCase().trim();
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 25,
+  limit: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { message: "Demasiados intentos. Espera unos minutos y volve a probar." },
 });
+const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false,
+  message: { message: "Se alcanzó el límite de registros. Intentá nuevamente más tarde." } });
+const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false,
+  message: { message: "Demasiadas solicitudes. Esperá un momento y volvé a intentar." }, skip: (req) => req.path === "/health" });
+app.use("/api", apiLimiter);
 
 function todayString() {
   return argentinaDateISO();
@@ -98,25 +120,32 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
-  const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
+  const schema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(72) }).strict();
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Email o contrasena invalidos." });
   const { email, password } = parsed.data;
-  const account = await User.findOne({ email: cleanEmail(email) });
-  if (!account || account.active === false || !bcrypt.compareSync(password, account.passwordHash)) {
+  const account = await User.findOne({ email: cleanEmail(email) }).select("+sessionVersion");
+  const passwordMatches = await bcrypt.compare(password, account?.passwordHash || DUMMY_PASSWORD_HASH);
+  if (!account || account.active === false || !passwordMatches) {
     return res.status(401).json({ message: "Credenciales incorrectas." });
   }
-  res.json({ user: publicUser(account), token: signToken(account) });
+  if (bcrypt.getRounds(account.passwordHash) < 12) {
+    account.passwordHash = await bcrypt.hash(password, 12);
+    await account.save();
+  }
+  const session = createSession(account);
+  res.setHeader("Set-Cookie", sessionCookie(session.token));
+  res.json({ user: publicUser(account), csrfToken: session.csrfToken, ...(process.env.NODE_ENV !== "production" ? { token: session.token } : {}) });
 });
 
-app.post("/api/auth/register", authLimiter, async (req, res) => {
+app.post("/api/auth/register", registerLimiter, async (req, res) => {
   const schema = z.object({
-    name: z.string().min(2),
-    email: z.string().email(),
-    password: z.string().min(8),
-    phone: z.string().optional().default(""),
-    category: z.string().optional().default("Sin categoria"),
-  });
+    name: z.string().trim().min(2).max(100),
+    email: z.string().email().max(254),
+    password: z.string().min(12).max(72),
+    phone: z.string().trim().max(40).optional().default(""),
+    category: z.string().trim().max(60).optional().default("Sin categoria"),
+  }).strict();
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Revisa los datos del registro." });
   const exists = await User.exists({ email: cleanEmail(parsed.data.email) });
@@ -124,17 +153,24 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
   const user = await User.create({
     name: parsed.data.name.trim(),
     email: cleanEmail(parsed.data.email),
-    passwordHash: bcrypt.hashSync(parsed.data.password, 10),
+    passwordHash: await bcrypt.hash(parsed.data.password, 12),
     role: "player",
     phone: parsed.data.phone,
     category: parsed.data.category,
   });
   await addActivity({ type: "user_registered", title: "Nuevo jugador registrado", detail: user.name, actor: user.name });
-  res.status(201).json({ user: publicUser(user), token: signToken(user) });
+  const session = createSession(user);
+  res.setHeader("Set-Cookie", sessionCookie(session.token));
+  res.status(201).json({ user: publicUser(user), csrfToken: session.csrfToken, ...(process.env.NODE_ENV !== "production" ? { token: session.token } : {}) });
 });
 
 app.get("/api/auth/me", requireAuth, (req, res) => {
-  res.json({ user: req.user });
+  res.json({ user: req.user, csrfToken: req.csrfToken });
+});
+
+app.post("/api/auth/logout", requireAuth, (_req, res) => {
+  res.setHeader("Set-Cookie", clearSessionCookie());
+  res.status(204).end();
 });
 
 app.patch("/api/auth/me", requireAuth, async (req, res) => {
@@ -155,7 +191,7 @@ app.get("/api/admin/staff", requireAuth, requireRole("admin"), async (_req, res)
 });
 
 app.post("/api/admin/staff", requireAuth, requireRole("admin"), async (req, res) => {
-  const parsed = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email(), password: z.string().min(12), phone: z.string().trim().max(40).optional().default("") }).strict().safeParse(req.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email(), password: z.string().min(12).max(72), phone: z.string().trim().max(40).optional().default("") }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Revisá nombre, email y contraseña (mínimo 12 caracteres)." });
   const email = cleanEmail(parsed.data.email);
   if (await User.exists({ email })) return res.status(409).json({ message: "Ya existe una cuenta con ese email." });
@@ -166,12 +202,13 @@ app.post("/api/admin/staff", requireAuth, requireRole("admin"), async (req, res)
 
 app.patch("/api/admin/staff/:id", requireAuth, requireRole("admin"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de empleado inválido." });
-  const parsed = z.object({ active: z.boolean().optional(), password: z.string().min(12).optional() }).strict().refine((value) => Object.keys(value).length > 0).safeParse(req.body);
+  const parsed = z.object({ active: z.boolean().optional(), password: z.string().min(12).max(72).optional() }).strict().refine((value) => Object.keys(value).length > 0).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Cambio inválido. La contraseña debe tener al menos 12 caracteres." });
-  const employee = await User.findOne({ _id: req.params.id, role: "receptionist" });
+  const employee = await User.findOne({ _id: req.params.id, role: "receptionist" }).select("+sessionVersion");
   if (!employee) return res.status(404).json({ message: "Recepcionista no encontrado." });
   if (parsed.data.active !== undefined) employee.active = parsed.data.active;
   if (parsed.data.password) employee.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  employee.sessionVersion = Number(employee.sessionVersion || 0) + 1;
   await employee.save();
   await addActivity({ type: "staff_updated", title: "Acceso de recepcionista actualizado", detail: employee.name, actor: req.user.name });
   res.json({ employee: publicUser(employee) });
@@ -192,7 +229,7 @@ app.get("/api/teachers", async (_req, res) => {
 
 app.post("/api/admin/teachers", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = z.object({ name: z.string().trim().min(2).max(100), nickname: z.string().trim().max(40).optional().default(""),
-    specialty: z.string().trim().max(100).optional().default("Clases de pádel"), price: z.number().int().min(0) }).strict().safeParse(req.body);
+    specialty: z.string().trim().max(100).optional().default("Clases de pádel"), price: z.number().int().min(0).max(100_000_000) }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos de profesor inválidos." });
   const teacher = await Teacher.create(parsed.data);
   res.status(201).json({ teacher: teacher.toJSON() });
@@ -201,7 +238,7 @@ app.post("/api/admin/teachers", requireAuth, requireRole("admin"), async (req, r
 app.patch("/api/admin/teachers/:id", requireAuth, requireRole("admin"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de profesor inválido." });
   const parsed = z.object({ status: z.enum(["activo", "vacaciones", "baja"]).optional(),
-    price: z.number().int().min(0).optional() }).strict().safeParse(req.body);
+    price: z.number().int().min(0).max(100_000_000).optional() }).strict().safeParse(req.body);
   if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Datos de profesor inválidos." });
   const teacher = await Teacher.findByIdAndUpdate(req.params.id, { $set: parsed.data }, { returnDocument: "after", runValidators: true });
   if (!teacher) return res.status(404).json({ message: "Profesor no encontrado." });
@@ -215,7 +252,7 @@ app.get("/api/blocks", async (_req, res) => {
 
 const blockInput = z.object({
   date: z.string(), courtId: z.union([z.string(), z.number()]).transform(canonicalCourtId), hour: z.string(),
-  durationMinutes: z.number().int().min(30).max(150), reason: z.string().max(120).optional().default("No disponible"),
+  durationMinutes: z.number().int().min(30).max(150), reason: z.string().trim().max(120).optional().default("No disponible"),
   type: z.enum(["block", "teacher"]).optional().default("block"),
 });
 
@@ -293,18 +330,18 @@ app.get("/api/bookings", requireAuth, async (req, res) => {
 
 app.post("/api/bookings", requireAuth, async (req, res) => {
   const schema = z.object({
-    date: z.string().min(8),
-    time: z.string().min(4),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    time: z.string().regex(/^\d{2}:\d{2}$/),
     courtId: z.union([z.string(), z.number()]).transform(canonicalCourtId),
-    courtName: z.string().optional(),
+    courtName: z.string().max(120).optional(),
     type: z.enum(["court", "class"]).optional().default("court"),
-    endTime: z.string().optional().default(""),
+    endTime: z.string().max(5).optional().default(""),
     durationMinutes: z.number().or(z.string()).transform(Number).optional().default(60),
     price: z.number().or(z.string()).transform(Number).optional(),
     paymentOption: z.string().optional().default("cash"),
     teacherId: z.string().nullable().optional(),
-    teacherName: z.string().optional().default(""),
-    description: z.string().optional().default(""),
+    teacherName: z.string().max(100).optional().default(""),
+    description: z.string().max(300).optional().default(""),
     playerName: z.string().trim().min(2).max(100).optional(),
     phone: z.string().trim().max(40).optional(),
     userEmail: z.union([z.string().email(), z.literal("")]).optional(),
@@ -417,7 +454,7 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin", "recepti
 
 app.post("/api/bookings/:id/payments", requireAuth, requireRole("admin", "receptionist"), async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de reserva invalido." });
-  const schema = z.object({ amount: z.number().int().positive(), method: z.enum(PAYMENT_METHODS), note: z.string().max(300).optional().default(""), idempotencyKey: z.string().uuid() });
+  const schema = z.object({ amount: z.number().int().positive().max(100_000_000), method: z.enum(PAYMENT_METHODS), note: z.string().max(300).optional().default(""), idempotencyKey: z.string().uuid() }).strict();
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos del cobro invalidos." });
   const booking = await Booking.findById(req.params.id);
@@ -542,7 +579,7 @@ const tournamentFields = z.object({
   name: z.string().trim().min(2).max(120), date: z.string(), hour: z.string(),
   status: z.enum(["abierto", "lleno", "en_curso", "finalizado", "cancelado"]),
   category: z.string().trim().max(80), surface: z.string().trim().max(80),
-  pricePerPlayer: z.number().int().min(0), seededPlayers: z.number().int().min(0),
+  pricePerPlayer: z.number().int().min(0).max(100_000_000), seededPlayers: z.number().int().min(0),
   maxPlayers: z.number().int().min(1), prize: z.string().trim().max(120),
   description: z.string().trim().max(1000),
 });
@@ -604,7 +641,8 @@ app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAut
 });
 
 app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
-  const schema = z.object({ partnerName: z.string().optional().default(""), partnerPhone: z.string().optional().default("") });
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de torneo inválido." });
+  const schema = z.object({ partnerName: z.string().trim().max(100).optional().default(""), partnerPhone: z.string().trim().max(40).optional().default("") }).strict();
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos invalidos." });
   const tournament = await Tournament.findById(req.params.id);
@@ -643,17 +681,17 @@ app.get("/api/settings", async (_req, res) => {
 
 app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => {
   const schema = z.object({
-    clubName: z.string().min(2).optional(),
-    clubShortName: z.string().min(2).optional(),
-    address: z.string().optional(),
-    mapsQuery: z.string().optional(),
-    whatsapp: z.string().optional(),
-    instagram: z.string().optional(),
-    openingHours: z.string().optional(),
-    clubStatus: z.string().optional(),
-    homeHeadline: z.string().optional(),
-    homeSubtitle: z.string().optional(),
-    promoText: z.string().optional(),
+    clubName: z.string().trim().min(2).max(120).optional(),
+    clubShortName: z.string().trim().min(2).max(40).optional(),
+    address: z.string().trim().max(200).optional(),
+    mapsQuery: z.string().trim().max(200).optional(),
+    whatsapp: z.string().trim().max(40).optional(),
+    instagram: z.string().trim().max(80).optional(),
+    openingHours: z.string().trim().max(100).optional(),
+    clubStatus: z.string().trim().max(160).optional(),
+    homeHeadline: z.string().trim().max(180).optional(),
+    homeSubtitle: z.string().trim().max(500).optional(),
+    promoText: z.string().trim().max(160).optional(),
     courtPrice: z.number().or(z.string()).transform(Number).optional(),
     nightPrice: z.number().or(z.string()).transform(Number).optional(),
     weekendExtra: z.number().or(z.string()).transform(Number).optional(),
@@ -667,7 +705,7 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
 
   const numericKeys = ["courtPrice", "nightPrice", "weekendExtra", "classPrice", "tournamentPrice", "teacherCommissionPercent"];
   for (const key of numericKeys) {
-    if (parsed.data[key] !== undefined && (!Number.isFinite(parsed.data[key]) || Number(parsed.data[key]) < 0)) {
+    if (parsed.data[key] !== undefined && (!Number.isFinite(parsed.data[key]) || Number(parsed.data[key]) < 0 || Number(parsed.data[key]) > (key === "teacherCommissionPercent" ? 100 : 100_000_000))) {
       return res.status(400).json({ message: "Los precios deben ser numeros positivos." });
     }
   }
@@ -771,14 +809,14 @@ app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, 
 app.post("/api/expenses", requireAuth, requireRole("admin"), async (req, res) => {
   const schema = z.object({
     date: z.string().min(8).optional().default(todayString()),
-    concept: z.string().min(2),
-    category: z.string().optional().default("operativo"),
+    concept: z.string().trim().min(2).max(160),
+    category: z.string().trim().max(60).optional().default("operativo"),
     amount: z.number().or(z.string()).transform(Number),
-    paymentMethod: z.string().optional().default("efectivo"),
-    note: z.string().optional().default(""),
-  });
+    paymentMethod: z.string().trim().max(60).optional().default("efectivo"),
+    note: z.string().trim().max(500).optional().default(""),
+  }).strict();
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success || !Number.isFinite(parsed.data.amount) || parsed.data.amount <= 0) {
+  if (!parsed.success || !Number.isFinite(parsed.data.amount) || parsed.data.amount <= 0 || parsed.data.amount > 1_000_000_000) {
     return res.status(400).json({ message: "Datos de egreso invalidos." });
   }
   const expense = await Expense.create(parsed.data);
@@ -791,10 +829,16 @@ app.get("/api/activity", requireAuth, requireRole("admin"), async (_req, res) =>
   res.json({ activity: activity.map((item) => item.toJSON()) });
 });
 
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
+  if (err?.type === "entity.too.large") return res.status(413).json({ message: "La solicitud supera el tamaño permitido." });
+  if (err instanceof SyntaxError && "body" in err) return res.status(400).json({ message: "El cuerpo JSON no es válido." });
+  if (err?.name === "CastError") return res.status(400).json({ message: "El identificador enviado no es válido." });
+  if (err?.code === 11000) return res.status(409).json({ message: "Ya existe un registro con esos datos." });
   if (err.name === "VersionError") return res.status(409).json({ message: "Los datos cambiaron. Actualizá la página y volvé a intentar." });
-  console.error(err);
-  res.status(500).json({ message: "Error interno del servidor." });
+  const requestId = res.getHeader("X-Request-ID") || "unknown";
+  if (process.env.NODE_ENV === "production") console.error(`[${requestId}] ${err?.name || "Error"}`);
+  else console.error(`[${requestId}]`, err);
+  res.status(500).json({ message: "Error interno del servidor.", requestId });
 });
 
 export { app };

@@ -1,44 +1,40 @@
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
-const TOKEN_KEY = "padel_auth_token";
+let csrfToken = "";
 
-export function getAuthToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setAuthToken(token) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+export function setCsrfToken(value = "") {
+  csrfToken = String(value || "");
 }
 
 export async function apiRequest(path, options = {}) {
-  const token = getAuthToken();
+  const method = String(options.method || "GET").toUpperCase();
+  const unsafe = !["GET", "HEAD", "OPTIONS"].includes(method);
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(unsafe && csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
   };
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...options, method, headers, credentials: "include" });
+  if (response.status === 204) return {};
   const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    throw new Error("La API no devolvio una respuesta JSON valida.");
-  }
+  if (!contentType.includes("application/json")) throw new Error("La API no devolvió una respuesta JSON válida.");
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401 && token) {
-      setAuthToken(null);
+    if (response.status === 401) {
+      setCsrfToken();
       window.dispatchEvent(new CustomEvent("padel:auth-expired", { detail: payload }));
     }
-    const error = new Error(payload.message || "No se pudo completar la operacion.");
+    const error = new Error(payload.message || "No se pudo completar la operación.");
     error.status = response.status;
     error.payload = payload;
     throw error;
   }
+  if (payload.csrfToken) setCsrfToken(payload.csrfToken);
   return payload;
 }
 
 export async function checkApiHealth() {
   try {
-    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000), cache: "no-store" });
+    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000), cache: "no-store", credentials: "include" });
     const contentType = response.headers.get("content-type") || "";
     if (!response.ok || !contentType.includes("application/json")) return false;
     const health = await response.json();

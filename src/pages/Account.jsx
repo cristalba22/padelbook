@@ -155,7 +155,7 @@ export default function Account() {
         <form onSubmit={submitAccess} className="mt-5 space-y-3">
           {mode === "register" && <label className="block"><span className="mb-1 block text-xs text-slate-400">Nombre</span><input className="field" value={form.name} onChange={(e) => setField("name", e.target.value)} required /></label>}
           <label className="block"><span className="mb-1 block text-xs text-slate-400">Email</span><input type="email" className="field" value={form.email} onChange={(e) => setField("email", e.target.value)} required /></label>
-          <label className="block"><span className="mb-1 block text-xs text-slate-400">Contraseña</span><input type="password" className="field" value={form.password} onChange={(e) => setField("password", e.target.value)} required /></label>
+          <label className="block"><span className="mb-1 block text-xs text-slate-400">Contraseña</span><input type="password" className="field" value={form.password} onChange={(e) => setField("password", e.target.value)} minLength={mode === "register" ? 12 : undefined} maxLength={72} required /></label>
           <button className="btn-primary w-full justify-center">{mode === "login" ? "Entrar" : "Crear cuenta"}</button>
         </form>
       </div>
