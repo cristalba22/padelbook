@@ -1,17 +1,18 @@
-# Cloudflare + MonsterAPI + MongoDB Atlas
+# Cloudflare + API en contenedor + MongoDB Atlas
 
 ## Estado real
 
 - Frontend demo publicado en `https://padelbook-clubes-demo.crisalbavideografo.workers.dev` como Worker con archivos estáticos y fallback para rutas de React. `wrangler.jsonc` y `npm run deploy:cloudflare` reproducen el despliegue.
-- API Express preparada como imagen Docker en `Dockerfile.api`. GitHub Actions construye la imagen en cada PR; todavía no hay una instancia pública de API.
-- La base MongoDB Atlas y la cuenta de MonsterAPI están pendientes. Ninguna reserva de la URL demo se comparte entre navegadores.
+- API Express preparada como imagen Docker en `Dockerfile.api`. GitHub Actions valida la imagen en cada PR y publica `ghcr.io/cristalba22/padelbook-api:latest` después de integrar cambios en `main`.
+- La base MongoDB Atlas y una instancia pública de API están pendientes. Ninguna reserva de la URL demo se comparte entre navegadores.
+- MonsterAPI dejó de ser una opción operativa: su dominio principal ya no resuelve desde septiembre de 2026. El contenedor debe ejecutarse en un proveedor activo que admita un servicio HTTP persistente.
 
 ## Arquitectura del primer club
 
 ```text
 Navegador ──HTTPS──> Cloudflare Worker (frontend + /api)
                           │
-                          └──HTTPS + secreto de proxy──> MonsterAPI (Node/Express)
+                          └──HTTPS + secreto de proxy──> Contenedor Node/Express
                                                              │
                                                              └──TLS──> MongoDB Atlas
 ```
@@ -23,8 +24,8 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 ## Preparar las cuentas
 
 1. Crear un proyecto y un cluster de MongoDB Atlas. Crear una base exclusiva para el club, por ejemplo `padelbook_club_piloto`, un usuario de aplicación con privilegios mínimos y una política de backups. No usar datos demo.
-2. Crear una cuenta de MonsterAPI y comprobar en su panel que sigue disponible el despliegue de **custom Docker image**, el tipo de instancia, el costo y las opciones de secretos. Su documentación publicada muestra instancias GPU para ese servicio; confirmar el costo antes de mantener un contenedor de reservas encendido.
-3. Publicar la imagen `Dockerfile.api` en un registro de contenedores al que MonsterAPI pueda acceder. GitHub Actions solo la construye y valida; no la publica ni guarda credenciales del registro.
+2. Elegir un proveedor activo para ejecutar un contenedor HTTP persistente. Debe ofrecer HTTPS, variables privadas, reinicio automático, logs y una política clara de copias o vuelta atrás.
+3. Usar la imagen `ghcr.io/cristalba22/padelbook-api:latest` publicada por GitHub Actions, o construir `Dockerfile.api` directamente desde el repositorio.
 4. En el despliegue del contenedor, exponer el puerto `4000` y configurar variables privadas:
 
    | Variable | Contenido |
@@ -43,7 +44,7 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 
    No incorporar estos valores en `VITE_`, GitHub, el registro Docker ni documentación pública. La API debe responder `200` en `/api/health` con `database: "connected"`. La imagen incluye un `HEALTHCHECK` sobre ese endpoint.
 
-5. Configurar en `wrangler.jsonc` `API_ORIGIN` con el origen HTTPS de MonsterAPI, sin `/api` y sin barra final. Guardar el mismo secreto de proxy en Cloudflare sin escribirlo en archivos:
+5. Configurar en `wrangler.jsonc` `API_ORIGIN` con el origen HTTPS del contenedor, sin `/api` y sin barra final. Guardar el mismo secreto de proxy en Cloudflare sin escribirlo en archivos:
 
    ```bash
    npx wrangler secret put API_PROXY_SECRET
@@ -55,7 +56,7 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 
 ## Advertencias de producto
 
-- MonsterAPI permite imágenes Docker propias según su documentación, pero está orientada a cargas de IA; no asumir que será el alojamiento más económico para una API Node ligera. La decisión final requiere el costo y el SLA de la cuenta real.
+- Verificar la disponibilidad real, el precio y el SLA del proveedor antes de abrir el piloto. Evitar servicios discontinuados aunque su documentación antigua siga indexada.
 - Cloudflare aloja actualmente **solo el frontend**. El Worker estático no ejecuta Express ni se conecta a Atlas.
 - Las opciones “seña” y “pago total” siguen siendo coordinación y registro manual. Falta pasarela de pagos con webhook y conciliación. Falta correo transaccional.
 - No publicar como SaaS para múltiples clubes hasta completar aislamiento por club, monitoreo, backups restaurados en prueba y soporte operativo.
