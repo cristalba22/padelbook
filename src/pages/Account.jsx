@@ -16,7 +16,7 @@ function todayISO() {
 }
 
 export default function Account() {
-  const { user, login, register, updateProfile } = useAuth();
+  const { user, login, register, updateProfile, changePassword } = useAuth();
   const { bookings } = useBooking();
   const { prices } = usePricing();
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ export default function Account() {
   const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", password: "", phone: user?.phone || "", category: user?.category || "Sin categoría" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "" });
   const { myRegistrations } = useTournaments();
 
   const userBookings = useMemo(() => {
@@ -53,8 +54,19 @@ export default function Account() {
     catch (err) { setError(err.message || "No se pudo guardar el perfil."); }
   }
 
+  async function savePassword(e) {
+    e.preventDefault(); setMessage(""); setError("");
+    try {
+      await changePassword(passwordForm.current, passwordForm.next);
+      setPasswordForm({ current: "", next: "" });
+      setMessage("Contraseña actualizada. Ingresá nuevamente con tu nueva clave.");
+    } catch (err) {
+      setError(err.message || "No se pudo cambiar la contraseña.");
+    }
+  }
+
   if (user && ["admin", "receptionist"].includes(user.role)) {
-    return <main className="main-container interior-page account-page text-white"><section className="interior-hero mx-auto max-w-3xl rounded-[2rem] p-6 md:p-9"><p className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300">Perfil del equipo</p><h1 className="mt-3 text-3xl font-black">{user.name}</h1><p className="mt-2 text-sm text-slate-300">{user.role === "admin" ? "Propietario / administrador" : "Recepción"} · {user.email}</p><p className="mt-3 text-sm text-slate-400">Tu cuenta identifica las acciones que realizás en la agenda y los cobros del club.</p>{message && <p role="status" className="mt-5 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-3 text-sm text-lime-100">{message}</p>}{error && <p role="alert" className="mt-5 rounded-2xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}<form onSubmit={saveProfile} className="mt-6 grid gap-4 sm:grid-cols-2"><label className="text-sm">Nombre<input className="field mt-2" value={form.name} onChange={(event) => setField("name", event.target.value)} required minLength={2} /></label><label className="text-sm">Teléfono<input className="field mt-2" value={form.phone} onChange={(event) => setField("phone", event.target.value)} /></label><div className="flex flex-wrap gap-3 sm:col-span-2"><button type="submit" className="btn-primary">Guardar perfil</button><button type="button" onClick={() => navigate(routeForRole(user.role))} className="btn-outline">Ir al panel</button></div></form></section></main>;
+    return <main className="main-container interior-page account-page text-white"><section className="interior-hero mx-auto max-w-3xl rounded-[2rem] p-6 md:p-9"><p className="text-xs font-bold uppercase tracking-[0.22em] text-lime-300">Perfil del equipo</p><h1 className="mt-3 text-3xl font-black">{user.name}</h1><p className="mt-2 text-sm text-slate-300">{user.role === "admin" ? "Propietario / administrador" : "Recepción"} · {user.email}</p><p className="mt-3 text-sm text-slate-400">Tu cuenta identifica las acciones que realizás en la agenda y los cobros del club.</p>{message && <p role="status" className="mt-5 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-3 text-sm text-lime-100">{message}</p>}{error && <p role="alert" className="mt-5 rounded-2xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm text-rose-100">{error}</p>}<form onSubmit={saveProfile} className="mt-6 grid gap-4 sm:grid-cols-2"><label className="text-sm">Nombre<input className="field mt-2" value={form.name} onChange={(event) => setField("name", event.target.value)} required minLength={2} /></label><label className="text-sm">Teléfono<input className="field mt-2" value={form.phone} onChange={(event) => setField("phone", event.target.value)} /></label><div className="flex flex-wrap gap-3 sm:col-span-2"><button type="submit" className="btn-primary">Guardar perfil</button><button type="button" onClick={() => navigate(routeForRole(user.role))} className="btn-outline">Ir al panel</button></div></form><PasswordChangeForm value={passwordForm} onChange={setPasswordForm} onSubmit={savePassword} /></section></main>;
   }
 
   if (user && mode === "profile") {
@@ -207,6 +219,23 @@ function TournamentAccountRow({ registration, muted = false }) {
 
 function EmptyTournamentMessage({ text }) {
   return <div className="rounded-3xl border border-dashed border-white/15 bg-black/20 p-4 text-sm text-slate-400">{text}</div>;
+}
+
+function PasswordChangeForm({ value, onChange, onSubmit }) {
+  return (
+    <form onSubmit={onSubmit} className="mt-8 border-t border-white/10 pt-6">
+      <div>
+        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-lime-300">Seguridad</p>
+        <h2 className="mt-2 text-xl font-black">Cambiar contraseña</h2>
+        <p className="mt-2 text-sm text-slate-400">Al guardarla se cerrarán las demás sesiones abiertas.</p>
+      </div>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <PasswordField id="current-account-password" label="Contraseña actual" value={value.current} onValueChange={(current) => onChange((state) => ({ ...state, current }))} autoComplete="current-password" required />
+        <PasswordField id="new-account-password" label="Nueva contraseña" value={value.next} onValueChange={(next) => onChange((state) => ({ ...state, next }))} autoComplete="new-password" minLength={12} required showGenerator />
+      </div>
+      <button type="submit" className="btn-primary mt-5">Actualizar contraseña</button>
+    </form>
+  );
 }
 
 function MiniKpi({ label, value }) { return <div className="rounded-2xl border border-white/10 bg-black/25 p-4"><p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{label}</p><p className="mt-1 text-xl font-black text-white">{value}</p></div>; }
