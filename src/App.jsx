@@ -15,6 +15,7 @@ import Comunidad from "./pages/Comunidad.jsx";
 // Dashboards
 import PlayerDashboard from "./pages/PlayerDashboard.jsx";
 import Account from "./pages/Account.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 
 // Panel Admin
@@ -80,6 +81,7 @@ export default function App() {
           <Route path={ROUTES.TOURNAMENTS} element={<Tournaments />} />
           <Route path={ROUTES.COMMUNITY} element={<Comunidad />} />
           <Route path={ROUTES.ACCOUNT} element={<Account />} />
+          <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
           {/* Dashboard jugador */}
           <Route

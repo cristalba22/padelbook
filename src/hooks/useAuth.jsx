@@ -149,6 +149,14 @@ export function AuthProvider({ children }) {
     return profile;
   }
 
+  async function requestPasswordReset(email) {
+    if (!apiOnline) throw new Error("La recuperación por correo requiere conexión segura con el club.");
+    return apiRequest("/auth/password/forgot", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async function updateProfile(updates) {
     if (!user) return null;
     if (apiOnline) {
@@ -189,7 +197,7 @@ export function AuthProvider({ children }) {
     closeLogin();
   }
 
-  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
+  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
   return <AuthContext.Provider value={value}>{apiReady ? children : <div role={apiError ? "alert" : "status"} className="grid min-h-screen place-items-center bg-[#080c16] px-6 text-center text-white"><div className="max-w-md"><h1 className="text-2xl font-bold">{apiError ? "El club no está disponible en este momento" : "Consultando el estado del club..."}</h1>{apiError && <><p className="mt-3 text-sm text-white/65">No podemos consultar la agenda. Para proteger tus reservas, esperá a que se restablezca la conexión.</p><button type="button" onClick={retryApi} className="mt-6 rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Volver a intentar</button></>}</div></div>}</AuthContext.Provider>;
 }
 

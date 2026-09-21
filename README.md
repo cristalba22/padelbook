@@ -63,7 +63,7 @@ Creá el archivo de entorno:
 cp .env.example .env
 ```
 
-Completá `MONGODB_URI` y `JWT_SECRET` en `.env`. Para pruebas con datos de ejemplo, usá `PADELBOOK_DEMO_SEED=true`. Para una base nueva sin perfiles de prueba, usá `PADELBOOK_DEMO_SEED=false` y configurá `ADMIN_NAME`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 12 caracteres).
+Completá `MONGODB_URI` y `JWT_SECRET` en `.env`. Para pruebas con datos de ejemplo, usá `PADELBOOK_DEMO_SEED=true`. Para una base nueva sin perfiles de prueba, usá `PADELBOOK_DEMO_SEED=false` y configurá `ADMIN_NAME`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 12 caracteres). La recuperación de contraseña usa Resend y requiere `PUBLIC_APP_ORIGIN`, `RESEND_API_KEY` y `PASSWORD_RESET_FROM`.
 
 Levantá frontend y backend juntos:
 

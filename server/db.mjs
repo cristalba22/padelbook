@@ -35,6 +35,15 @@ const userSchema = new mongoose.Schema({
   category: { type: String, default: "Sin categoria" },
 }, baseOptions);
 
+const passwordResetSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+  tokenHash: { type: String, required: true, unique: true },
+  expiresAt: { type: Date, required: true },
+  usedAt: { type: Date, default: null },
+}, { timestamps: true, versionKey: false });
+
+passwordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const bookingSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
@@ -174,6 +183,7 @@ slotClaimSchema.index({ date: 1, courtId: 1, slot: 1 }, { unique: true });
 slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 
 export const User = mongoose.model("User", userSchema);
+export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 export const Booking = mongoose.model("Booking", bookingSchema);
 export const Tournament = mongoose.model("Tournament", tournamentSchema);
 export const Setting = mongoose.model("Setting", settingsSchema);

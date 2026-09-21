@@ -9,6 +9,7 @@ export const ROUTES = Object.freeze({
   COMMUNITY: "/comunidad",
   PLAYER: "/player",
   ACCOUNT: "/cuenta",
+  RESET_PASSWORD: "/restablecer-clave",
   TEACHER: "/profe",
   TEACHER_LEGACY: "/panel-profe",
   ADMIN: "/admin",

@@ -33,7 +33,7 @@ const DEMO_PROFILES = [
 ];
 
 export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
-  const { login, register, apiOnline } = useAuth();
+  const { login, register, requestPasswordReset, apiOnline } = useAuth();
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState(apiOnline ? "" : "crisalba@test.com");
@@ -41,17 +41,20 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("6ta");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   if (!isOpen) return null;
 
   const close = () => {
     setError("");
+    setMessage("");
     if (typeof onClose === "function") onClose();
   };
 
   const changeMode = (nextMode) => {
     setMode(nextMode);
     setError("");
+    setMessage("");
     if (nextMode === "register") {
       setName("");
       setEmail("");
@@ -67,7 +70,13 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    setMessage("");
     try {
+      if (mode === "forgot") {
+        const result = await requestPasswordReset(email);
+        setMessage(result.message);
+        return;
+      }
       const profile = mode === "register"
         ? await register({ name, email, password, phone, category })
         : await login(email, password);
@@ -114,20 +123,18 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
         <section className="p-6 sm:p-7">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">Acceso al club</p>
           <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
-            {mode === "login" ? "Ingresar" : "Crear cuenta"}
+            {mode === "login" ? "Ingresar" : mode === "register" ? "Crear cuenta" : "Recuperar acceso"}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {mode === "login"
               ? apiOnline ? "Ingresá con la cuenta que te dio el club." : "Usá un perfil de prueba o ingresá con una cuenta registrada."
-              : "Creá un perfil de jugador con datos útiles para reservas, torneos y comunidad."}
+              : mode === "register" ? "Creá un perfil de jugador con datos útiles para reservas, torneos y comunidad." : "Te enviaremos un enlace de un solo uso, válido por 20 minutos."}
           </p>
 
-          <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold">
-            <button type="button" onClick={() => changeMode("login")} className={`rounded-full py-2.5 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button>
-            <button type="button" onClick={() => changeMode("register")} className={`rounded-full py-2.5 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button>
-          </div>
+          {mode === "forgot" ? <button type="button" onClick={() => changeMode("login")} className="mt-5 text-xs font-bold text-lime-200 hover:text-lime-100">← Volver al ingreso</button> : <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold"><button type="button" onClick={() => changeMode("login")} className={`rounded-full py-2.5 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button><button type="button" onClick={() => changeMode("register")} className={`rounded-full py-2.5 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button></div>}
 
           {error && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-100">{error}</div>}
+          {message && <div role="status" className="mt-4 rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-xs font-semibold text-lime-100">{message}</div>}
 
           <form onSubmit={handleSubmit} className="mt-5 space-y-3">
             {mode === "register" && (
@@ -152,11 +159,12 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             <Field label="Email">
               <input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="field" placeholder="tu@email.com" autoComplete={mode === "login" ? "username" : "email"} required />
             </Field>
-            <PasswordField id="access-password" value={password} onValueChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} required showGenerator={mode === "register"} />
+            {mode !== "forgot" && <PasswordField id="access-password" value={password} onValueChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} required showGenerator={mode === "register"} />}
 
             <button type="submit" className="btn-primary w-full justify-center py-3">
-              {mode === "login" ? "Entrar al panel" : "Crear cuenta de jugador"}
+              {mode === "login" ? "Entrar al panel" : mode === "register" ? "Crear cuenta de jugador" : "Enviar enlace seguro"}
             </button>
+            {mode === "login" && apiOnline && <button type="button" onClick={() => changeMode("forgot")} className="w-full text-center text-xs font-bold text-slate-300 hover:text-lime-200">¿Olvidaste tu contraseña?</button>}
           </form>
 
           {!apiOnline && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">

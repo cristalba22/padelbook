@@ -1,10 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import http from "node:http";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 
 test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", async (t) => {
   const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  let sentEmail = null;
+  const emailServer = http.createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    sentEmail = JSON.parse(body);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ id: "email-qa" }));
+  });
+  await new Promise((resolve) => emailServer.listen(0, "127.0.0.1", resolve));
   process.env.MONGODB_URI = mongo.getUri();
   process.env.MONGODB_DB_NAME = "padelbook_qa";
   process.env.JWT_SECRET = "integration-test-secret-long-enough-to-be-private";
@@ -12,6 +22,10 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
   process.env.ADMIN_NAME = "Admin QA";
   process.env.ADMIN_EMAIL = "admin-qa@club.test";
   process.env.ADMIN_PASSWORD = "admin-qa-password-123";
+  process.env.PUBLIC_APP_ORIGIN = "https://padelbook.test";
+  process.env.RESEND_API_KEY = "re_test_key";
+  process.env.RESEND_API_URL = `http://127.0.0.1:${emailServer.address().port}/emails`;
+  process.env.PASSWORD_RESET_FROM = "PadelBook <cuentas@padelbook.test>";
   const [{ app }, { connectDb }, { argentinaDateISO }] = await Promise.all([
     import("../server/index.mjs"), import("../server/db.mjs"), import("../src/utils/bookingDomain.js"),
   ]);
@@ -158,8 +172,24 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/auth/me", { token: admin })).status, 401);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD } })).status, 401);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "admin-password-renovada-456" } })).status, 200);
+    sentEmail = null;
+    const unknownRecovery = await request("/auth/password/forgot", { method: "POST", body: { email: "no-existe@club.test" } });
+    assert.equal(unknownRecovery.status, 202);
+    assert.equal(sentEmail, null);
+    const requestedRecovery = await request("/auth/password/forgot", { method: "POST", body: { email: process.env.ADMIN_EMAIL } });
+    assert.equal(requestedRecovery.status, 202);
+    assert.equal(sentEmail.to[0], process.env.ADMIN_EMAIL);
+    const resetUrl = sentEmail.text.match(/https:\/\/[^\s]+/)[0];
+    const resetToken = new URL(resetUrl).searchParams.get("token");
+    assert.ok(resetToken.length >= 32);
+    assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: "invalid-token-that-is-long-enough-000", password: "final-password-qa-789" } })).status, 400);
+    assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: resetToken, password: "final-password-qa-789" } })).status, 204);
+    assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: resetToken, password: "another-password-qa-789" } })).status, 400);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "admin-password-renovada-456" } })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "final-password-qa-789" } })).status, 200);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
+    await new Promise((resolve) => emailServer.close(resolve));
     await mongoose.disconnect();
     await mongo.stop();
   }
