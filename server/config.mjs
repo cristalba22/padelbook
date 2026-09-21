@@ -8,6 +8,11 @@ export const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || (process.env.NOD
 export const API_PROXY_SECRET = process.env.API_PROXY_SECRET || "";
 export const MONGODB_URI = process.env.MONGODB_URI || "";
 export const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "padelbook";
+export const PUBLIC_APP_ORIGIN = process.env.PUBLIC_APP_ORIGIN || CLIENT_ORIGIN;
+export const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+export const RESEND_API_URL = process.env.RESEND_API_URL || "https://api.resend.com/emails";
+export const PASSWORD_RESET_FROM = process.env.PASSWORD_RESET_FROM || "";
+export const PASSWORD_RESET_REPLY_TO = process.env.PASSWORD_RESET_REPLY_TO || "";
 
 function secureOrigin(value) {
   try {
@@ -36,6 +41,13 @@ if (process.env.NODE_ENV === "production") {
   }
   if (!secureOrigin(CLIENT_ORIGIN)) {
     throw new Error("CLIENT_ORIGIN debe ser un origen HTTPS exacto, sin ruta ni credenciales.");
+  }
+  if (!secureOrigin(PUBLIC_APP_ORIGIN)) {
+    throw new Error("PUBLIC_APP_ORIGIN debe ser un origen HTTPS exacto, sin ruta ni credenciales.");
+  }
+  const emailValues = [RESEND_API_KEY, PASSWORD_RESET_FROM];
+  if (emailValues.some(Boolean) && !emailValues.every(Boolean)) {
+    throw new Error("RESEND_API_KEY y PASSWORD_RESET_FROM deben configurarse juntos.");
   }
   if (COOKIE_SAME_SITE !== "strict") {
     throw new Error("COOKIE_SAME_SITE debe ser strict en producción.");

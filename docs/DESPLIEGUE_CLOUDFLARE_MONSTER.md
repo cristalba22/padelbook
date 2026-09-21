@@ -40,8 +40,10 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
    | `COOKIE_SAME_SITE` | `strict` |
    | `API_PROXY_SECRET` | Otro valor aleatorio privado de 48 caracteres o más |
    | `CLIENT_ORIGIN` | Origen HTTPS exacto del frontend Cloudflare, sin barra final |
+   | `PUBLIC_APP_ORIGIN` | Origen HTTPS usado para construir enlaces de recuperación |
    | `PADELBOOK_DEMO_SEED` | `false` |
    | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Dueño inicial, clave de 12 caracteres o más |
+   | `RESEND_API_KEY`, `PASSWORD_RESET_FROM` | API de correo y remitente verificado para recuperar contraseñas |
 
    No incorporar estos valores en `VITE_`, GitHub, el registro Docker ni documentación pública. La API debe responder `200` en `/api/health` con `database: "connected"`. La imagen incluye un `HEALTHCHECK` sobre ese endpoint.
 

@@ -52,7 +52,7 @@ Este documento describe los controles incluidos en el código y los controles qu
 ## Riesgos que todavía requieren trabajo
 
 - La aplicación todavía no ofrece MFA propio para dueños y recepción.
-- El registro de jugadores no verifica el email y no dispone de recuperación segura de contraseña.
+- El registro de jugadores todavía no verifica el email. La recuperación de contraseña usa un token aleatorio almacenado únicamente como hash, vence a los 20 minutos, funciona una sola vez y revoca las sesiones anteriores. La entrega requiere configurar Resend y un remitente verificado.
 - La auditoría vive en la misma base y conserva una cantidad limitada; para evidencia duradera debe exportarse a un sistema de logs con retención e integridad controladas.
 - Un despliegue compartido por varios clubes requiere `clubId` obligatorio en cada documento, índice y consulta. La versión actual debe operar con una base y API separadas por club.
 - Los pagos siguen siendo registros manuales. Una pasarela real requiere webhooks firmados, idempotencia y conciliación.

@@ -5,17 +5,18 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import { z } from "zod";
-import { CLIENT_ORIGIN, PORT } from "./config.mjs";
-import { Activity, Booking, Expense, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
+import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN } from "./config.mjs";
+import { Activity, Booking, Expense, PasswordReset, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { clearSessionCookie, createSession, publicUser, requireAuth, requireRole, sessionCookie } from "./auth.mjs";
 import { requestContextMiddleware } from "./requestContext.mjs";
 import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
 import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 import { API_PROXY_SECRET } from "./config.mjs";
+import { passwordEmailConfigured, sendPasswordResetEmail } from "./email.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -55,6 +56,8 @@ const authLimiter = rateLimit({
 });
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false,
   message: { message: "Se alcanzó el límite de registros. Intentá nuevamente más tarde." } });
+const passwordRecoveryLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 4, standardHeaders: "draft-8", legacyHeaders: false,
+  message: { message: "Se alcanzó el límite de recuperación. Intentá nuevamente más tarde." } });
 const apiLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-8", legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Esperá un momento y volvé a intentar." }, skip: (req) => req.path === "/health" });
 app.use("/api", apiLimiter);
@@ -162,6 +165,60 @@ app.post("/api/auth/register", registerLimiter, async (req, res) => {
   const session = createSession(user);
   res.setHeader("Set-Cookie", sessionCookie(session.token));
   res.status(201).json({ user: publicUser(user), csrfToken: session.csrfToken, ...(process.env.NODE_ENV !== "production" ? { token: session.token } : {}) });
+});
+
+app.post("/api/auth/password/forgot", passwordRecoveryLimiter, async (req, res) => {
+  const parsed = z.object({ email: z.string().email().max(254) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Ingresá un email válido." });
+  if (!passwordEmailConfigured()) return res.status(503).json({ message: "La recuperación por correo está temporalmente en configuración." });
+
+  const neutralResponse = { message: "Si existe una cuenta activa con ese email, vas a recibir un enlace válido por 20 minutos." };
+  const account = await User.findOne({ email: cleanEmail(parsed.data.email), active: { $ne: false } });
+  if (!account) {
+    await bcrypt.compare(randomBytes(16).toString("hex"), DUMMY_PASSWORD_HASH);
+    return res.status(202).json(neutralResponse);
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+  await PasswordReset.deleteMany({ userId: account._id, usedAt: null });
+  const reset = await PasswordReset.create({ userId: account._id, tokenHash, expiresAt });
+  const resetUrl = `${PUBLIC_APP_ORIGIN}/restablecer-clave?token=${encodeURIComponent(token)}`;
+  try {
+    await sendPasswordResetEmail({ to: account.email, name: account.name, resetUrl });
+  } catch (error) {
+    await PasswordReset.deleteOne({ _id: reset._id });
+    const requestId = res.getHeader("X-Request-ID") || "unknown";
+    console.error(`[${requestId}] PasswordEmailDeliveryError`);
+  }
+  return res.status(202).json(neutralResponse);
+});
+
+app.post("/api/auth/password/reset", authLimiter, async (req, res) => {
+  const parsed = z.object({
+    token: z.string().min(32).max(200),
+    password: z.string().min(12).max(72),
+  }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "El enlace o la contraseña no son válidos." });
+
+  const tokenHash = createHash("sha256").update(parsed.data.token).digest("hex");
+  const reset = await PasswordReset.findOneAndUpdate(
+    { tokenHash, usedAt: null, expiresAt: { $gt: new Date() } },
+    { $set: { usedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!reset) return res.status(400).json({ message: "El enlace venció o ya fue utilizado. Solicitá uno nuevo." });
+
+  const account = await User.findById(reset.userId).select("+sessionVersion");
+  if (!account || account.active === false) return res.status(400).json({ message: "El enlace venció o ya fue utilizado. Solicitá uno nuevo." });
+  account.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  account.sessionVersion = Number(account.sessionVersion || 0) + 1;
+  await account.save();
+  await PasswordReset.deleteMany({ userId: account._id, _id: { $ne: reset._id } });
+  await addActivity({ type: "password_reset", title: "Contraseña restablecida", detail: account.email, actor: account.name });
+  res.setHeader("Set-Cookie", clearSessionCookie());
+  return res.status(204).end();
 });
 
 app.get("/api/auth/me", requireAuth, (req, res) => {
