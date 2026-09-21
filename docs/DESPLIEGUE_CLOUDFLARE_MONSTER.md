@@ -2,7 +2,7 @@
 
 ## Estado real
 
-- Frontend piloto publicado en `https://padelbook-clubes-demo.crisalbavideografo.workers.dev` como Worker con archivos estáticos, fallback para rutas de React y proxy de `/api`. `wrangler.jsonc` y `npm run deploy:cloudflare` reproducen el despliegue.
+- Frontend piloto publicado en `https://padelbook.crisalbavideografo.workers.dev` como Worker con archivos estáticos, fallback para rutas de React y proxy de `/api`. `wrangler.jsonc` y `npm run deploy:cloudflare` reproducen el despliegue.
 - API Express preparada como imagen Docker en `Dockerfile.api`. GitHub Actions valida la imagen en cada PR y publica `ghcr.io/cristalba22/padelbook-api:latest` después de integrar cambios en `main`.
 - API desplegada en `https://padelbook-api.onrender.com` y conectada a una base exclusiva `padelbook_club_piloto` en MongoDB Atlas. Cloudflare es el único canal operativo para las rutas de negocio; el acceso directo a Render se rechaza sin el secreto interno.
 - El 21/09/2026 se verificaron con estado `200` `/api/health`, `/api/settings`, `/api/teachers`, `/api/tournaments` y `/api/availability`, además del login y acceso al panel administrativo.

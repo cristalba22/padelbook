@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "padelbook-clubes-demo",
+  "name": "padelbook",
   "main": "./cloudflare/worker.js",
   "compatibility_date": "2026-09-18",
   "assets": {
