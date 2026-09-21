@@ -185,6 +185,28 @@ app.patch("/api/auth/me", requireAuth, async (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
+app.patch("/api/auth/password", authLimiter, requireAuth, async (req, res) => {
+  const parsed = z.object({
+    currentPassword: z.string().min(1).max(72),
+    newPassword: z.string().min(12).max(72),
+  }).strict().refine(({ currentPassword, newPassword }) => currentPassword !== newPassword, {
+    message: "La contraseña nueva debe ser diferente.",
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "La contraseña nueva debe tener entre 12 y 72 caracteres y ser diferente de la actual." });
+
+  const account = await User.findById(req.user.id).select("+sessionVersion");
+  const passwordMatches = await bcrypt.compare(parsed.data.currentPassword, account?.passwordHash || DUMMY_PASSWORD_HASH);
+  if (!account || account.active === false || !passwordMatches) {
+    return res.status(401).json({ message: "La contraseña actual no es correcta." });
+  }
+
+  account.passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  account.sessionVersion = Number(account.sessionVersion || 0) + 1;
+  await account.save();
+  res.setHeader("Set-Cookie", clearSessionCookie());
+  res.status(204).end();
+});
+
 app.get("/api/admin/staff", requireAuth, requireRole("admin"), async (_req, res) => {
   const staff = await User.find({ role: "receptionist" }).sort({ name: 1 });
   res.json({ staff: staff.map(publicUser) });

@@ -152,6 +152,12 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal(renewedLogin.status, 200);
     assert.equal((await request(`${staffPath}/${receptionistId}`, { method: "PATCH", token: admin, body: { active: false } })).status, 200);
     assert.equal((await request("/bookings", { token: renewedLogin.data.token })).status, 401);
+    assert.equal((await request("/auth/password", { method: "PATCH", token: admin, body: { currentPassword: "incorrecta", newPassword: "admin-password-renovada-456" } })).status, 401);
+    const changedPassword = await request("/auth/password", { method: "PATCH", token: admin, body: { currentPassword: process.env.ADMIN_PASSWORD, newPassword: "admin-password-renovada-456" } });
+    assert.equal(changedPassword.status, 204);
+    assert.equal((await request("/auth/me", { token: admin })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD } })).status, 401);
+    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "admin-password-renovada-456" } })).status, 200);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
