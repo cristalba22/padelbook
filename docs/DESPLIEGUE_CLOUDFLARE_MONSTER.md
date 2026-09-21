@@ -2,9 +2,10 @@
 
 ## Estado real
 
-- Frontend demo publicado en `https://padelbook-clubes-demo.crisalbavideografo.workers.dev` como Worker con archivos estáticos y fallback para rutas de React. `wrangler.jsonc` y `npm run deploy:cloudflare` reproducen el despliegue.
+- Frontend piloto publicado en `https://padelbook-clubes-demo.crisalbavideografo.workers.dev` como Worker con archivos estáticos, fallback para rutas de React y proxy de `/api`. `wrangler.jsonc` y `npm run deploy:cloudflare` reproducen el despliegue.
 - API Express preparada como imagen Docker en `Dockerfile.api`. GitHub Actions valida la imagen en cada PR y publica `ghcr.io/cristalba22/padelbook-api:latest` después de integrar cambios en `main`.
-- La base MongoDB Atlas y una instancia pública de API están pendientes. Ninguna reserva de la URL demo se comparte entre navegadores.
+- API desplegada en `https://padelbook-api.onrender.com` y conectada a una base exclusiva `padelbook_club_piloto` en MongoDB Atlas. Cloudflare es el único canal operativo para las rutas de negocio; el acceso directo a Render se rechaza sin el secreto interno.
+- El 21/09/2026 se verificaron con estado `200` `/api/health`, `/api/settings`, `/api/teachers`, `/api/tournaments` y `/api/availability`, además del login y acceso al panel administrativo.
 - MonsterAPI dejó de ser una opción operativa: su dominio principal ya no resuelve desde septiembre de 2026. El contenedor debe ejecutarse en un proveedor activo que admita un servicio HTTP persistente.
 
 ## Arquitectura del primer club
@@ -57,6 +58,8 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 ## Advertencias de producto
 
 - Verificar la disponibilidad real, el precio y el SLA del proveedor antes de abrir el piloto. Evitar servicios discontinuados aunque su documentación antigua siga indexada.
-- Cloudflare aloja actualmente **solo el frontend**. El Worker estático no ejecuta Express ni se conecta a Atlas.
+- Cloudflare aloja el frontend y actúa como proxy seguro. Express se ejecuta en Render y se conecta a Atlas.
+- El plan gratuito de Render puede suspender el contenedor por inactividad y agregar unos 50 segundos al primer pedido. Para una prueba con clientes se recomienda una instancia sin suspensión.
+- Atlas permite actualmente la red de salida dinámica de Render. Antes de guardar datos sensibles conviene usar salida fija o un enlace privado y reemplazar la regla amplia de red.
 - Las opciones “seña” y “pago total” siguen siendo coordinación y registro manual. Falta pasarela de pagos con webhook y conciliación. Falta correo transaccional.
 - No publicar como SaaS para múltiples clubes hasta completar aislamiento por club, monitoreo, backups restaurados en prueba y soporte operativo.
