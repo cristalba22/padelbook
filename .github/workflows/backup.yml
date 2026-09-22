@@ -1,0 +1,36 @@
+name: MongoDB encrypted backup
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DB_NAME: ${{ vars.MONGODB_DB_NAME }}
+      BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create encrypted backup
+        run: npm run db:backup -- --output padelbook-backup.pbk
+      - name: Verify encrypted backup
+        run: npm run db:backup -- --verify-only padelbook-backup.pbk
+      - name: Store encrypted artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: padelbook-mongodb-${{ github.run_id }}
+          path: padelbook-backup.pbk
+          retention-days: 30
+          if-no-files-found: error

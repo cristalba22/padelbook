@@ -7,11 +7,11 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { buildBookingWhatsAppUrl } from "../utils/whatsapp.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../utils/paymentDomain.js";
-import { COURTS, COURT_HOURS, DURATION_OPTIONS } from "../data/bookingConfig.js";
-import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, isPastSlot, minutesFromTime } from "../utils/bookingDomain.js";
 import { getCourtPriceForDuration } from "../utils/pricing.js";
 import { usePricing } from "../context/PricingContext.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
 
 function normalizeUserBooking(booking) {
   const time = booking.time || booking.hour;
@@ -50,6 +50,7 @@ export default function AdminBookings() {
   const { apiOnline } = useAuth();
   const { prices } = usePricing();
   const { blocks } = useSchedule();
+  const { courts } = useCourtConfig();
   const { demoBookings, updateDemoBookingStatus } = useAdminDemoBookings();
   const { notify } = useToast();
   const [dateFilter, setDateFilter] = useState("");
@@ -61,11 +62,18 @@ export default function AdminBookings() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("transferencia");
   const [paymentNote, setPaymentNote] = useState("");
-  const [manual, setManual] = useState({ date: argentinaDateISO(), courtId: COURTS[0].id, time: "18:00", durationMinutes: 60, playerName: "", phone: "", userEmail: "" });
+  const [manual, setManual] = useState({ date: argentinaDateISO(), courtId: "", time: "", durationMinutes: 60, playerName: "", phone: "", userEmail: "" });
   const [manualBusy, setManualBusy] = useState(false);
   const paymentDialogRef = useRef(null);
   const paymentRequestRef = useRef(null);
   const reversalRequestRef = useRef(null);
+  const manualCourt = courts.find((court) => court.id === manual.courtId) || courts[0];
+  const manualHours = (manualCourt?.hours || []).filter((hour) => minutesFromTime(hour) + Number(manual.durationMinutes) <= minutesFromTime(manualCourt?.closingTime));
+
+  useEffect(() => {
+    if (!manualCourt) return;
+    setManual((current) => ({ ...current, courtId: manualCourt.id, durationMinutes: manualCourt.allowedDurations.includes(Number(current.durationMinutes)) ? Number(current.durationMinutes) : manualCourt.allowedDurations[0], time: manualHours.includes(current.time) ? current.time : manualHours[0] || "" }));
+  }, [manualCourt?.id, manualCourt?.allowedDurations?.join(","), manualCourt?.hours?.join(","), manual.durationMinutes]);
 
   useEffect(() => {
     if (!paymentBooking) return;
@@ -206,7 +214,7 @@ export default function AdminBookings() {
     event.preventDefault();
     const durationMinutes = Number(manual.durationMinutes);
     const candidate = { date: manual.date, courtId: manual.courtId, time: manual.time, durationMinutes };
-    if (isPastSlot(manual.date, manual.time) || !fitsOperatingHours(manual.time, durationMinutes)) {
+    if (!manualCourt || isPastSlot(manual.date, manual.time) || !manualHours.includes(manual.time)) {
       notify({ type: "warning", title: "Horario inválido", message: "Elegí un turno futuro dentro del horario del club." });
       return;
     }
@@ -216,8 +224,8 @@ export default function AdminBookings() {
     }
     setManualBusy(true);
     try {
-      const court = COURTS.find((item) => item.id === manual.courtId);
-      const booking = await addBooking({ ...candidate, type: "court", courtName: court.name, playerName: manual.playerName.trim(), phone: manual.phone.trim(), userEmail: manual.userEmail.trim(), paymentOption: "cash", price: getCourtPriceForDuration(manual.time, manual.date, durationMinutes, prices), description: "Reserva cargada por recepción" });
+      const court = manualCourt;
+      const booking = await addBooking({ ...candidate, type: "court", courtName: court.name, playerName: manual.playerName.trim(), phone: manual.phone.trim(), userEmail: manual.userEmail.trim(), paymentOption: "cash", price: getCourtPriceForDuration(manual.time, manual.date, durationMinutes, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra }), description: "Reserva cargada por recepción" });
       if (booking?.duplicated) throw new Error("Ese horario acaba de ocuparse. Actualizá la agenda y elegí otro.");
       notify({ type: "success", title: "Reserva creada", message: `${manual.playerName} · ${manual.date} ${manual.time}. Pago pendiente en el club.` });
       setManual((current) => ({ ...current, playerName: "", phone: "", userEmail: "" }));
@@ -230,7 +238,7 @@ export default function AdminBookings() {
     <AdminLayout title="Reservas" subtitle="Buscá turnos, confirmá solicitudes y seguí lo que pasa en el club.">
       <form onSubmit={createManualBooking} className="admin-panel mb-5 rounded-3xl border border-white/10 p-5 md:p-6">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="club-dashboard__eyebrow">MOSTRADOR Y WHATSAPP</p><h2 className="mt-1 text-xl font-bold text-white">Cargar un turno</h2><p className="mt-1 text-sm text-slate-400">Para jugadores que llaman o escriben al club. El precio se calcula en el servidor y el cobro queda pendiente.</p></div><button type="submit" disabled={manualBusy} className="btn-primary px-5 py-2.5">{manualBusy ? "Guardando..." : "Crear reserva"}</button></div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><label className="text-xs text-slate-300">Fecha<input type="date" min={argentinaDateISO()} required value={manual.date} onChange={(event) => setManual((current) => ({ ...current, date: event.target.value }))} className="field mt-1" /></label><label className="text-xs text-slate-300">Cancha<select value={manual.courtId} onChange={(event) => setManual((current) => ({ ...current, courtId: event.target.value }))} className="field mt-1">{COURTS.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></label><label className="text-xs text-slate-300">Hora de inicio<select value={manual.time} onChange={(event) => setManual((current) => ({ ...current, time: event.target.value }))} className="field mt-1">{COURT_HOURS.filter((hour) => fitsOperatingHours(hour, Number(manual.durationMinutes))).map((hour) => <option key={hour}>{hour}</option>)}</select></label><label className="text-xs text-slate-300">Duración<select value={manual.durationMinutes} onChange={(event) => { const duration = Number(event.target.value); setManual((current) => ({ ...current, durationMinutes: duration, time: fitsOperatingHours(current.time, duration) ? current.time : "18:00" })); }} className="field mt-1">{DURATION_OPTIONS.map((option) => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}</select></label><label className="text-xs text-slate-300">Nombre del jugador<input required minLength={2} maxLength={100} value={manual.playerName} onChange={(event) => setManual((current) => ({ ...current, playerName: event.target.value }))} className="field mt-1" placeholder="Nombre y apellido" /></label><label className="text-xs text-slate-300">Teléfono<input required maxLength={40} value={manual.phone} onChange={(event) => setManual((current) => ({ ...current, phone: event.target.value }))} className="field mt-1" placeholder="351..." /></label><label className="text-xs text-slate-300">Email (opcional)<input type="email" value={manual.userEmail} onChange={(event) => setManual((current) => ({ ...current, userEmail: event.target.value }))} className="field mt-1" placeholder="jugador@email.com" /></label></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><label className="text-xs text-slate-300">Fecha<input type="date" min={argentinaDateISO()} required value={manual.date} onChange={(event) => setManual((current) => ({ ...current, date: event.target.value }))} className="field mt-1" /></label><label className="text-xs text-slate-300">Cancha<select value={manual.courtId} onChange={(event) => setManual((current) => ({ ...current, courtId: event.target.value, time: "" }))} className="field mt-1">{courts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}</select></label><label className="text-xs text-slate-300">Hora de inicio<select required value={manual.time} onChange={(event) => setManual((current) => ({ ...current, time: event.target.value }))} className="field mt-1">{manualHours.map((hour) => <option key={hour}>{hour}</option>)}</select></label><label className="text-xs text-slate-300">Duración<select value={manual.durationMinutes} onChange={(event) => setManual((current) => ({ ...current, durationMinutes: Number(event.target.value), time: "" }))} className="field mt-1">{(manualCourt?.allowedDurations || []).map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></label><label className="text-xs text-slate-300">Nombre del jugador<input required minLength={2} maxLength={100} value={manual.playerName} onChange={(event) => setManual((current) => ({ ...current, playerName: event.target.value }))} className="field mt-1" placeholder="Nombre y apellido" /></label><label className="text-xs text-slate-300">Teléfono<input required maxLength={40} value={manual.phone} onChange={(event) => setManual((current) => ({ ...current, phone: event.target.value }))} className="field mt-1" placeholder="351..." /></label><label className="text-xs text-slate-300">Email (opcional)<input type="email" value={manual.userEmail} onChange={(event) => setManual((current) => ({ ...current, userEmail: event.target.value }))} className="field mt-1" placeholder="jugador@email.com" /></label></div>
       </form>
       <section className="club-bookings__filters">
         <div className="club-bookings__section-heading"><div><p className="club-dashboard__eyebrow">OPERACIÓN</p><h2>Encontrá una reserva</h2></div><p>Filtrá por fecha, tipo o estado</p></div>

@@ -11,8 +11,8 @@ import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule } from "../hooks/useSchedule.jsx";
 import { useTournaments } from "../hooks/useTournaments.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { COURTS, COURT_HOURS } from "../data/bookingConfig.js";
-import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, isPastSlot } from "../utils/bookingDomain.js";
 import "./home.css";
 
 const formatMoney = (amount) => `$${Number(amount).toLocaleString("es-AR")}`;
@@ -37,11 +37,14 @@ function useReveal() {
   }, []);
 }
 
-function getCourtAvailability({ today, bookings, occupied, blocks, loading, error }) {
-  return COURTS.map((court, index) => {
-    const nextHour = !loading && !error ? COURT_HOURS.find((hour) => {
-      if (!fitsOperatingHours(hour, 60) || isPastSlot(today, hour)) return false;
-      const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: 60 };
+function getCourtAvailability({ courts, today, bookings, occupied, blocks, loading, error }) {
+  return courts.map((court, index) => {
+    const previewDuration = Math.min(...(court.allowedDurations || [60]));
+    const nextHour = !loading && !error ? court.hours.find((hour) => {
+      const [hh, mm] = hour.split(":").map(Number);
+      const [closeHour, closeMinute] = court.closingTime.split(":").map(Number);
+      if (hh * 60 + mm + previewDuration > closeHour * 60 + closeMinute || isPastSlot(today, hour)) return false;
+      const candidate = { date: today, courtId: court.id, time: hour, durationMinutes: previewDuration };
       return !blocks.some((block) => blockOverlapsBooking(block, candidate)) &&
         ![...bookings, ...occupied].some((booking) => bookingsOverlap(booking, candidate));
     }) : null;
@@ -50,7 +53,7 @@ function getCourtAvailability({ today, bookings, occupied, blocks, loading, erro
       number: String(index + 1).padStart(2, "0"),
       nextHour: loading ? "Consultando" : error ? "Sin datos" : nextHour || "Sin horarios hoy",
       available: Boolean(nextHour),
-      note: index === 0 ? "Césped sintético · Exterior" : index === 1 ? "Blindex · Interior" : "Césped fibrilado · Techada",
+      note: court.description || court.tag || "Cancha del club",
     };
   });
 }
@@ -58,6 +61,7 @@ function getCourtAvailability({ today, bookings, occupied, blocks, loading, erro
 export default function Home() {
   useReveal();
   const { prices } = usePricing();
+  const { courts: configuredCourts } = useCourtConfig();
   const { settings } = useClubSettings();
   const { bookings } = useBooking();
   const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
@@ -67,10 +71,11 @@ export default function Home() {
   const { occupied, loading: availabilityLoading, error: availabilityError } = useAvailability(today);
   const loading = blocksLoading || availabilityLoading;
   const error = blocksError || availabilityError;
-  const courts = getCourtAvailability({ today, bookings, occupied, blocks, loading, error });
+  const courts = getCourtAvailability({ courts: configuredCourts, today, bookings, occupied, blocks, loading, error });
   const availableCourts = courts.filter((court) => court.available).length;
   const nextTournament = tournaments.find((tournament) => tournament.status === "abierto" && tournament.date >= today);
-  const courtPrice = getCourtPrice("15:00", new Date(), prices);
+  const primaryCourt = configuredCourts[0];
+  const courtPrice = getCourtPrice("15:00", new Date(), primaryCourt ? { ...prices, courtPrice: primaryCourt.basePrice, nightPrice: primaryCourt.nightPrice, weekendExtra: primaryCourt.weekendExtra } : prices);
   const defaultHeadline = settings.homeHeadline === "Tu próximo partido empieza antes de llegar a la cancha.";
   const todayLabel = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
@@ -96,7 +101,7 @@ export default function Home() {
           </div>
           <div className="home-hero__details"><span><Clock3 size={16} aria-hidden="true" />{settings.openingHours}</span><span><MapPin size={16} aria-hidden="true" />{settings.address}</span></div>
         </div>
-        <figure className="home-hero__image"><img src={heroImg} alt="Partido de pádel en una cancha" loading="eager" /><div className="home-hero__image-wash" aria-hidden="true" /><figcaption><span>EL PARTIDO<br /><strong>EMPIEZA ACÁ.</strong></span><span>01 / 03</span></figcaption></figure>
+        <figure className="home-hero__image"><img src={heroImg} alt="Partido de pádel en una cancha" loading="eager" /><div className="home-hero__image-wash" aria-hidden="true" /><figcaption><span>EL PARTIDO<br /><strong>EMPIEZA ACÁ.</strong></span><span>01 / {String(courts.length).padStart(2, "0")}</span></figcaption></figure>
         <div className="home-hero__side-note" aria-hidden="true">JUGÁ MÁS · ORGANIZÁ MENOS</div>
       </section>
 

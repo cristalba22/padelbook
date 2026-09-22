@@ -6,17 +6,17 @@ import helmet from "helmet";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN } from "./config.mjs";
-import { Activity, Booking, Expense, PasswordReset, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
+import { Activity, Booking, Court, Expense, PasswordReset, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { clearSessionCookie, createSession, publicUser, requireAuth, requireRole, sessionCookie } from "./auth.mjs";
 import { requestContextMiddleware } from "./requestContext.mjs";
-import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, fitsBlockHours, fitsOperatingHours, isPastSlot } from "../src/utils/bookingDomain.js";
-import { CLASS_HOURS, COURT_HOURS, COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, isPastSlot } from "../src/utils/bookingDomain.js";
+import { CLASS_HOURS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 import { API_PROXY_SECRET } from "./config.mjs";
-import { passwordEmailConfigured, sendPasswordResetEmail } from "./email.mjs";
+import { passwordEmailConfigured, sendBookingEmail, sendPasswordResetEmail } from "./email.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -106,6 +106,57 @@ function minutesFromHour(hour = "00:00") {
 function addMinutesToHour(hour, minutes) {
   const total = minutesFromHour(hour) + Number(minutes || 0);
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function isClockTime(value) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
+}
+
+function courtHours(court) {
+  if (!isClockTime(court.openingTime) || !isClockTime(court.closingTime)) return [];
+  const start = minutesFromHour(court.openingTime);
+  const end = minutesFromHour(court.closingTime);
+  const interval = Number(court.slotIntervalMinutes || 30);
+  if (start < 0 || end > 24 * 60 || end <= start || ![30, 60].includes(interval)) return [];
+  return Array.from({ length: Math.ceil((end - start) / interval) }, (_, index) => addMinutesToHour(court.openingTime, index * interval))
+    .filter((hour) => minutesFromHour(hour) < end);
+}
+
+function fitsCourtHours(court, hour, durationMinutes) {
+  return courtHours(court).includes(hour) && minutesFromHour(hour) + Number(durationMinutes || 0) <= minutesFromHour(court.closingTime);
+}
+
+function publicCourt(court) {
+  const item = court.toJSON ? court.toJSON() : court;
+  return {
+    id: item.courtId,
+    name: item.name,
+    description: item.description,
+    tag: item.tag,
+    active: item.active !== false,
+    sortOrder: Number(item.sortOrder || 0),
+    openingTime: item.openingTime,
+    closingTime: item.closingTime,
+    slotIntervalMinutes: Number(item.slotIntervalMinutes || 30),
+    allowedDurations: (item.allowedDurations || []).map(Number),
+    basePrice: Number(item.basePrice || 0),
+    nightPrice: Number(item.nightPrice || 0),
+    weekendExtra: Number(item.weekendExtra || 0),
+    hours: courtHours(item),
+  };
+}
+
+function queueBookingEmail(booking, action) {
+  if (!booking?.userEmail) return;
+  void Setting.findOne().lean()
+    .then((settings) => sendBookingEmail({
+      to: booking.userEmail,
+      name: booking.playerName,
+      action,
+      booking: booking.toJSON ? booking.toJSON() : booking,
+      clubName: settings?.clubName || "PadelBook",
+    }))
+    .catch(() => console.error("BookingEmailDeliveryError"));
 }
 
 app.get("/api", (_req, res) => {
@@ -301,6 +352,58 @@ app.get("/api/availability", async (req, res) => {
     teacherBusy: occupied.filter((booking) => booking.teacherId).map(({ teacherId, time }) => ({ teacherId, time })) });
 });
 
+app.get("/api/courts", async (_req, res) => {
+  const courts = await Court.find({ active: { $ne: false } }).sort({ sortOrder: 1, name: 1 });
+  res.json({ courts: courts.map(publicCourt) });
+});
+
+app.get("/api/admin/courts", requireAuth, requireRole("admin"), async (_req, res) => {
+  const courts = await Court.find().sort({ sortOrder: 1, name: 1 });
+  res.json({ courts: courts.map(publicCourt) });
+});
+
+const courtFields = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(160).optional().default(""),
+  tag: z.string().trim().max(120).optional().default(""),
+  active: z.boolean().optional().default(true),
+  sortOrder: z.number().int().min(0).max(1000).optional().default(0),
+  openingTime: z.string().regex(/^\d{2}:\d{2}$/),
+  closingTime: z.string().regex(/^\d{2}:\d{2}$/),
+  slotIntervalMinutes: z.union([z.literal(30), z.literal(60)]).optional().default(30),
+  allowedDurations: z.array(z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(150)])).min(1).max(4),
+  basePrice: z.number().int().min(0).max(100_000_000),
+  nightPrice: z.number().int().min(0).max(100_000_000),
+  weekendExtra: z.number().int().min(0).max(100_000_000).optional().default(0),
+}).strict();
+
+function validCourtSchedule(court) {
+  return isClockTime(court.openingTime) && isClockTime(court.closingTime) &&
+    minutesFromHour(court.openingTime) < minutesFromHour(court.closingTime) && courtHours(court).length > 0;
+}
+
+app.post("/api/admin/courts", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = courtFields.safeParse(req.body);
+  if (!parsed.success || !validCourtSchedule(parsed.data)) return res.status(400).json({ message: "Revisá los datos, horarios y duraciones de la cancha." });
+  const court = await Court.create({ ...parsed.data, courtId: `court-${randomBytes(6).toString("hex")}`, allowedDurations: [...new Set(parsed.data.allowedDurations)].sort((a, b) => a - b) });
+  await addActivity({ type: "court_created", title: "Cancha creada", detail: court.name, actor: req.user.name });
+  res.status(201).json({ court: publicCourt(court) });
+});
+
+app.patch("/api/admin/courts/:courtId", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = courtFields.partial().safeParse(req.body);
+  if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Datos de cancha inválidos." });
+  const current = await Court.findOne({ courtId: req.params.courtId });
+  if (!current) return res.status(404).json({ message: "Cancha no encontrada." });
+  const next = { ...current.toObject(), ...parsed.data };
+  if (!validCourtSchedule(next)) return res.status(400).json({ message: "El horario de cierre debe ser posterior a la apertura." });
+  if (parsed.data.allowedDurations) parsed.data.allowedDurations = [...new Set(parsed.data.allowedDurations)].sort((a, b) => a - b);
+  Object.assign(current, parsed.data);
+  await current.save();
+  await addActivity({ type: "court_updated", title: "Cancha actualizada", detail: `${current.name} - ${current.active ? "activa" : "inactiva"}`, actor: req.user.name });
+  res.json({ court: publicCourt(current) });
+});
+
 app.get("/api/teachers", async (_req, res) => {
   const teachers = await Teacher.find().sort({ name: 1 });
   res.json({ teachers: teachers.map(({ id, name, nickname, specialty, status, price }) => ({ id, name, nickname, specialty, status, price })) });
@@ -331,7 +434,7 @@ app.get("/api/blocks", async (_req, res) => {
 
 const blockInput = z.object({
   date: z.string(), courtId: z.union([z.string(), z.number()]).transform(canonicalCourtId), hour: z.string(),
-  durationMinutes: z.number().int().min(30).max(150), reason: z.string().trim().max(120).optional().default("No disponible"),
+  durationMinutes: z.number().int().min(30).max(150).refine((value) => value % 30 === 0), reason: z.string().trim().max(120).optional().default("No disponible"),
   type: z.enum(["block", "teacher"]).optional().default("block"),
 });
 
@@ -340,9 +443,11 @@ app.post("/api/blocks/batch", requireAuth, requireRole("admin", "receptionist", 
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos invalidos." });
   const blocks = parsed.data.blocks.map((block) => ({ ...block, ownerId: req.user.role === "teacher" ? req.user.id : "",
     type: req.user.role === "teacher" ? "teacher" : "block", reason: req.user.role === "teacher" ? `No disponible - ${req.user.name}` : block.reason }));
+  const courtMap = new Map((await Court.find({ active: { $ne: false } })).map((court) => [court.courtId, court]));
   for (const block of blocks) {
-    if (!isValidDateISO(block.date) || isPastDate(block.date) || !COURTS.some((court) => court.id === block.courtId) ||
-      !COURT_HOURS.includes(block.hour) || !fitsBlockHours(block.hour, block.durationMinutes) ||
+    const court = courtMap.get(block.courtId);
+    if (!isValidDateISO(block.date) || isPastDate(block.date) || !court ||
+      !fitsCourtHours(court, block.hour, block.durationMinutes) ||
       (req.user.role === "teacher" && (block.durationMinutes !== 60 || !CLASS_HOURS.includes(block.hour)))) {
       return res.status(400).json({ message: "Cancha, fecha u horario de bloqueo invalidos." });
     }
@@ -429,11 +534,11 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
   if (!parsed.success || !isValidDateISO(parsed.data?.date)) return res.status(400).json({ message: "Datos de reserva invalidos." });
   if (isPastDate(parsed.data.date)) return res.status(400).json({ message: "No se pueden crear reservas en fechas pasadas." });
   if (isPastSlot(parsed.data.date, parsed.data.time)) return res.status(400).json({ message: "Ese horario ya paso. Elegi un horario futuro." });
-  const court = COURTS.find((item) => item.id === parsed.data.courtId);
+  const court = await Court.findOne({ courtId: parsed.data.courtId, active: { $ne: false } });
   const isClass = parsed.data.type === "class";
-  const validTime = isClass ? CLASS_HOURS.includes(parsed.data.time) : COURT_HOURS.includes(parsed.data.time);
-  const validDuration = isClass ? parsed.data.durationMinutes === 60 : DURATION_OPTIONS.some((item) => item.minutes === parsed.data.durationMinutes);
-  if (!court || !validTime || !validDuration || !fitsOperatingHours(parsed.data.time, parsed.data.durationMinutes)) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
+  const validTime = court && (isClass ? CLASS_HOURS.includes(parsed.data.time) && fitsCourtHours(court, parsed.data.time, 60) : fitsCourtHours(court, parsed.data.time, parsed.data.durationMinutes));
+  const validDuration = isClass ? parsed.data.durationMinutes === 60 : court?.allowedDurations.includes(parsed.data.durationMinutes);
+  if (!court || !validTime || !validDuration) return res.status(400).json({ message: "Cancha, horario o duracion invalidos." });
   let teacher = null;
   if (isClass) {
     if (!isValidObjectId(parsed.data.teacherId)) return res.status(400).json({ message: "Elegí un profesor para la clase." });
@@ -448,12 +553,17 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
 
   const incoming = {
     ...parsed.data,
-    courtId: court.id,
+    courtId: court.courtId,
     courtName: court.name,
     type: isClass ? "class" : "court",
     teacherId: teacher?.id || null,
     teacherName: teacher?.name || "",
-    price: isClass ? teacher.price : calculateBookingPrice(parsed.data, settings),
+    price: isClass ? teacher.price : calculateBookingPrice(parsed.data, {
+      ...settings.toObject(),
+      courtPrice: court.basePrice,
+      nightPrice: court.nightPrice,
+      weekendExtra: court.weekendExtra,
+    }),
     occupiedSlots: bookingSlotStarts(parsed.data.time, parsed.data.durationMinutes),
     durationMinutes: Number(parsed.data.durationMinutes || 60),
     endTime: addMinutesToHour(parsed.data.time, Number(parsed.data.durationMinutes || 60)),
@@ -492,6 +602,7 @@ app.post("/api/bookings", requireAuth, async (req, res) => {
     throw error;
   }
   await addActivity({ type: "booking_created", title: "Nueva reserva", detail: `${booking.playerName} - ${booking.date} ${booking.time}${booking.endTime ? ` a ${booking.endTime}` : ""}`, actor: req.user.name, bookingId: booking.id });
+  queueBookingEmail(booking, "created");
   res.status(201).json({ booking: booking.toJSON() });
 });
 
@@ -528,6 +639,7 @@ app.patch("/api/bookings/:id/status", requireAuth, requireRole("admin", "recepti
   }
   booking.status = parsed.data.status;
   await addActivity({ type: `booking_${parsed.data.status}`, title: "Reserva actualizada", detail: `${booking.playerName} - ${booking.status}`, actor: req.user.name, bookingId: booking.id });
+  queueBookingEmail(booking, parsed.data.status === "cancelado" ? "cancelled" : parsed.data.status === "confirmado" ? "confirmed" : "updated");
   res.json({ booking: booking.toJSON() });
 });
 
@@ -580,6 +692,7 @@ app.post("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
     });
     booking.status = "cancelado";
     await addActivity({ type: "booking_cancelado", title: "Reserva cancelada", detail: `${booking.playerName} - ${booking.date} ${booking.time}`, actor: req.user.name, bookingId: booking.id });
+    queueBookingEmail(booking, "cancelled");
   }
   res.json({ booking: booking.toJSON() });
 });

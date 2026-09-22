@@ -6,11 +6,11 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 
 test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", async (t) => {
   const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-  let sentEmail = null;
+  const sentEmails = [];
   const emailServer = http.createServer(async (req, res) => {
     let body = "";
     for await (const chunk of req) body += chunk;
-    sentEmail = JSON.parse(body);
+    sentEmails.push(JSON.parse(body));
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ id: "email-qa" }));
   });
@@ -41,6 +41,13 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       return { status: response.status, data: response.status === 204 ? {} : await response.json(), headers: response.headers };
     };
+    const waitFor = async (predicate, timeoutMs = 1500) => {
+      const started = Date.now();
+      while (!predicate()) {
+        if (Date.now() - started > timeoutMs) throw new Error("Timeout esperando efecto asíncrono");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    };
     const future = new Date();
     future.setDate(future.getDate() + 7);
     const date = argentinaDateISO(future);
@@ -56,6 +63,17 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "x".repeat(73) } })).status, 400);
     assert.equal((await request("/auth/me", { method: "PATCH", cookie: adminCookie, body: { name: "Admin QA", phone: "", category: "Gestión" } })).status, 403);
     assert.equal((await request("/auth/me", { method: "PATCH", cookie: adminCookie, csrf: adminLogin.data.csrfToken, body: { name: "Admin QA", phone: "", category: "Gestión" } })).status, 200);
+    const publicCourts = await request("/courts");
+    assert.equal(publicCourts.status, 200);
+    assert.equal(publicCourts.data.courts.length, 3);
+    assert.equal((await request("/admin/courts", { token: admin })).status, 200);
+    assert.equal((await request("/admin/courts", { method: "POST", token: admin, body: { name: "Cancha configurable", description: "Indoor", openingTime: "25:00", closingTime: "22:00", slotIntervalMinutes: 30, allowedDurations: [60], basePrice: 21000, nightPrice: 26000, weekendExtra: 4000 } })).status, 400);
+    const createdCourt = await request("/admin/courts", { method: "POST", token: admin, body: { name: "Cancha configurable", description: "Indoor", openingTime: "10:00", closingTime: "20:00", slotIntervalMinutes: 30, allowedDurations: [60, 90], basePrice: 21000, nightPrice: 26000, weekendExtra: 4000, sortOrder: 4 } });
+    assert.equal(createdCourt.status, 201);
+    const configurableCourtId = createdCourt.data.court.id;
+    const updatedCourt = await request(`/admin/courts/${configurableCourtId}`, { method: "PATCH", token: admin, body: { allowedDurations: [90], basePrice: 23000 } });
+    assert.equal(updatedCourt.status, 200);
+    assert.deepEqual(updatedCourt.data.court.allowedDurations, [90]);
     const playerSignup = await request("/auth/register", { method: "POST", body: { name: "Jugadora QA", email: "jugadora@club.test", password: "player-qa-123", phone: "3511234567" } });
     assert.equal(playerSignup.status, 201);
     const player = playerSignup.data.token;
@@ -64,6 +82,10 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     const profile = await request("/auth/me", { method: "PATCH", token: player, body: { name: "Jugadora Actualizada", phone: "3519999999", category: "6ta" } });
     assert.equal(profile.status, 200);
     assert.equal((await request("/auth/me", { token: player })).data.user.phone, "3519999999");
+    assert.equal((await request("/bookings", { method: "POST", token: player, body: { date, time: "10:00", courtId: configurableCourtId, type: "court", durationMinutes: 60, paymentOption: "cash" } })).status, 400);
+    const configurableBooking = await request("/bookings", { method: "POST", token: player, body: { date, time: "10:00", courtId: configurableCourtId, type: "court", durationMinutes: 90, paymentOption: "cash" } });
+    assert.equal(configurableBooking.status, 201);
+    assert.equal(configurableBooking.data.booking.price, 34500);
 
     const teacher = await request("/admin/teachers", { method: "POST", token: admin, body: { name: "Profe QA", nickname: "Profe", specialty: "Individual", price: 32000 } });
     assert.equal(teacher.status, 201);
@@ -71,6 +93,7 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     const classBooking = await request("/bookings", { method: "POST", token: player, body: { date, time: "09:00", courtId: "court1", type: "class", durationMinutes: 60, paymentOption: "cash", teacherId } });
     assert.equal(classBooking.status, 201);
     assert.equal(classBooking.data.booking.price, 32000);
+    await waitFor(() => sentEmails.some((email) => /reserva/i.test(email.subject || "")));
     const sameTeacher = await request("/bookings", { method: "POST", token: player, body: { date, time: "09:00", courtId: "court2", type: "class", durationMinutes: 60, paymentOption: "cash", teacherId } });
     assert.equal(sameTeacher.status, 409);
     const duplicate = await request("/bookings", { method: "POST", token: player, body: { date, time: "09:00", courtId: "court1", type: "court", durationMinutes: 60, paymentOption: "cash" } });
@@ -80,10 +103,12 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     const overlappingBlock = await request("/blocks/batch", { method: "POST", token: admin, body: { blocks: [{ date, courtId: "court1", hour: "09:00", durationMinutes: 60 }] } });
     assert.equal(overlappingBlock.status, 409);
     assert.equal((await request(`/bookings/${bookingId}/cancel`, { method: "POST", token: player })).status, 200);
+    await waitFor(() => sentEmails.some((email) => /cancelada/i.test(email.subject || "")));
     assert.equal((await request("/blocks/batch", { method: "POST", token: admin, body: { blocks: [{ date, courtId: "court1", hour: "09:00", durationMinutes: 60 }] } })).status, 200);
     assert.equal((await request(`/bookings/${bookingId}/status`, { method: "PATCH", token: admin, body: { status: "confirmado" } })).status, 409);
     assert.equal((await request("/blocks/batch", { method: "DELETE", token: admin, body: { keys: [{ date, courtId: "court1", hour: "09:00" }] } })).status, 200);
     assert.equal((await request(`/bookings/${bookingId}/status`, { method: "PATCH", token: admin, body: { status: "confirmado" } })).status, 200);
+    await waitFor(() => sentEmails.some((email) => /confirmada/i.test(email.subject || "")));
     const paymentPath = `/bookings/${bookingId}/payments`;
     const paymentBody = { amount: 10000, method: "transferencia", idempotencyKey: "f76a3799-d05b-4dd9-874d-f84c8a347225" };
     const [firstPayment, duplicatePayment] = await Promise.all([
@@ -108,6 +133,15 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     ]);
     assert.equal([raceBooking.status, raceBlock.status].filter((status) => status === 409).length, 1);
     assert.equal([raceBooking.status, raceBlock.status].filter((status) => status === 200 || status === 201).length, 1);
+
+    const secondPlayerSignup = await request("/auth/register", { method: "POST", body: { name: "Jugador concurrente", email: "concurrente@club.test", password: "concurrente-qa-123", phone: "3512223344" } });
+    assert.equal(secondPlayerSignup.status, 201);
+    const [racePlayerOne, racePlayerTwo] = await Promise.all([
+      request("/bookings", { method: "POST", token: player, body: { date, time: "14:00", courtId: "court2", type: "court", durationMinutes: 60, paymentOption: "cash" } }),
+      request("/bookings", { method: "POST", token: secondPlayerSignup.data.token, body: { date, time: "14:00", courtId: "court2", type: "court", durationMinutes: 60, paymentOption: "cash" } }),
+    ]);
+    assert.equal([racePlayerOne.status, racePlayerTwo.status].filter((status) => status === 201).length, 1);
+    assert.equal([racePlayerOne.status, racePlayerTwo.status].filter((status) => status === 409).length, 1);
 
     const tournament = await request("/admin/tournaments", { method: "POST", token: admin, body: { name: "Torneo QA", date, hour: "19:00", status: "abierto", category: "Mixto", surface: "Césped", pricePerPlayer: 25000, seededPlayers: 0, maxPlayers: 8, prize: "Premio", description: "Prueba" } });
     assert.equal(tournament.status, 201);
@@ -172,14 +206,14 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/auth/me", { token: admin })).status, 401);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD } })).status, 401);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "admin-password-renovada-456" } })).status, 200);
-    sentEmail = null;
+    sentEmails.length = 0;
     const unknownRecovery = await request("/auth/password/forgot", { method: "POST", body: { email: "no-existe@club.test" } });
     assert.equal(unknownRecovery.status, 202);
-    assert.equal(sentEmail, null);
+    assert.equal(sentEmails.length, 0);
     const requestedRecovery = await request("/auth/password/forgot", { method: "POST", body: { email: process.env.ADMIN_EMAIL } });
     assert.equal(requestedRecovery.status, 202);
-    assert.equal(sentEmail.to[0], process.env.ADMIN_EMAIL);
-    const resetUrl = sentEmail.text.match(/https:\/\/[^\s]+/)[0];
+    assert.equal(sentEmails.at(-1).to[0], process.env.ADMIN_EMAIL);
+    const resetUrl = sentEmails.at(-1).text.match(/https:\/\/[^\s]+/)[0];
     const resetToken = new URL(resetUrl).searchParams.get("token");
     assert.ok(resetToken.length >= 32);
     assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: "invalid-token-that-is-long-enough-000", password: "final-password-qa-789" } })).status, 400);

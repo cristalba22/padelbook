@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, CircleCheck, Clock3, ClipboardList, CircleDollarSign, Plus, TrendingUp } from "lucide-react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { useAdminDemoBookings } from "../hooks/useAdminDemoBookings.jsx";
-import { COURTS } from "../data/bookingConfig.js";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { useSchedule } from "../hooks/useSchedule.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -12,10 +12,6 @@ import { money } from "../utils/businessMetrics.js";
 import { readActivity } from "../utils/activityLog.js";
 import { apiRequest } from "../utils/apiClient.js";
 import { paymentSummary } from "../utils/paymentDomain.js";
-
-const START_MINUTES = 9 * 60;
-const END_MINUTES = 22 * 60;
-const GRID_TIMES = Array.from({ length: (END_MINUTES - START_MINUTES) / 30 }, (_, index) => `${String(9 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 ? "30" : "00"}`);
 
 function localDateString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -26,20 +22,20 @@ function minutes(time = "00:00") {
   return hour * 60 + minute;
 }
 
-function courtIdOf(booking) {
+function courtIdOf(booking, courts) {
   const explicit = String(booking.courtId || "");
-  if (COURTS.some((court) => court.id === explicit)) return explicit;
+  if (courts.some((court) => court.id === explicit)) return explicit;
   const match = String(booking.courtName || booking.courtOrClass || "").match(/Cancha\s*(\d+)/i);
   return match ? `court${match[1]}` : "";
 }
 
-function normalizeBooking(booking) {
+function normalizeBooking(booking, courts) {
   return {
     id: booking.id,
     date: booking.date,
     time: booking.time || booking.hour || "",
     durationMinutes: Number(booking.durationMinutes || 60),
-    courtId: courtIdOf(booking),
+    courtId: courtIdOf(booking, courts),
     courtName: booking.courtName || booking.courtOrClass || "Cancha",
     playerName: booking.playerName || booking.playerOrGroup || "Jugador",
     price: Number(booking.price || 0),
@@ -60,12 +56,12 @@ function paymentLabel(booking) {
   return "Pago sin verificar";
 }
 
-function slotPosition(booking) {
+function slotPosition(booking, startMinutes, endMinutes) {
   const start = minutes(booking.time);
   const end = start + booking.durationMinutes;
-  if (start < START_MINUTES || start >= END_MINUTES) return null;
-  const row = Math.floor((start - START_MINUTES) / 30) + 2;
-  const span = Math.max(1, Math.ceil((Math.min(end, END_MINUTES) - start) / 30));
+  if (start < startMinutes || start >= endMinutes) return null;
+  const row = Math.floor((start - startMinutes) / 30) + 2;
+  const span = Math.max(1, Math.ceil((Math.min(end, endMinutes) - start) / 30));
   return { row, span };
 }
 
@@ -74,6 +70,10 @@ function formatDate(date) {
 }
 
 export default function AdminDashboard() {
+  const { courts } = useCourtConfig();
+  const gridTimes = useMemo(() => [...new Set(courts.flatMap((court) => court.hours || []))].sort(), [courts]);
+  const startMinutes = gridTimes.length ? minutes(gridTimes[0]) : 9 * 60;
+  const endMinutes = courts.length ? Math.max(...courts.map((court) => minutes(court.closingTime))) : 22 * 60;
   const { bookings: storedBookings = [] } = useBooking();
   const { demoBookings } = useAdminDemoBookings();
   const { apiOnline } = useAuth();
@@ -93,22 +93,23 @@ export default function AdminDashboard() {
     return () => { active = false; window.removeEventListener("padel:activity-updated", load); };
   }, []);
 
-  const bookings = useMemo(() => (isDemo ? demoBookings : storedBookings).map(normalizeBooking), [isDemo, storedBookings]);
+  const bookings = useMemo(() => (isDemo ? demoBookings : storedBookings).map((booking) => normalizeBooking(booking, courts)), [isDemo, storedBookings, demoBookings, courts]);
   const dayBookings = useMemo(() => bookings.filter((booking) => booking.date === date && booking.status !== "cancelado").sort((a, b) => a.time.localeCompare(b.time)), [bookings, date]);
   const dayBlocks = useMemo(() => blocks.filter((block) => block.date === date), [blocks, date]);
-  const courtBookings = dayBookings.filter((booking) => booking.courtId && slotPosition(booking));
+  const courtBookings = dayBookings.filter((booking) => booking.courtId && slotPosition(booking, startMinutes, endMinutes));
   const selected = dayBookings.find((booking) => String(booking.id) === String(selectedId)) || courtBookings[0] || dayBookings[0] || null;
   const pendingBookings = dayBookings.filter((booking) => booking.status === "pendiente");
   const bookedValue = dayBookings.reduce((sum, booking) => sum + booking.price, 0);
   const occupied = new Set();
-  COURTS.forEach((court) => GRID_TIMES.forEach((time, index) => {
+  courts.forEach((court) => gridTimes.forEach((time, index) => {
+    if (!court.hours?.includes(time)) return;
     const start = minutes(time);
     const taken = courtBookings.some((booking) => booking.courtId === court.id && minutes(booking.time) < start + 30 && minutes(booking.time) + booking.durationMinutes > start);
     const blocked = dayBlocks.some((block) => String(block.courtId) === court.id && minutes(block.hour || block.time) < start + 30 && minutes(block.hour || block.time) + Number(block.durationMinutes || 60) > start);
     if (taken || blocked) occupied.add(`${court.id}:${index}`);
   }));
-  const capacity = COURTS.length * GRID_TIMES.length;
-  const occupancy = Math.round(occupied.size / capacity * 100);
+  const capacity = courts.reduce((sum, court) => sum + (court.hours || []).length, 0);
+  const occupancy = capacity ? Math.round(occupied.size / capacity * 100) : 0;
   const freeMinutes = (capacity - occupied.size) * 30;
 
   return (
@@ -123,7 +124,7 @@ export default function AdminDashboard() {
         <div className="club-dashboard__metrics" aria-label="Resumen del día">
           <Metric Icon={CircleDollarSign} label="Valor de reservas" value={money(bookedValue)} note="Reservas activas del día" />
           <Metric Icon={Clock3} label="Por confirmar" value={pendingBookings.length} note={pendingBookings.length === 1 ? "1 reserva requiere seguimiento" : `${pendingBookings.length} reservas requieren seguimiento`} />
-          <Metric Icon={TrendingUp} label="Ocupación" value={`${occupancy}%`} note={`${freeMinutes / 60} h libres entre 09 y 22`} />
+          <Metric Icon={TrendingUp} label="Ocupación" value={`${occupancy}%`} note={`${freeMinutes / 60} h libres en la agenda`} />
         </div>
         </div>
 
@@ -131,21 +132,22 @@ export default function AdminDashboard() {
           <section className="club-dashboard__calendar" aria-label="Agenda por cancha">
             <div className="club-dashboard__section-header"><div><p className="club-dashboard__eyebrow">OPERACIÓN</p><h2>Agenda de canchas</h2></div><label className="club-dashboard__date"><CalendarDays size={16} aria-hidden="true" /><span className="sr-only">Fecha de la agenda</span><input type="date" value={date} onChange={(event) => { setDate(event.target.value); setSelectedId(null); }} aria-label="Fecha de la agenda" /></label></div>
             <div className="club-dashboard__grid-scroll"><div className="club-dashboard__grid">
-              {COURTS.map((court, index) => <div className="club-dashboard__court" key={court.id} style={{ gridColumn: index + 2, gridRow: 1 }}>{court.name.split(" - ")[0]}</div>)}
-              {GRID_TIMES.map((time, index) => <span className="club-dashboard__time" key={time} style={{ gridColumn: 1, gridRow: index + 2 }}>{time}</span>)}
+              {courts.map((court, index) => <div className="club-dashboard__court" key={court.id} style={{ gridColumn: index + 2, gridRow: 1 }}>{court.name.split(" - ")[0]}</div>)}
+              {gridTimes.map((time, index) => <span className="club-dashboard__time" key={time} style={{ gridColumn: 1, gridRow: index + 2 }}>{time}</span>)}
               {courtBookings.map((booking) => {
-                const position = slotPosition(booking);
-                const column = COURTS.findIndex((court) => court.id === booking.courtId) + 2;
+                const position = slotPosition(booking, startMinutes, endMinutes);
+                const column = courts.findIndex((court) => court.id === booking.courtId) + 2;
                 return <button key={booking.id} type="button" className={`club-dashboard__slot club-dashboard__slot--${booking.paymentStatus === "pagado" ? "paid" : booking.status === "pendiente" ? "pending" : "reserved"}`} aria-pressed={selected?.id === booking.id} onClick={() => setSelectedId(booking.id)} style={{ gridColumn: column, gridRow: `${position.row} / span ${position.span}` }} aria-label={`${booking.playerName}, ${booking.courtName}, ${booking.time}, ${booking.status}`}><strong>{booking.playerName}</strong><small>{booking.time} · {booking.durationMinutes} min</small><span>{booking.status === "pendiente" ? "Por confirmar" : paymentLabel(booking)}</span></button>;
               })}
-              {dayBlocks.filter((block) => minutes(block.hour || block.time) >= START_MINUTES && minutes(block.hour || block.time) < END_MINUTES && COURTS.some((court) => court.id === String(block.courtId))).map((block) => {
-                const column = COURTS.findIndex((court) => court.id === String(block.courtId)) + 2;
-                const row = Math.floor((minutes(block.hour || block.time) - START_MINUTES) / 30) + 2;
+              {dayBlocks.filter((block) => minutes(block.hour || block.time) >= startMinutes && minutes(block.hour || block.time) < endMinutes && courts.some((court) => court.id === String(block.courtId))).map((block) => {
+                const column = courts.findIndex((court) => court.id === String(block.courtId)) + 2;
+                const row = Math.floor((minutes(block.hour || block.time) - startMinutes) / 30) + 2;
                 const duration = Number(block.durationMinutes || 60);
                 const overlaps = courtBookings.some((booking) => booking.courtId === String(block.courtId) && minutes(booking.time) < minutes(block.hour || block.time) + duration && minutes(booking.time) + booking.durationMinutes > minutes(block.hour || block.time));
                 return overlaps ? null : <div key={block.id} className="club-dashboard__blocked" style={{ gridColumn: column, gridRow: `${row} / span ${Math.max(1, Math.ceil(duration / 30))}` }} aria-label={`${block.reason || "Horario bloqueado"}, ${block.hour || block.time}`}><strong>Bloqueado</strong><small>{block.reason || "No disponible"}</small></div>;
               })}
-              {COURTS.flatMap((court, courtIndex) => GRID_TIMES.map((time, rowIndex) => {
+              {courts.flatMap((court, courtIndex) => gridTimes.map((time, rowIndex) => {
+                if (!court.hours?.includes(time)) return null;
                 const key = `${court.id}:${rowIndex}`;
                 if (occupied.has(key)) return null;
                 return <div key={key} className="club-dashboard__free" style={{ gridColumn: courtIndex + 2, gridRow: rowIndex + 2 }} aria-label={`${court.name}, ${time}, libre`} />;

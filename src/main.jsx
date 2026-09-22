@@ -15,6 +15,7 @@ import { ScheduleProvider } from "./hooks/useSchedule.jsx";
 import { ToastProvider } from "./components/ToastProvider.jsx";
 import { TournamentsProvider } from "./hooks/useTournaments.jsx";
 import { TeachersProvider } from "./hooks/useTeachers.jsx";
+import { CourtConfigProvider } from "./context/CourtConfigContext.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <BookingProvider>
           <PricingProvider>
             <ClubSettingsProvider>
+              <CourtConfigProvider>
               <TournamentsProvider>
               <TeachersProvider>
               <ScheduleProvider>
@@ -32,6 +34,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               </ScheduleProvider>
               </TeachersProvider>
               </TournamentsProvider>
+              </CourtConfigProvider>
             </ClubSettingsProvider>
           </PricingProvider>
         </BookingProvider>

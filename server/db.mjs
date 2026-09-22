@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { MONGODB_DB_NAME, MONGODB_URI } from "./config.mjs";
 import { bookingSlotStarts, canonicalCourtId } from "../src/utils/bookingDomain.js";
+import { COURTS as DEFAULT_COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 
 const today = new Date();
 const addDays = (days) => {
@@ -43,6 +44,22 @@ const passwordResetSchema = new mongoose.Schema({
 }, { timestamps: true, versionKey: false });
 
 passwordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+const courtSchema = new mongoose.Schema({
+  courtId: { type: String, required: true, unique: true, trim: true },
+  name: { type: String, required: true, trim: true },
+  description: { type: String, default: "", trim: true },
+  tag: { type: String, default: "", trim: true },
+  active: { type: Boolean, default: true },
+  sortOrder: { type: Number, default: 0 },
+  openingTime: { type: String, default: "09:00" },
+  closingTime: { type: String, default: "22:00" },
+  slotIntervalMinutes: { type: Number, enum: [30, 60], default: 30 },
+  allowedDurations: { type: [Number], default: () => DURATION_OPTIONS.map((item) => item.minutes) },
+  basePrice: { type: Number, default: 18000 },
+  nightPrice: { type: Number, default: 24000 },
+  weekendExtra: { type: Number, default: 3000 },
+}, baseOptions);
 
 const bookingSchema = new mongoose.Schema({
   date: { type: String, required: true },
@@ -184,6 +201,7 @@ slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 
 export const User = mongoose.model("User", userSchema);
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
+export const Court = mongoose.model("Court", courtSchema);
 export const Booking = mongoose.model("Booking", bookingSchema);
 export const Tournament = mongoose.model("Tournament", tournamentSchema);
 export const Setting = mongoose.model("Setting", settingsSchema);
@@ -199,6 +217,7 @@ export async function connectDb() {
   }
   await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB_NAME, serverSelectionTimeoutMS: 10000 });
   await seedDatabase();
+  await seedCourts();
   await Booking.init();
   await ScheduleBlock.init();
   await migrateBookingSlots();
@@ -267,6 +286,26 @@ async function seedDatabase() {
     { date: addDays(0), concept: "Limpieza y mantenimiento diario", category: "mantenimiento", amount: 18000, paymentMethod: "efectivo" },
     { date: addDays(0), concept: "Pelotas y consumibles", category: "insumos", amount: 22000, paymentMethod: "transferencia" },
   ]);
+}
+
+async function seedCourts() {
+  if (await Court.countDocuments()) return;
+  const settings = await Setting.findOne().lean();
+  await Court.insertMany(DEFAULT_COURTS.map((court, index) => ({
+    courtId: court.id,
+    name: court.name,
+    description: court.description,
+    tag: court.tag,
+    active: true,
+    sortOrder: index,
+    openingTime: "09:00",
+    closingTime: "22:00",
+    slotIntervalMinutes: 30,
+    allowedDurations: DURATION_OPTIONS.map((item) => item.minutes),
+    basePrice: Number(settings?.courtPrice || 18000),
+    nightPrice: Number(settings?.nightPrice || 24000),
+    weekendExtra: Number(settings?.weekendExtra || 3000),
+  })));
 }
 
 async function migrateBookingSlots() {

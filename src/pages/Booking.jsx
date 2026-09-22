@@ -6,11 +6,12 @@ import { useBooking } from "../hooks/useBooking.jsx";
 import { useAvailability } from "../hooks/useAvailability.js";
 import { useSchedule } from "../hooks/useSchedule.jsx";
 import { usePricing } from "../context/PricingContext.jsx";
-import { COURTS, CLASS_HOURS, COURT_HOURS, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
+import { CLASS_HOURS, DURATION_OPTIONS, PAYMENT_OPTIONS } from "../data/bookingConfig.js";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
 import { getClassPrice, getCourtPrice, getCourtPriceForDuration } from "../utils/pricing.js";
 import { useTeachers } from "../hooks/useTeachers.jsx";
 import { useToast } from "../components/ToastProvider.jsx";
-import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, fitsOperatingHours, isPastSlot } from "../utils/bookingDomain.js";
+import { argentinaDateISO, blockOverlapsBooking, bookingsOverlap, isPastSlot } from "../utils/bookingDomain.js";
 
 function minutesFromHour(hour = "00:00") {
   const [hh = "0", mm = "0"] = String(hour).split(":");
@@ -54,6 +55,7 @@ export default function Booking() {
   const { notify } = useToast();
   const { blocks, loading: blocksLoading, error: blocksError } = useSchedule();
   const { prices } = usePricing();
+  const { courts } = useCourtConfig();
   const { teachers, error: teachersError } = useTeachers();
   const activeTeachers = useMemo(() => teachers.filter((teacher) => teacher.status === "activo"), [teachers]);
   const [selectedTeacherId, setSelectedTeacherId] = useState(null);
@@ -61,7 +63,9 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const { occupied, teacherBusy, loading: availabilityLoading, error: availabilityError } = useAvailability(selectedDate);
   const [selectedDuration, setSelectedDuration] = useState(90);
-  const [selectedCourtId, setSelectedCourtId] = useState(() => COURTS.some((court) => court.id === requestedCourtId) ? requestedCourtId : COURTS[0].id);
+  const [selectedCourtId, setSelectedCourtId] = useState(() => requestedCourtId || "court1");
+  const selectedCourt = courts.find((court) => court.id === selectedCourtId) || courts[0];
+  const durationOptions = DURATION_OPTIONS.filter((option) => selectedCourt?.allowedDurations?.includes(option.minutes));
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentOption, setPaymentOption] = useState(null);
   const [confirmationMsg, setConfirmationMsg] = useState("");
@@ -70,12 +74,21 @@ export default function Booking() {
   const [summaryVisible, setSummaryVisible] = useState(false);
 
   useEffect(() => {
-    if (COURTS.some((court) => court.id === requestedCourtId)) {
+    if (courts.some((court) => court.id === requestedCourtId)) {
       setSelectedCourtId(requestedCourtId);
       setSelectedSlot(null);
       setPaymentOption(null);
+    } else if (!courts.some((court) => court.id === selectedCourtId) && courts[0]) {
+      setSelectedCourtId(courts[0].id);
     }
-  }, [requestedCourtId]);
+  }, [requestedCourtId, courts, selectedCourtId]);
+
+  useEffect(() => {
+    if (selectedCourt && !selectedCourt.allowedDurations.includes(selectedDuration)) {
+      setSelectedDuration(selectedCourt.allowedDurations[0] || 60);
+      setSelectedSlot(null);
+    }
+  }, [selectedCourt, selectedDuration]);
 
   useEffect(() => {
     if (!selectedSlot) { setSummaryVisible(false); return; }
@@ -101,7 +114,7 @@ export default function Booking() {
     if (isPastSlot(selectedDate, hour)) {
       return { block: { reason: "Horario pasado" }, reserved: null, taken: true };
     }
-    if (type === "court" && !fitsOperatingHours(hour, durationMinutes)) {
+    if (type === "court" && (!selectedCourt?.hours.includes(hour) || minutesFromHour(hour) + durationMinutes > minutesFromHour(selectedCourt.closingTime))) {
       return { block: { reason: "Fuera de horario" }, reserved: null, taken: true };
     }
     const candidate = { date: selectedDate, courtId, time: hour, durationMinutes };
@@ -121,7 +134,7 @@ export default function Booking() {
 
     const price = type === "class"
       ? Number(primaryTeacher?.price ?? getClassPrice(prices))
-      : getCourtPriceForDuration(hour, selectedDate, durationMinutes, prices);
+      : getCourtPriceForDuration(hour, selectedDate, durationMinutes, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra });
 
     setSelectedSlot({
       courtId: court.id,
@@ -252,7 +265,7 @@ export default function Booking() {
             <p className="mt-1 text-sm text-slate-200">Elegí 1 h, 1:30 h, 2 h o 2:30 h según tu partido.</p>
           </div>
           <div className="grid grid-cols-4 gap-2 md:min-w-[360px]">
-            {DURATION_OPTIONS.map((option) => {
+            {durationOptions.map((option) => {
               const active = selectedDuration === option.minutes;
               return (
                 <button
@@ -283,11 +296,11 @@ export default function Booking() {
 
       <div className="mb-5" role="group" aria-label="Elegí cancha">
         <p className="mb-2 text-[11px] uppercase tracking-[0.22em] text-white/50">Elegí una cancha</p>
-        <div className="grid gap-2 sm:grid-cols-3">{COURTS.map((court) => <button key={court.id} type="button" aria-pressed={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); setBookingCompleted(false); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
+        <div className="grid gap-2 sm:grid-cols-3">{courts.map((court) => <button key={court.id} type="button" aria-pressed={selectedCourtId === court.id} onClick={() => { setSelectedCourtId(court.id); setSelectedSlot(null); setPaymentOption(null); setConfirmationMsg(""); setBookingCompleted(false); }} className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedCourtId === court.id ? "border-lime-300 bg-lime-300 text-black" : "border-white/15 bg-white/5 text-white hover:border-lime-300/40"}`}>{court.name}</button>)}</div>
       </div>
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)] lg:gap-8">
         <div className="mobile-snap-row wide lg:block lg:space-y-5">
-          {COURTS.filter((court) => court.id === selectedCourtId).map((court) => (
+          {courts.filter((court) => court.id === selectedCourtId).map((court) => (
             <article key={court.id} className="overflow-hidden rounded-3xl border border-slate-800/90 bg-[#050814]/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
               <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-white/5 via-white/0 to-transparent px-5 pb-3 pt-4">
                 <div>
@@ -300,8 +313,8 @@ export default function Booking() {
 
                 <div className="hidden space-y-1 text-right text-[11px] text-white/60 sm:block">
                   <PriceLine label="Clases 09-13" value={getClassPrice(prices)} />
-                  <PriceLine label="Cancha 09-19" value={getCourtPrice("15:00", selectedDate, prices)} />
-                  <PriceLine label="Noche desde 19" value={getCourtPrice("20:00", selectedDate, prices)} />
+                  <PriceLine label="Precio base" value={getCourtPrice("15:00", selectedDate, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra })} />
+                  <PriceLine label="Precio nocturno" value={getCourtPrice("20:00", selectedDate, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra })} />
                 </div>
               </div>
 
@@ -333,11 +346,11 @@ export default function Booking() {
               </div>
 
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
-                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de 09:00 a 22:00 · {formatDuration(selectedDuration)} · salidas cada 30 min</p>
+                <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de {selectedCourt?.openingTime} a {selectedCourt?.closingTime} · {formatDuration(selectedDuration)} · salidas cada {selectedCourt?.slotIntervalMinutes || 30} min</p>
                 <p className="mb-3 text-xs text-white/55">Cada botón es una opción de inicio. Un turno reservado también bloquea las opciones que se cruzan con él.</p>
                 <div className="flex flex-wrap gap-2">
-                  {COURT_HOURS.filter((hour) => fitsOperatingHours(hour, selectedDuration) && !isPastSlot(selectedDate, hour)).map((hour) => {
-                    const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, prices);
+                  {(court.hours || []).filter((hour) => minutesFromHour(hour) + selectedDuration <= minutesFromHour(court.closingTime) && !isPastSlot(selectedDate, hour)).map((hour) => {
+                    const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra });
                     const endTime = addMinutesToHour(hour, selectedDuration);
                     const isSelected = selectedSlot?.courtId === court.id && selectedSlot.hour === hour && selectedSlot.type === "court";
                     const slotState = getSlotState(court.id, hour, "court", selectedDuration);
