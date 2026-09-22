@@ -32,9 +32,9 @@ export async function apiRequest(path, options = {}) {
   return payload;
 }
 
-export async function checkApiHealth() {
+export async function checkApiHealth(timeoutMs = 5000) {
   try {
-    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000), cache: "no-store", credentials: "include" });
+    const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(timeoutMs), cache: "no-store", credentials: "include" });
     const contentType = response.headers.get("content-type") || "";
     if (!response.ok || !contentType.includes("application/json")) return false;
     const health = await response.json();

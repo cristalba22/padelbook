@@ -45,7 +45,15 @@ export function AuthProvider({ children }) {
   const [apiError, setApiError] = useState(false);
 
   const initialize = useCallback(async (isActive) => {
-    const online = await checkApiHealth();
+    setApiReady(false);
+    setApiError(false);
+    let online = false;
+    const attempts = configuredApi ? 3 : 1;
+    for (let attempt = 0; attempt < attempts && isActive(); attempt += 1) {
+      online = await checkApiHealth(configuredApi ? 30000 : 5000);
+      if (online || !isActive()) break;
+      if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
     if (!isActive()) return;
     if (configuredApi && !online) {
       setApiError(true);
@@ -80,9 +88,7 @@ export function AuthProvider({ children }) {
     return () => { alive = false; };
   }, [initialize]);
 
-  function retryApi() {
-    initialize(() => true);
-  }
+  function retryApi() { initialize(() => true); }
 
   useEffect(() => {
     const handleExpired = () => {
@@ -198,7 +204,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
-  return <AuthContext.Provider value={value}>{apiReady ? children : <div role={apiError ? "alert" : "status"} className="grid min-h-screen place-items-center bg-[#080c16] px-6 text-center text-white"><div className="max-w-md"><h1 className="text-2xl font-bold">{apiError ? "El club no está disponible en este momento" : "Consultando el estado del club..."}</h1>{apiError && <><p className="mt-3 text-sm text-white/65">No podemos consultar la agenda. Para proteger tus reservas, esperá a que se restablezca la conexión.</p><button type="button" onClick={retryApi} className="mt-6 rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Volver a intentar</button></>}</div></div>}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{apiReady ? children : <div role={apiError ? "alert" : "status"} className="grid min-h-screen place-items-center bg-[#080c16] px-6 text-center text-white"><div className="max-w-md"><h1 className="text-2xl font-bold">{apiError ? "El club no está disponible en este momento" : "Conectando con el club..."}</h1>{apiError ? <><p className="mt-3 text-sm text-white/65">No podemos consultar la agenda. Para proteger tus reservas, esperá a que se restablezca la conexión.</p><button type="button" onClick={retryApi} className="mt-6 rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Volver a intentar</button></> : <p className="mt-3 text-sm text-white/65">La primera conexión puede tardar cerca de un minuto.</p>}</div></div>}</AuthContext.Provider>;
 }
 
 export function useAuth() {
