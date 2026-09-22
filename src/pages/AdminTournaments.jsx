@@ -57,7 +57,7 @@ export default function AdminTournaments() {
   function removeTournament(id) { run(() => remove(id)); }
 
   return (
-    <AdminLayout title="Torneos del club" subtitle="Gestioná eventos, cupos e inscripciones desde un solo lugar.">
+    <AdminLayout title="Torneos del club" subtitle="Publicá torneos, confirmá cupos y revisá inscripciones.">
       {(loadError || actionError) && <p role="alert" className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm text-red-100">{loadError || actionError}</p>}
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">

@@ -77,7 +77,7 @@ export default function Account() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-300">Cuenta del jugador</p>
               <h1 className="mt-2 text-4xl font-black tracking-[-0.06em]">Hola, {user.name || "jugador"}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Tu perfil mantiene sincronizadas las reservas, pagos, categoría y contacto que usa el club para gestionar tus turnos.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Acá podés actualizar tus datos y consultar turnos, pagos registrados e inscripciones.</p>
             </div>
             <div className="rounded-[1.7rem] border border-lime-300/20 bg-lime-300/10 p-4">
               <div className="mb-2 flex items-center justify-between text-xs"><span className="font-bold uppercase tracking-[0.2em] text-lime-100">Tus reservas</span><span className="text-lime-100">{activeBookings.length}</span></div>
