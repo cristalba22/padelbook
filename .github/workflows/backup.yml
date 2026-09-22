@@ -28,7 +28,7 @@ jobs:
       - name: Verify encrypted backup
         run: npm run db:backup -- --verify-only padelbook-backup.pbk
       - name: Store encrypted artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: padelbook-mongodb-${{ github.run_id }}
           path: padelbook-backup.pbk
