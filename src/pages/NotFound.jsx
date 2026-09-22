@@ -9,7 +9,7 @@ export default function NotFound() {
         <p className="text-[11px] font-black uppercase tracking-[0.28em] text-lime-300">Ruta no encontrada</p>
         <h1 className="mt-4 text-4xl font-black tracking-[-0.06em] md:text-5xl">Esta pantalla no existe.</h1>
         <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-slate-400">
-          Puede que el link haya cambiado o que la plataforma se haya abierto desde una ruta vieja. Volvé al inicio y elegí qué parte del producto querés recorrer.
+          Revisá la dirección o volvé al inicio para buscar un turno.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link to={ROUTES.HOME} className="btn-primary">Volver al inicio</Link>
