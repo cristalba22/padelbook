@@ -232,7 +232,7 @@ export default function Booking() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] text-white/40">Reservas online</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Reservar turno</h1>
-          <p className="mt-1 max-w-xl text-sm text-white/70">Elegí día, cancha o clase, seleccioná la forma de pago y confirmá tu turno en pocos pasos.</p>
+          <p className="mt-1 max-w-xl text-sm text-white/70">Elegí fecha, cancha y duración. Revisá el precio antes de confirmar.</p>
         </div>
 
         <div className="text-right">
@@ -253,7 +253,7 @@ export default function Booking() {
               className="rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-lime-300/60"
             />
           </div>
-          <p className="mt-1 text-[11px] text-white/55">Podés cambiarla desde acá sin volver al paso 1.</p>
+          <p className="mt-1 text-[11px] text-white/55">Al cambiar la fecha se limpia el horario elegido.</p>
         </div>
       </header>
 
@@ -261,8 +261,8 @@ export default function Booking() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.24em] text-lime-100">Duración del partido</p>
-            <h2 className="mt-1 text-xl font-black text-white">Reserva el tiempo que necesita tu grupo</h2>
-            <p className="mt-1 text-sm text-slate-200">Elegí 1 h, 1:30 h, 2 h o 2:30 h según tu partido.</p>
+            <h2 className="mt-1 text-xl font-black text-white">¿Cuánto tiempo querés jugar?</h2>
+            <p className="mt-1 text-sm text-slate-200">Las opciones disponibles dependen de cada cancha.</p>
           </div>
           <div className="grid grid-cols-4 gap-2 md:min-w-[360px]">
             {durationOptions.map((option) => {
@@ -347,7 +347,7 @@ export default function Booking() {
 
               <div className="border-t border-white/5 px-5 pb-4 pt-3">
                 <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/55">Cancha de {selectedCourt?.openingTime} a {selectedCourt?.closingTime} · {formatDuration(selectedDuration)} · salidas cada {selectedCourt?.slotIntervalMinutes || 30} min</p>
-                <p className="mb-3 text-xs text-white/55">Cada botón es una opción de inicio. Un turno reservado también bloquea las opciones que se cruzan con él.</p>
+                <p className="mb-3 text-xs text-white/55">Los horarios que se superponen con otra reserva aparecen ocupados.</p>
                 <div className="flex flex-wrap gap-2">
                   {(court.hours || []).filter((hour) => minutesFromHour(hour) + selectedDuration <= minutesFromHour(court.closingTime) && !isPastSlot(selectedDate, hour)).map((hour) => {
                     const price = getCourtPriceForDuration(hour, selectedDate, selectedDuration, { ...prices, courtPrice: court.basePrice, nightPrice: court.nightPrice, weekendExtra: court.weekendExtra });
@@ -378,7 +378,7 @@ export default function Booking() {
             <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-white/40">Tu reserva</p>
 
             {!selectedSlot ? (
-              <div className="text-sm text-white/70">Todavía no seleccionaste un horario.<br />Elegí una clase o turno de pádel a la izquierda para ver el detalle acá.</div>
+              <div className="text-sm text-white/70">Elegí un horario para ver el precio y las opciones de pago.</div>
             ) : (
               <>
                 <div className="mb-3 space-y-1">
@@ -453,8 +453,8 @@ export default function Booking() {
           </div>
 
           <div className="rounded-3xl border border-lime-300/20 bg-lime-300/10 p-4 text-[11px] text-lime-50/85">
-            <p className="mb-1 font-semibold text-white">Reserva segura</p>
-            <p>{apiOnline ? "El turno queda guardado en tu cuenta y el club lo ve en su panel de gestión." : "En esta demo el turno se guarda solo en este navegador."}</p>
+            <p className="mb-1 font-semibold text-white">Estado de la reserva</p>
+            <p>{apiOnline ? "La reserva aparece en tu cuenta y en la agenda del club." : "Datos de prueba: la reserva se guarda solo en este navegador."}</p>
           </div>
         </aside>
       </section>

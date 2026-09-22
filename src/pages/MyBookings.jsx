@@ -243,7 +243,7 @@ export default function MyBookings() {
           <p className="page-kicker">Mis turnos</p>
           <h1 className="page-title mt-2">Ingresá para ver tu agenda</h1>
           <p className="page-subtitle mx-auto mt-3 max-w-2xl">
-            Ingresá para ver tus reservas, pagos, cancelaciones, torneos inscriptos y contacto directo con el club.
+            Ingresá para consultar tus reservas, pagos registrados e inscripciones a torneos.
           </p>
           <button type="button" onClick={openLogin} className="btn-primary mt-6">
             Ingresar
@@ -259,10 +259,9 @@ export default function MyBookings() {
       <header className="interior-hero mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="page-kicker">Mis turnos</p>
-          <h1 className="page-title">Tu agenda de pádel</h1>
+          <h1 className="page-title">Mis turnos</h1>
           <p className="page-subtitle max-w-xl">
-            Acá ves todos tus turnos: próximos, pendientes, cancelados e
-            historial. Podés consultar el saldo, cancelar o escribirle al club en un toque.
+            Consultá tus turnos próximos y anteriores. Desde cada reserva podés ver el saldo, cancelar o contactar al club.
           </p>
         </div>
 
@@ -276,7 +275,7 @@ export default function MyBookings() {
               {upcoming.length}
             </p>
             <p className="text-[0.7rem] text-lime-100/70">
-              Turnos agendados 🗓️
+              Turnos agendados
             </p>
           </div>
           <div className="rounded-2xl border border-sky-400/40 bg-sky-400/10 px-4 py-3 shadow-lg shadow-sky-400/20">
@@ -328,7 +327,7 @@ export default function MyBookings() {
             <div className="space-y-3 text-xs text-zinc-400">
               <p className="font-semibold text-zinc-200">Atención del club</p>
               <p>{settings.clubName}</p>
-              <p>{settings.address}</p>
+              {settings.address && <p>{settings.address}</p>}
               <p>Horario: {settings.openingHours}</p>
             </div>
           </div>
@@ -341,7 +340,7 @@ export default function MyBookings() {
               <p className="mb-2 text-zinc-200 font-medium">
                 No tenés turnos en esta categoría.
               </p>
-              <p>Probá cambiando el filtro o reservando uno nuevo 😉</p>
+              <p>Elegí otro filtro o buscá un horario disponible.</p>
             </div>
           ) : (
             <div className="space-y-4">

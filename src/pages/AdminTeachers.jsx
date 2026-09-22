@@ -50,7 +50,7 @@ export default function AdminTeachers() {
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div><p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Operación de profes</p><h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Clases, precios y disponibilidad</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Gestioná quién puede dar clases hoy, cuánto cobra y qué disponibilidad se muestra en la experiencia del jugador.</p></div>
+            <div><p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Profesores</p><h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Clases, precios y disponibilidad</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Definí qué profesores dan clases, sus precios y los horarios que pueden reservar los jugadores.</p></div>
             <button onClick={save} className="btn-primary px-6 py-3">Guardar staff</button>
           </div>
           {saved && <p className="mt-3 text-sm font-bold text-lime-100">Cambios guardados ✓</p>}

@@ -117,7 +117,7 @@ export default function AdminDashboard() {
       <div className="club-dashboard">
         <div className="club-dashboard__hero">
         <div className="club-dashboard__intro">
-          <div><p className="club-dashboard__eyebrow">{formatDate(date)}</p><h1>Todo listo para jugar.</h1><p>Tu agenda y tus reservas, en el mismo lugar.</p></div>
+          <div><p className="club-dashboard__eyebrow">{formatDate(date)}</p><h1>Agenda del club</h1><p>Reservas, bloqueos y pagos pendientes del día seleccionado.</p></div>
           <Link to={ROUTES.ADMIN_CALENDAR} className="club-dashboard__primary"><Plus size={17} aria-hidden="true" /> Gestionar agenda</Link>
         </div>
 
