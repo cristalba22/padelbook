@@ -42,12 +42,14 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
   const [category, setCategory] = useState("6ta");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [recoverySent, setRecoverySent] = useState(false);
 
   if (!isOpen) return null;
 
   const close = () => {
     setError("");
     setMessage("");
+    setRecoverySent(false);
     if (typeof onClose === "function") onClose();
   };
 
@@ -55,6 +57,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
     setMode(nextMode);
     setError("");
     setMessage("");
+    setRecoverySent(false);
     if (nextMode === "register") {
       setName("");
       setEmail("");
@@ -75,6 +78,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
       if (mode === "forgot") {
         const result = await requestPasswordReset(email);
         setMessage(result.message);
+        setRecoverySent(true);
         return;
       }
       const profile = mode === "register"
@@ -134,9 +138,22 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           {mode === "forgot" ? <button type="button" onClick={() => changeMode("login")} className="mt-5 text-xs font-bold text-lime-200 hover:text-lime-100">← Volver al ingreso</button> : <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold"><button type="button" onClick={() => changeMode("login")} className={`rounded-full py-2.5 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button><button type="button" onClick={() => changeMode("register")} className={`rounded-full py-2.5 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button></div>}
 
           {error && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-100">{error}</div>}
-          {message && <div role="status" className="mt-4 rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-xs font-semibold text-lime-100">{message}</div>}
+          {mode === "forgot" && recoverySent ? (
+            <div role="status" className="mt-5 rounded-3xl border border-lime-300/25 bg-[linear-gradient(145deg,rgba(190,242,100,.14),rgba(45,212,191,.06))] p-5 shadow-[0_18px_55px_rgba(0,0,0,.3)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300 text-xl font-black text-slate-950 shadow-[0_0_28px_rgba(190,242,100,.28)]">✓</div>
+              <h3 className="mt-4 text-xl font-black tracking-[-0.03em] text-white">Revisá tu correo</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Enviamos un enlace a <strong className="text-white">{email}</strong>. Abrilo para acceder a la pestaña donde vas a escribir y confirmar tu nueva contraseña.</p>
+              <div className="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-3">
+                <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><b className="text-lime-200">1.</b> Abrí el email</span>
+                <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><b className="text-lime-200">2.</b> Tocá el botón</span>
+                <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><b className="text-lime-200">3.</b> Creá tu clave</span>
+              </div>
+              <p className="mt-4 text-[11px] leading-5 text-slate-400">El enlace dura 20 minutos y funciona una sola vez. Revisá Spam si no aparece.</p>
+              <button type="button" onClick={() => setRecoverySent(false)} className="btn-outline mt-5 w-full justify-center">Enviar otro enlace</button>
+            </div>
+          ) : message && <div role="status" className="mt-4 rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-xs font-semibold text-lime-100">{message}</div>}
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+          {!recoverySent && <form onSubmit={handleSubmit} className="mt-5 space-y-3">
             {mode === "register" && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nombre">
@@ -165,7 +182,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
               {mode === "login" ? "Entrar al panel" : mode === "register" ? "Crear cuenta de jugador" : "Enviar enlace seguro"}
             </button>
             {mode === "login" && apiOnline && <button type="button" onClick={() => changeMode("forgot")} className="w-full text-center text-xs font-bold text-slate-300 hover:text-lime-200">¿Olvidaste tu contraseña?</button>}
-          </form>
+          </form>}
 
           {!apiOnline && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
