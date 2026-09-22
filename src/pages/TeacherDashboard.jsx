@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { COURTS, CLASS_HOURS } from "../data/bookingConfig.js";
+import { CLASS_HOURS } from "../data/bookingConfig.js";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";
 import { sameSlot, useSchedule } from "../hooks/useSchedule.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -23,6 +24,7 @@ function formatDateLabel(value) {
 
 export default function TeacherDashboard() {
   const { user, apiOnline } = useAuth();
+  const { courts } = useCourtConfig();
   const { bookings } = useBooking();
   const { prices } = usePricing();
   const { blocks, loading: blocksLoading, error: blocksError, addBlocks, getBlock, removeBlocksWhere } = useSchedule();
@@ -57,8 +59,8 @@ export default function TeacherDashboard() {
   }
 
   function getSelectedCourts() {
-    if (selectedCourtId === "all") return COURTS;
-    return COURTS.filter((court) => String(court.id) === String(selectedCourtId));
+    if (selectedCourtId === "all") return courts;
+    return courts.filter((court) => String(court.id) === String(selectedCourtId));
   }
 
   function blockSelectedRange() {
@@ -68,6 +70,7 @@ export default function TeacherDashboard() {
     const newBlocks = [];
     selectedCourts.forEach((court) => {
       selectedHours.forEach((hour) => {
+        if (!court.hours?.includes(hour)) return;
         const reserved = classBookings.some((booking) => sameSlot(booking, selectedDate, court.id, hour));
         if (!reserved) newBlocks.push({ date: selectedDate, courtId: court.id, hour, reason: `No disponible - ${teacherName}`, type: "teacher" });
       });
@@ -122,7 +125,7 @@ export default function TeacherDashboard() {
             <span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-400">Cancha</span>
             <select value={selectedCourtId} onChange={(event) => setSelectedCourtId(event.target.value)} className="field">
               <option value="all">Todas las canchas</option>
-              {COURTS.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}
+              {courts.map((court) => <option key={court.id} value={court.id}>{court.name}</option>)}
             </select>
           </label>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -192,11 +195,11 @@ export default function TeacherDashboard() {
           <h2 className="mt-2 text-xl font-black text-white">{selectedDateLabel}</h2>
           <p className="mt-1 text-xs text-slate-500">Horarios editables para clases</p>
           <div className="mt-4 space-y-3">
-            {COURTS.map((court) => (
+            {courts.map((court) => (
               <div key={court.id} className="rounded-2xl border border-white/10 bg-black/25 p-3">
                 <p className="text-sm font-black">{court.name}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {CLASS_HOURS.map((hour) => {
+                  {CLASS_HOURS.filter((hour) => court.hours?.includes(hour)).map((hour) => {
                     const block = getBlock(selectedDate, court.id, hour);
                     const reserved = classBookings.find((booking) => sameSlot(booking, selectedDate, court.id, hour));
                     return (

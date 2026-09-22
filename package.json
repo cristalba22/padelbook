@@ -9,11 +9,14 @@
     "build": "vite build",
     "deploy:cloudflare": "npm run build && wrangler deploy",
     "test": "node --test tests/*.test.mjs",
+    "db:backup": "node scripts/backup.mjs",
+    "db:restore": "node scripts/restore.mjs",
     "start:api": "node server/index.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "bson": "^7.3.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

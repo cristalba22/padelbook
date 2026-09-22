@@ -23,10 +23,22 @@ export const COURTS = [
 export const CLASS_HOURS = ["09:00", "10:00", "11:00", "12:00"];
 export const COURT_DAY_START = "09:00";
 export const COURT_DAY_END = "22:00";
-export const COURT_HOURS = Array.from({ length: 26 }, (_, index) => {
-  const totalMinutes = 9 * 60 + index * 30;
-  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
-});
+export function buildCourtHours(openingTime = COURT_DAY_START, closingTime = COURT_DAY_END, intervalMinutes = 30) {
+  const [openHour, openMinute] = openingTime.split(":").map(Number);
+  const [closeHour, closeMinute] = closingTime.split(":").map(Number);
+  const start = openHour * 60 + openMinute;
+  const end = closeHour * 60 + closeMinute;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || ![30, 60].includes(Number(intervalMinutes))) return [];
+  return Array.from({ length: Math.ceil((end - start) / Number(intervalMinutes)) }, (_, index) => {
+    const totalMinutes = start + index * Number(intervalMinutes);
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+  }).filter((hour) => {
+    const [hh, mm] = hour.split(":").map(Number);
+    return hh * 60 + mm < end;
+  });
+}
+
+export const COURT_HOURS = buildCourtHours();
 
 export const DURATION_OPTIONS = [
   { minutes: 60, label: "1 h", shortLabel: "1h" },

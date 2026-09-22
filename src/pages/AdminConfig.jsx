@@ -5,14 +5,15 @@ import { usePricing } from "../context/PricingContext.jsx";
 import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { apiRequest } from "../utils/apiClient.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useCourtConfig } from "../context/CourtConfigContext.jsx";
+
+const DURATIONS = [60, 90, 120, 150];
+const EMPTY_COURT = { name: "", description: "", tag: "", active: true, sortOrder: 0, openingTime: "09:00", closingTime: "22:00", slotIntervalMinutes: 30, allowedDurations: [60, 90], basePrice: 18000, nightPrice: 24000, weekendExtra: 3000 };
 
 const CONFIG_FIELDS = [
-  { key: "courtPrice", title: "Turno base", help: "Precio estándar de cancha." },
-  { key: "nightPrice", title: "Horario nocturno", help: "Valor aplicado desde las 19:00." },
   { key: "classPrice", title: "Clase con profesor", help: "Monto base de clase individual o grupal." },
   { key: "teacherCommissionPercent", title: "Comisión profesor", help: "Porcentaje que se liquida al profesor por cada clase." },
   { key: "tournamentPrice", title: "Inscripción torneo", help: "Precio por jugador." },
-  { key: "weekendExtra", title: "Extra fin de semana", help: "Adicional sábado y domingo." },
 ];
 
 function money(value) {
@@ -23,23 +24,29 @@ export default function AdminConfig() {
   const { prices, updatePrices } = usePricing();
   const { settings, updateSettings } = useClubSettings();
   const { apiOnline } = useAuth();
+  const { allCourts, refresh: refreshCourts } = useCourtConfig();
   const [form, setForm] = useState(prices);
   const [clubForm, setClubForm] = useState(settings);
   const [savedAt, setSavedAt] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [courtForms, setCourtForms] = useState([]);
+  const [newCourt, setNewCourt] = useState(EMPTY_COURT);
+  const [courtMessage, setCourtMessage] = useState("");
 
   useEffect(() => setForm(prices), [prices]);
   useEffect(() => setClubForm(settings), [settings]);
+  useEffect(() => { refreshCourts({ admin: true }); }, [refreshCourts]);
+  useEffect(() => setCourtForms(allCourts.map((court) => ({ ...court }))), [allCourts]);
 
   const preview = useMemo(() => {
-    const prime = Number(form.nightPrice || form.courtPrice || 0) + Number(form.weekendExtra || 0);
+    const firstCourt = allCourts.find((court) => court.active !== false);
     return [
-      { label: "Cancha tarde", value: money(form.courtPrice) },
-      { label: "Noche finde", value: money(prime) },
+      { label: "Cancha base", value: money(firstCourt?.basePrice) },
+      { label: "Noche finde", value: money(Number(firstCourt?.nightPrice || 0) + Number(firstCourt?.weekendExtra || 0)) },
       { label: "Clase", value: money(form.classPrice) },
     ];
-  }, [form]);
+  }, [form, allCourts]);
 
   function handleChange(key, value) {
     setForm((prev) => ({ ...prev, [key]: value.replace(/\D/g, "") }));
@@ -65,6 +72,36 @@ export default function AdminConfig() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function editCourt(id, key, value) {
+    setCourtForms((current) => current.map((court) => court.id === id ? { ...court, [key]: value } : court));
+  }
+
+  function toggleDuration(court, setCourt, minutes) {
+    const current = court.allowedDurations || [];
+    const next = current.includes(minutes) ? current.filter((item) => item !== minutes) : [...current, minutes].sort((a, b) => a - b);
+    if (next.length) setCourt({ ...court, allowedDurations: next });
+  }
+
+  async function saveCourt(court) {
+    setCourtMessage("");
+    try {
+      const payload = { ...court, basePrice: Number(court.basePrice), nightPrice: Number(court.nightPrice), weekendExtra: Number(court.weekendExtra), sortOrder: Number(court.sortOrder), slotIntervalMinutes: Number(court.slotIntervalMinutes), hours: undefined, id: undefined };
+      await apiRequest(`/admin/courts/${court.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      await refreshCourts({ admin: true });
+      setCourtMessage(`${court.name} actualizada.`);
+    } catch (cause) { setCourtMessage(cause.message || "No se pudo guardar la cancha."); }
+  }
+
+  async function createCourt() {
+    setCourtMessage("");
+    try {
+      await apiRequest("/admin/courts", { method: "POST", body: JSON.stringify({ ...newCourt, sortOrder: allCourts.length }) });
+      setNewCourt({ ...EMPTY_COURT, sortOrder: allCourts.length + 1 });
+      await refreshCourts({ admin: true });
+      setCourtMessage("Cancha creada y publicada.");
+    } catch (cause) { setCourtMessage(cause.message || "No se pudo crear la cancha."); }
   }
 
   return (
@@ -96,7 +133,7 @@ export default function AdminConfig() {
           <TextField label="Nombre corto" value={clubForm.clubShortName} onChange={(v) => handleClubChange("clubShortName", v)} />
           <TextField label="Dirección" value={clubForm.address} onChange={(v) => handleClubChange("address", v)} />
           <TextField label="WhatsApp" value={clubForm.whatsapp} onChange={(v) => handleClubChange("whatsapp", v.replace(/\D/g, ""))} />
-          <TextField label="Horario de atención (informativo; reservas de 09:00 a 22:00)" value={clubForm.openingHours} onChange={(v) => handleClubChange("openingHours", v)} />
+          <TextField label="Horario de atención (texto informativo)" value={clubForm.openingHours} onChange={(v) => handleClubChange("openingHours", v)} />
           <TextField label="Estado del club" value={clubForm.clubStatus} onChange={(v) => handleClubChange("clubStatus", v)} />
           <label className="md:col-span-2"><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">Título del home</span><input value={clubForm.homeHeadline || ""} onChange={(e) => handleClubChange("homeHeadline", e.target.value)} className="field" /></label>
           <label className="md:col-span-2"><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">Texto principal del home</span><textarea value={clubForm.homeSubtitle || ""} onChange={(e) => handleClubChange("homeSubtitle", e.target.value)} rows={3} className="field resize-none" /></label>
@@ -105,11 +142,47 @@ export default function AdminConfig() {
         </div>
       </section>
 
+      <section className="admin-panel mb-6 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
+        <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Agenda configurable</p>
+        <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div><h2 className="text-3xl font-black tracking-[-0.04em] text-white">Canchas, horarios y tarifas</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Cada cancha define su apertura, cierre, salidas, duraciones y precio. Los cambios impactan en Reservar, Calendario y recepción.</p></div>
+          {courtMessage && <p role="status" className="rounded-2xl border border-lime-300/20 bg-lime-300/10 px-4 py-2 text-sm text-lime-100">{courtMessage}</p>}
+        </div>
+        <div className="mt-6 space-y-4">
+          {courtForms.map((court) => <CourtEditor key={court.id} court={court} onChange={(key, value) => editCourt(court.id, key, value)} onToggleDuration={(minutes) => toggleDuration(court, (next) => setCourtForms((current) => current.map((item) => item.id === court.id ? next : item)), minutes)} onSave={() => saveCourt(court)} />)}
+        </div>
+        <div className="mt-6 rounded-[1.5rem] border border-dashed border-lime-300/30 bg-black/20 p-5">
+          <h3 className="text-lg font-black text-white">Agregar cancha</h3>
+          <div className="mt-4"><CourtEditor court={newCourt} isNew onChange={(key, value) => setNewCourt((current) => ({ ...current, [key]: value }))} onToggleDuration={(minutes) => toggleDuration(newCourt, setNewCourt, minutes)} onSave={createCourt} /></div>
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {CONFIG_FIELDS.map((field) => <ConfigCard key={field.key} field={field} value={form[field.key]} onChange={(value) => handleChange(field.key, value)} />)}
       </section>
     </AdminLayout>
   );
+}
+
+function CourtEditor({ court, onChange, onToggleDuration, onSave, isNew = false }) {
+  return <article className="rounded-[1.5rem] border border-white/10 bg-black/25 p-4">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <TextField label="Nombre" value={court.name} onChange={(value) => onChange("name", value)} />
+      <TextField label="Descripción" value={court.description} onChange={(value) => onChange("description", value)} />
+      <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">Abre</span><input type="time" value={court.openingTime} onChange={(e) => onChange("openingTime", e.target.value)} className="field" /></label>
+      <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">Cierra</span><input type="time" value={court.closingTime} onChange={(e) => onChange("closingTime", e.target.value)} className="field" /></label>
+      <NumberField label="Precio base" value={court.basePrice} onChange={(value) => onChange("basePrice", value)} />
+      <NumberField label="Precio nocturno" value={court.nightPrice} onChange={(value) => onChange("nightPrice", value)} />
+      <NumberField label="Extra fin de semana" value={court.weekendExtra} onChange={(value) => onChange("weekendExtra", value)} />
+      <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">Salidas cada</span><select value={court.slotIntervalMinutes} onChange={(e) => onChange("slotIntervalMinutes", Number(e.target.value))} className="field"><option value={30}>30 minutos</option><option value={60}>60 minutos</option></select></label>
+    </div>
+    <div className="mt-4 flex flex-wrap items-center gap-2"><span className="mr-2 text-xs font-bold text-slate-400">Duraciones:</span>{DURATIONS.map((minutes) => <button type="button" key={minutes} onClick={() => onToggleDuration(minutes)} className={`rounded-full border px-3 py-1.5 text-xs font-bold ${court.allowedDurations?.includes(minutes) ? "border-lime-300/50 bg-lime-300/15 text-lime-100" : "border-white/10 text-slate-400"}`}>{minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}${minutes % 60 ? ":30" : " h"}`}</button>)}</div>
+    <div className="mt-4 flex flex-wrap items-center gap-3">{!isNew && <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={court.active !== false} onChange={(e) => onChange("active", e.target.checked)} /> Cancha activa</label>}<button type="button" onClick={onSave} disabled={!court.name || !court.allowedDurations?.length} className="btn-primary px-5 py-2">{isNew ? "Crear cancha" : "Guardar cancha"}</button></div>
+  </article>;
+}
+
+function NumberField({ label, value, onChange }) {
+  return <label><span className="mb-2 block text-[11px] uppercase tracking-[0.22em] text-slate-500">{label}</span><input type="number" min="0" value={value ?? 0} onChange={(e) => onChange(Number(e.target.value))} className="field" /></label>;
 }
 
 function ConfigCard({ field, value, onChange }) {
