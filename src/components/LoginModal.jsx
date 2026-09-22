@@ -113,14 +113,12 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
         <aside className="hidden border-r border-white/10 bg-white/[0.03] p-7 md:block">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-300">PadelBook</p>
           <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">Acceso al club</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
-            Una entrada para jugadores, profesores, recepción y administración.
-          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-300">Ingresá a tu cuenta para consultar turnos y gestionar la actividad del club.</p>
 
           <div className="mt-7 space-y-3">
-            <SidePoint value="30s" label="para reservar un turno" />
-            <SidePoint value="4" label="roles navegables" />
-            <SidePoint value="24/7" label="agenda disponible" />
+            <SidePoint value="Turnos" label="Reservas y estado de pago" />
+            <SidePoint value="Clases" label="Horarios de profesores" />
+            <SidePoint value="Club" label="Agenda para recepción y administración" />
           </div>
         </aside>
 
@@ -131,8 +129,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {mode === "login"
-              ? apiOnline ? "Ingresá con la cuenta que te dio el club." : "Usá un perfil de prueba o ingresá con una cuenta registrada."
-              : mode === "register" ? "Creá un perfil de jugador con datos útiles para reservas, torneos y comunidad." : "Te enviaremos un enlace de un solo uso, válido por 20 minutos."}
+              ? apiOnline ? "Ingresá con tu cuenta de PadelBook." : "Podés probar los perfiles disponibles en este navegador."
+              : mode === "register" ? "Creá tu cuenta para reservar canchas e inscribirte en torneos." : "Te enviaremos un enlace de un solo uso, válido por 20 minutos."}
           </p>
 
           {mode === "forgot" ? <button type="button" onClick={() => changeMode("login")} className="mt-5 text-xs font-bold text-lime-200 hover:text-lime-100">← Volver al ingreso</button> : <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold"><button type="button" onClick={() => changeMode("login")} className={`rounded-full py-2.5 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button><button type="button" onClick={() => changeMode("register")} className={`rounded-full py-2.5 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button></div>}
@@ -142,7 +140,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             <div role="status" className="mt-5 rounded-3xl border border-lime-300/25 bg-[linear-gradient(145deg,rgba(190,242,100,.14),rgba(45,212,191,.06))] p-5 shadow-[0_18px_55px_rgba(0,0,0,.3)]">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-lime-300 text-xl font-black text-slate-950 shadow-[0_0_28px_rgba(190,242,100,.28)]">✓</div>
               <h3 className="mt-4 text-xl font-black tracking-[-0.03em] text-white">Revisá tu correo</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">Enviamos un enlace a <strong className="text-white">{email}</strong>. Abrilo para acceder a la pestaña donde vas a escribir y confirmar tu nueva contraseña.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Si existe una cuenta para <strong className="text-white">{email}</strong>, recibirás un enlace para crear y confirmar una contraseña nueva.</p>
               <div className="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-3">
                 <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><b className="text-lime-200">1.</b> Abrí el email</span>
                 <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><b className="text-lime-200">2.</b> Tocá el botón</span>
@@ -186,8 +184,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
 
           {!apiOnline && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Perfiles de prueba</p>
-              <span className="text-[10px] text-slate-400">Click y entrar</span>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Acceso de prueba</p>
+              <span className="text-[10px] text-slate-400">Elegí un perfil</span>
             </div>
             <div className="grid gap-2">
               {DEMO_PROFILES.map((profile) => (

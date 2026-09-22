@@ -48,7 +48,7 @@ export default function AdminStaff() {
   }
 
   return <AdminLayout title="Equipo de recepción" subtitle="Dale acceso propio a quien atiende el club. Cada movimiento queda asociado a su cuenta.">
-    {!apiOnline && <p className="mb-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">En la demo podés ingresar como Recepción desde Acceso al club. El alta y la baja de empleados se habilitan al conectar la API del piloto.</p>}
+    {!apiOnline && <p className="mb-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">El alta de empleados requiere conexión con el servidor. En este navegador podés probar el perfil de recepción desde Acceso al club.</p>}
     {error && <p role="alert" className="mb-5 rounded-2xl border border-rose-300/25 bg-rose-300/10 p-4 text-sm text-rose-100">{error}</p>}
     {message && <p role="status" className="mb-5 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-4 text-sm text-lime-100">{message}</p>}
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">

@@ -72,8 +72,7 @@ export default function PlayerDashboard() {
     const confirmed = myBookings.filter((b) => b.status === "confirmado" || b.paymentStatus === "pagado");
     const cancelled = myBookings.filter((b) => b.status === "cancelado");
     const total = myBookings.filter((b) => b.status !== "cancelado").reduce((acc, b) => acc + Number(b.price || b.total || 0), 0);
-    const progress = Math.min(100, Math.round((confirmed.length / 8) * 100));
-    return { upcoming, pending, confirmed, cancelled, total, progress };
+    return { upcoming, pending, confirmed, cancelled, total };
   }, [myBookings]);
 
   const tournamentData = useMemo(() => {
@@ -124,7 +123,7 @@ export default function PlayerDashboard() {
 
   const nextEvent = upcomingEvents[0];
   const lastBookings = [...myBookings].reverse().slice(0, 4);
-  const missingForFree = Math.max(0, 8 - data.confirmed.length);
+  const bookingsWithBalance = data.upcoming.filter((booking) => paymentSummary(booking).due > 0).length;
 
   if (!user) return <Navigate to={ROUTES.HOME} replace />;
 
@@ -137,7 +136,7 @@ export default function PlayerDashboard() {
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-lime-200">Panel jugador</p>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.05em] text-white md:text-5xl">Hola, {user.name || "jugador"}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Tu agenda de pádel ordenada: próximo turno, pagos pendientes, historial reciente y torneos.
+              Consultá tus próximos turnos, pagos registrados e inscripciones a torneos.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link to={ROUTES.BOOKING} className="btn-primary">Nueva reserva</Link>
@@ -163,7 +162,7 @@ export default function PlayerDashboard() {
             </>
           ) : (
             <div className="mt-4 rounded-3xl border border-dashed border-lime-200/30 bg-black/25 p-5 text-sm leading-6 text-lime-100/80">
-              No tenés eventos próximos. Reservá una cancha o inscribite a un torneo y este panel se actualiza solo.
+              No tenés turnos ni torneos próximos. Podés reservar una cancha o consultar los torneos abiertos.
             </div>
           )}
         </aside>
@@ -172,8 +171,8 @@ export default function PlayerDashboard() {
       <section className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Próximos" value={upcomingEvents.length} detail="Turnos y torneos" />
         <Metric label="Pendientes" value={data.pending.length} detail="Pago o confirmación" alert />
-        <Metric label="Confirmados" value={data.confirmed.length} detail="Listos para jugar" />
-        <Metric label="Total activo" value={money(data.total)} detail="No cancelados" />
+        <Metric label="Confirmados" value={data.confirmed.length} detail="Reservas confirmadas" />
+        <Metric label="Valor reservado" value={money(data.total)} detail="Reservas no canceladas" />
         <Metric label="Torneos" value={tournamentData.upcoming.length} detail="Inscripciones activas" />
       </section>
 
@@ -229,15 +228,10 @@ export default function PlayerDashboard() {
         </div>
 
         <aside className="space-y-5">
-          <Panel title="Reserva bonificada" kicker="Beneficio">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-5xl font-black text-lime-100">{Math.min(data.confirmed.length, 8)}/8</p>
-                <p className="mt-1 text-sm text-slate-400">{missingForFree === 0 ? "Ya podés pedir el beneficio" : `Faltan ${missingForFree} confirmadas`}</p>
-              </div>
-              <span className="rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-xs font-bold text-lime-100">9ª gratis</span>
-            </div>
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-lime-300" style={{ width: `${data.progress}%` }} /></div>
+          <Panel title="Pagos de tus turnos" kicker="Reservas">
+            <p className="text-5xl font-black text-lime-100">{bookingsWithBalance}</p>
+            <p className="mt-1 text-sm text-slate-400">{bookingsWithBalance === 1 ? "turno próximo con saldo pendiente" : "turnos próximos con saldo pendiente"}</p>
+            <Link to={ROUTES.MY_BOOKINGS} className="btn-outline mt-4 w-full justify-center">Ver mis turnos</Link>
           </Panel>
 
           <Panel title="Acciones" kicker="Rápido">

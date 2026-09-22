@@ -174,9 +174,9 @@ export default function AdminFinance() {
   }
 
   return (
-    <AdminLayout title="Finanzas del club" subtitle="Ingresos, egresos, comisiones de profesores y rentabilidad por período.">
+    <AdminLayout title="Finanzas del club" subtitle="Cobros registrados, gastos y comisiones por período.">
       {loadError && <p role="alert" className="mb-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm text-red-100">{loadError}</p>}
-      {!apiOnline && bookings.length === 0 && <p className="club-admin__notice">Las reservas de ejemplo del dashboard no son cobros registrados. Esta sección muestra movimientos reales guardados en este navegador.</p>}
+      {!apiOnline && bookings.length === 0 && <p className="club-admin__notice">Los turnos de prueba no figuran como cobros. Los movimientos que cargues acá se guardan en este navegador.</p>}
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={loadSummary} disabled={loading} className="btn-outline px-4 py-2 text-xs">
           {loading ? "Actualizando..." : "Actualizar datos"}

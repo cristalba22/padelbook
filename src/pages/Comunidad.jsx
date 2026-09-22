@@ -6,12 +6,12 @@ import { useClubSettings } from "../context/ClubSettingsContext.jsx";
 import { cleanPhone } from "../utils/whatsapp.js";
 
 const GROUPS = [
-  { id: "7ma", label: "7ma categoría", level: "Intermedio", vibe: "Partidos amistosos y ritmo tranquilo" },
-  { id: "6ta", label: "6ta categoría", level: "Intermedio alto", vibe: "Buen ritmo, ideal para relámpagos" },
-  { id: "5ta", label: "5ta categoría", level: "Avanzado", vibe: "Competitivo, ranking y torneos" },
-  { id: "4ta", label: "4ta categoría", level: "Pre competitivo", vibe: "Partidos fuertes y técnicos" },
-  { id: "3ra", label: "3ra categoría", level: "Alto", vibe: "Jugadores de circuito" },
-  { id: "2da", label: "2da categoría", level: "Élite", vibe: "Nivel exhibición" },
+  { id: "7ma", label: "7ma categoría", level: "Inicial", vibe: "Para quienes están empezando a jugar partidos." },
+  { id: "6ta", label: "6ta categoría", level: "Intermedio", vibe: "Para sumar partidos con jugadores de tu categoría." },
+  { id: "5ta", label: "5ta categoría", level: "Intermedio", vibe: "Consultá si hay un partido para completar." },
+  { id: "4ta", label: "4ta categoría", level: "Avanzado", vibe: "Consultá al club por jugadores de 4ta." },
+  { id: "3ra", label: "3ra categoría", level: "Avanzado", vibe: "Buscá rivales de tu categoría." },
+  { id: "2da", label: "2da categoría", level: "Competitivo", vibe: "Consultá por partidos de 2da." },
 ];
 
 export default function Comunidad() {
@@ -24,8 +24,8 @@ export default function Comunidad() {
       <section className="interior-hero relative mb-7 overflow-hidden rounded-[2.4rem] border border-lime-300/20 bg-[#050814] p-6 shadow-[0_28px_100px_rgba(0,0,0,0.9)] md:p-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(190,242,100,0.22),transparent_32%),radial-gradient(circle_at_90%_10%,rgba(45,212,191,0.14),transparent_34%)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1fr_360px]">
-          <div><p className="section-eyebrow">Comunidad del club</p><h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Encontrá con quién jugar.</h1><p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Elegí tu categoría y consultá al club por jugadores y partidos. Cuando tengas grupo, reservá la cancha desde acá.</p><div className="mt-6 flex flex-wrap gap-3"><Link to={ROUTES.BOOKING} className="btn-primary">Reservar cancha</Link><Link to={ROUTES.TOURNAMENTS} className="btn-outline">Ver torneos</Link></div></div>
-          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5"><p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Jugá a tu nivel</p><p className="mt-2 text-5xl font-black text-lime-100">6</p><p className="text-sm text-slate-400">categorías para consultar al club</p><div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Categorías" value="7ma–2da" /><Mini label="Contacto" value={cleanPhone(settings.whatsapp) ? "WhatsApp" : "En el club"} /></div></aside>
+          <div><p className="section-eyebrow">Jugadores del club</p><h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Armá tu próximo partido.</h1><p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Elegí una categoría y consultá al club si hay jugadores disponibles. Después reservá la cancha.</p><div className="mt-6 flex flex-wrap gap-3"><Link to={ROUTES.BOOKING} className="btn-primary">Reservar cancha</Link><Link to={ROUTES.TOURNAMENTS} className="btn-outline">Ver torneos</Link></div></div>
+          <aside className="rounded-[2rem] border border-white/10 bg-black/35 p-5"><p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Categorías de consulta</p><p className="mt-2 text-5xl font-black text-lime-100">6</p><p className="text-sm text-slate-400">niveles para orientar tu consulta</p><div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Categorías" value="7ma–2da" /><Mini label="Contacto" value={cleanPhone(settings.whatsapp) ? "WhatsApp" : "En el club"} /></div></aside>
         </div>
       </section>
 
@@ -46,8 +46,8 @@ function GroupCard({ group, phone }) {
       <h3 className="mt-1 text-2xl font-black text-white">{group.label}</h3>
       <p className="mt-4 text-sm leading-6 text-slate-400">{group.vibe}</p>
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-3">
-        <p className="text-xs text-slate-500">Coordinación</p>
-        <p className="font-black text-white">Consultá disponibilidad con el club</p>
+        <p className="text-xs text-slate-500">Jugadores disponibles</p>
+        <p className="font-black text-white">Consultá al club</p>
       </div>
       {digits && <a href={`https://wa.me/${digits}?text=${message}`} target="_blank" rel="noreferrer" className="btn-primary mt-5 w-full justify-center">Consultar por WhatsApp</a>}
     </article>

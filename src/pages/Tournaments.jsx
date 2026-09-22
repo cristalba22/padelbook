@@ -74,16 +74,16 @@ export default function Tournaments() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(190,242,100,0.2),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(45,212,191,0.14),transparent_30%)]" />
         <div className="relative grid gap-6 xl:grid-cols-[1fr_410px]">
           <div>
-            <p className="section-eyebrow">Torneos y ranking</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Competí, inscribite y seguí tu progreso.</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Elegí un torneo abierto, mandá tu inscripción y el club confirma el cupo desde administración. Todo queda vinculado a tu cuenta.</p>
+            <p className="section-eyebrow">Torneos del club</p>
+            <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] md:text-6xl">Elegí tu próximo torneo.</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">Consultá fechas, categorías y cupos. Enviá tu inscripción y seguí la confirmación desde tu cuenta.</p>
             <div className="mt-6 flex flex-wrap gap-3"><Link to={ROUTES.BOOKING} className="btn-primary">Reservar práctica</Link><Link to={ROUTES.ACCOUNT} className="btn-outline">Ver mi perfil</Link></div>
           </div>
           <aside className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-5">
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Próximo torneo</p>
-            <h2 className="mt-3 text-2xl font-black text-white">{featured?.name || "Torneos del club"}</h2>
-            <p className="mt-1 text-sm text-slate-300">{featured?.category} · {featured?.date} · {featured?.hour}</p>
-            <div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Abiertos" value={openCount} /><Mini label="Cupos" value={featured ? `${featured.currentPlayers}/${featured.maxPlayers}` : "-"} /></div>
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">{featured ? "Próximo torneo" : "Torneos"}</p>
+            <h2 className="mt-3 text-2xl font-black text-white">{featured?.name || "Todavía no hay torneos publicados"}</h2>
+            {featured && <p className="mt-1 text-sm text-slate-300">{featured.category} · {featured.date} · {featured.hour}</p>}
+            <div className="mt-5 grid grid-cols-2 gap-2"><Mini label="Abiertos" value={openCount} /><Mini label="Cupos" value={featured ? `${featured.currentPlayers}/${featured.maxPlayers}` : "—"} /></div>
             {featured && <button onClick={() => startSignup(featured)} className="btn-primary mt-5 w-full justify-center">Inscribirme</button>}
           </aside>
         </div>
@@ -99,8 +99,8 @@ export default function Tournaments() {
           {filtered.map((t) => <TournamentCard key={t.id} tournament={t} onSignup={startSignup} />)}
         </div>
         <aside className="space-y-4">
-          <Panel title="Actividad del club" kicker="Jugadores"><p className="text-4xl font-black text-lime-100">{registeredPlayers}</p><p className="mt-2 text-sm leading-6 text-slate-400">Cupos ocupados entre los torneos publicados. Tus propias inscripciones aparecen en tu cuenta.</p></Panel>
-          <Panel title="Inscripción" kicker="Funcionamiento"><p className="text-sm leading-6 text-slate-400">La inscripción queda pendiente hasta que el club confirme el cupo. Si el torneo es por pareja, cargá el nombre de tu compañero al anotarte.</p>{nextOpen && cleanPhone(settings.whatsapp) && <a className="btn-outline mt-4 w-full justify-center" target="_blank" rel="noreferrer" href={`https://wa.me/${cleanPhone(settings.whatsapp)}?text=${encodeURIComponent(`Hola, quiero consultar por el torneo ${nextOpen.name} del ${nextOpen.date}.`)}`}>Consultar por WhatsApp</a>}</Panel>
+          <Panel title="Cupos ocupados" kicker="Torneos publicados"><p className="text-4xl font-black text-lime-100">{registeredPlayers}</p><p className="mt-2 text-sm leading-6 text-slate-400">Total informado para los torneos visibles. Tus inscripciones aparecen en tu cuenta.</p></Panel>
+          <Panel title="Cómo inscribirte" kicker="Inscripción"><p className="text-sm leading-6 text-slate-400">Elegí un torneo abierto y enviá tu solicitud. El club confirma el cupo. Si jugás en pareja, agregá los datos de tu compañero.</p>{nextOpen && cleanPhone(settings.whatsapp) && <a className="btn-outline mt-4 w-full justify-center" target="_blank" rel="noreferrer" href={`https://wa.me/${cleanPhone(settings.whatsapp)}?text=${encodeURIComponent(`Hola, quiero consultar por el torneo ${nextOpen.name} del ${nextOpen.date}.`)}`}>Consultar por WhatsApp</a>}</Panel>
         </aside>
       </section>
 

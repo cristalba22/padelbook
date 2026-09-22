@@ -105,12 +105,12 @@ export default function AdminConfig() {
   }
 
   return (
-    <AdminLayout title="Configuración comercial" subtitle="Los precios y datos comerciales se comparten con la web pública y las reservas.">
+    <AdminLayout title="Ajustes del club" subtitle="Administrá las canchas, los precios y la información que ven los jugadores.">
       <section className="mb-6 grid gap-4 xl:grid-cols-[1fr_360px]">
         <div className="admin-panel rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
           <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Precios activos</p>
-          <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Valores del sistema</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Estos valores se reflejan automáticamente en reservas, clases, torneos y la vista pública del club.</p>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Precios del club</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">Estos importes se usan en las reservas, clases y torneos que publicás.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <button onClick={handleSave} disabled={isSaving} className="btn-primary px-6 py-3">{isSaving ? "Guardando..." : "Guardar cambios"}</button>
             <button onClick={() => setForm(prices)} className="btn-outline px-6 py-3">Deshacer edición</button>
@@ -119,7 +119,7 @@ export default function AdminConfig() {
           </div>
         </div>
         <aside className="rounded-[2rem] border border-lime-300/20 bg-lime-300/10 p-5 shadow-xl">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Preview para venta</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-lime-100">Resumen de precios</p>
           <div className="mt-4 space-y-3">{preview.map((p) => <div key={p.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 px-4 py-3"><span className="text-sm text-slate-300">{p.label}</span><strong className="text-white">{p.value}</strong></div>)}</div>
         </aside>
       </section>
@@ -127,7 +127,7 @@ export default function AdminConfig() {
       <section className="admin-panel mb-6 rounded-[2rem] border border-white/10 bg-[#0B1326]/75 p-6 shadow-xl">
         <p className="text-[11px] font-black uppercase tracking-[0.26em] text-lime-100">Datos visibles del club</p>
         <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">Información comercial y portada</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Nombre, dirección, WhatsApp y textos principales se muestran en el home, footer, comunidad y acciones de contacto.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Completá solo los datos reales del club. Se mostrarán en la portada, el pie de página y los enlaces de contacto.</p>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <TextField label="Nombre del club" value={clubForm.clubName} onChange={(v) => handleClubChange("clubName", v)} />
           <TextField label="Nombre corto" value={clubForm.clubShortName} onChange={(v) => handleClubChange("clubShortName", v)} />

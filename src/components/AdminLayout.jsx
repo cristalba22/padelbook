@@ -38,7 +38,7 @@ export default function AdminLayout({ title, subtitle, children }) {
   return (
     <div className="club-admin">
       <div className="club-admin__topbar">
-        <div className="club-admin__brand"><span className="club-admin__mark">p.</span><span>padelbook</span><span className="club-admin__brand-suffix">CLUB MANAGER</span></div>
+        <div className="club-admin__brand"><span className="club-admin__mark">p.</span><span>padelbook</span><span className="club-admin__brand-suffix">GESTIÓN DEL CLUB</span></div>
         <div className="club-admin__identity"><Link to="/" className="club-admin__site-link">Ver sitio <ArrowUpRight size={15} aria-hidden="true" /></Link><span><strong>{clubName}</strong><small>Panel del club</small></span><span className="club-admin__avatar" aria-hidden="true">{initials}</span><button type="button" className="club-admin__logout" aria-label="Cerrar sesión" onClick={() => { logout(); navigate("/"); }}><LogOut size={17} aria-hidden="true" /></button></div>
       </div>
       <div className="club-admin__shell">
@@ -50,7 +50,7 @@ export default function AdminLayout({ title, subtitle, children }) {
           ))}
         </nav>
         <main className="club-admin__main">
-          <div className="club-admin__context"><span>Panel del club <span aria-hidden="true">/</span> <strong>{section}</strong></span>{!apiOnline && <span className="club-admin__mode">{bookings.length ? "Modo local · datos en este navegador" : "Vista demo · reservas de ejemplo"}</span>}</div>
+          <div className="club-admin__context"><span>Panel del club <span aria-hidden="true">/</span> <strong>{section}</strong></span>{!apiOnline && <span className="club-admin__mode">{bookings.length ? "Datos guardados en este navegador" : "Datos de prueba"}</span>}</div>
           {(title || subtitle) && <header className="club-admin__page-heading">{title && <h1>{title}</h1>}{subtitle && <p>{subtitle}</p>}</header>}
           {children}
         </main>
