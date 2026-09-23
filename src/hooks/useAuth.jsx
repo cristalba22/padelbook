@@ -196,11 +196,22 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    if (apiOnline) await apiRequest("/auth/logout", { method: "POST" }).catch(() => {});
+    if (apiOnline) {
+      try {
+        await apiRequest("/auth/logout", { method: "POST" });
+      } catch (error) {
+        if (error.status !== 401) {
+          setApiReady(false);
+          setApiError(true);
+          return false;
+        }
+      }
+    }
     setUser(null);
     setCsrfToken();
     safeRemove(AUTH_KEY);
     closeLogin();
+    return true;
   }
 
   const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);

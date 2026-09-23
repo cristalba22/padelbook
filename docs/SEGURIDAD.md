@@ -13,6 +13,7 @@ Este documento describe los controles incluidos en el código y los controles qu
 - El token de sesión no se guarda en `localStorage` ni se entrega al JavaScript en producción.
 - Token CSRF independiente y comparación en tiempo constante para cada operación que modifica datos.
 - Revocación inmediata de todas las sesiones de un empleado al cambiar su contraseña, activarlo o desactivarlo.
+- Cerrar sesión invalida en la API las sesiones anteriores de esa cuenta, incluso si alguien conservó una copia de la cookie. También cierra las sesiones de otros dispositivos de esa cuenta.
 - Roles verificados en la API para dueño, recepción, profesor y jugador.
 - Contraseñas de 12 a 72 caracteres y bcrypt con costo 12. Los hashes antiguos se actualizan al iniciar sesión.
 
@@ -37,6 +38,7 @@ Este documento describe los controles incluidos en el código y los controles qu
 - Dependabot para npm, GitHub Actions y Docker.
 - CI ejecuta pruebas, build, auditoría de dependencias, validación de Wrangler y revisión de dependencias de cada PR.
 - CodeQL analiza JavaScript y TypeScript en pushes, PR y semanalmente.
+- Un workflow periódico comprueba la web pública, la API y la conexión a MongoDB. Su ejecución fallida queda registrada en GitHub Actions; las notificaciones de fallas dependen de la configuración de la cuenta de GitHub.
 
 ## Controles obligatorios antes del piloto
 
@@ -57,6 +59,7 @@ Este documento describe los controles incluidos en el código y los controles qu
 - Un despliegue compartido por varios clubes requiere `clubId` obligatorio en cada documento, índice y consulta. La versión actual debe operar con una base y API separadas por club.
 - Los pagos siguen siendo registros manuales. Una pasarela real requiere webhooks firmados, idempotencia y conciliación.
 - Un pentest independiente sigue siendo necesario antes de almacenar pagos reales o desplegar varios clubes en una misma plataforma.
+- El chequeo periódico puede retrasarse por la cola de GitHub Actions y no reemplaza alertas de baja latencia ni monitoreo de errores por solicitud.
 
 ## Respuesta a incidentes
 
