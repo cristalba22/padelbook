@@ -220,7 +220,14 @@ test("API: permisos, perfil, reservas, bloqueos, torneos y caja compartida", asy
     assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: resetToken, password: "final-password-qa-789" } })).status, 204);
     assert.equal((await request("/auth/password/reset", { method: "POST", body: { token: resetToken, password: "another-password-qa-789" } })).status, 400);
     assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "admin-password-renovada-456" } })).status, 401);
-    assert.equal((await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "final-password-qa-789" } })).status, 200);
+    const finalLogin = await request("/auth/login", { method: "POST", body: { email: process.env.ADMIN_EMAIL, password: "final-password-qa-789" } });
+    assert.equal(finalLogin.status, 200);
+    const finalCookie = finalLogin.headers.get("set-cookie").split(";")[0];
+    assert.equal((await request("/auth/logout", { method: "POST", cookie: finalCookie })).status, 403);
+    assert.equal((await request("/auth/me", { cookie: finalCookie })).status, 200);
+    assert.equal((await request("/auth/logout", { method: "POST", cookie: finalCookie, csrf: finalLogin.data.csrfToken })).status, 204);
+    assert.equal((await request("/auth/me", { cookie: finalCookie })).status, 401);
+    assert.equal((await request("/auth/me", { token: finalLogin.data.token })).status, 401);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await new Promise((resolve) => emailServer.close(resolve));

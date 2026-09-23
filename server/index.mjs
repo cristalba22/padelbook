@@ -276,7 +276,9 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
   res.json({ user: req.user, csrfToken: req.csrfToken });
 });
 
-app.post("/api/auth/logout", requireAuth, (_req, res) => {
+app.post("/api/auth/logout", requireAuth, async (req, res) => {
+  // Invalidar el token también en la API: borrar la cookie no alcanza si fue copiada.
+  await User.updateOne({ _id: req.user.id }, { $inc: { sessionVersion: 1 } });
   res.setHeader("Set-Cookie", clearSessionCookie());
   res.status(204).end();
 });

@@ -39,7 +39,7 @@ export default function AdminLayout({ title, subtitle, children }) {
     <div className="club-admin">
       <div className="club-admin__topbar">
         <div className="club-admin__brand"><span className="club-admin__mark">p.</span><span>padelbook</span><span className="club-admin__brand-suffix">GESTIÓN DEL CLUB</span></div>
-        <div className="club-admin__identity"><Link to="/" className="club-admin__site-link">Ver sitio <ArrowUpRight size={15} aria-hidden="true" /></Link><span><strong>{clubName}</strong><small>Panel del club</small></span><span className="club-admin__avatar" aria-hidden="true">{initials}</span><button type="button" className="club-admin__logout" aria-label="Cerrar sesión" onClick={() => { logout(); navigate("/"); }}><LogOut size={17} aria-hidden="true" /></button></div>
+        <div className="club-admin__identity"><Link to="/" className="club-admin__site-link">Ver sitio <ArrowUpRight size={15} aria-hidden="true" /></Link><span><strong>{clubName}</strong><small>Panel del club</small></span><span className="club-admin__avatar" aria-hidden="true">{initials}</span><button type="button" className="club-admin__logout" aria-label="Cerrar sesión" onClick={async () => { if (await logout()) navigate("/"); }}><LogOut size={17} aria-hidden="true" /></button></div>
       </div>
       <div className="club-admin__shell">
         <nav ref={tabsRef} className="club-admin__tabs" aria-label="Secciones del panel">

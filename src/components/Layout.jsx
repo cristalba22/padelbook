@@ -20,8 +20,8 @@ export default function Layout({ children }) {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (!await logout()) return;
     setMobileOpen(false);
     navigate(ROUTES.HOME);
   };
