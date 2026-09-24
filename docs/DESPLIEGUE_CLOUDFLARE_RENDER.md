@@ -6,7 +6,7 @@
 - API Express preparada como imagen Docker en `Dockerfile.api`. GitHub Actions valida la imagen en cada PR y publica `ghcr.io/cristalba22/padelbook-api:latest` después de integrar cambios en `main`.
 - API desplegada en `https://padelbook-api.onrender.com` y conectada a una base exclusiva `padelbook_club_piloto` en MongoDB Atlas. Cloudflare es el único canal operativo para las rutas de negocio; el acceso directo a Render se rechaza sin el secreto interno.
 - El 21/09/2026 se verificaron con estado `200` `/api/health`, `/api/settings`, `/api/teachers`, `/api/tournaments` y `/api/availability`, además del login y acceso al panel administrativo.
-- MonsterAPI dejó de ser una opción operativa: su dominio principal ya no resuelve desde septiembre de 2026. El contenedor debe ejecutarse en un proveedor activo que admita un servicio HTTP persistente.
+- Render ejecuta actualmente la API. Para el piloto hay que verificar el tiempo de primera respuesta y elegir un plan que no suspenda el servicio durante la operación del club.
 
 ## Arquitectura del primer club
 
@@ -63,5 +63,5 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 - Cloudflare aloja el frontend y actúa como proxy seguro. Express se ejecuta en Render y se conecta a Atlas.
 - El plan gratuito de Render puede suspender el contenedor por inactividad y agregar unos 50 segundos al primer pedido. Para una prueba con clientes se recomienda una instancia sin suspensión.
 - Atlas permite actualmente la red de salida dinámica de Render. Antes de guardar datos sensibles conviene usar salida fija o un enlace privado y reemplazar la regla amplia de red.
-- Las opciones “seña” y “pago total” siguen siendo coordinación y registro manual. Falta pasarela de pagos con webhook y conciliación. Falta correo transaccional.
+- Las opciones “seña” y “pago total” siguen siendo coordinación y registro manual. Falta pasarela de pagos con webhook y conciliación. El correo transaccional de reservas está implementado, pero requiere Resend configurado y todavía no cuenta con cola de reintentos ni seguimiento de entrega.
 - No publicar como SaaS para múltiples clubes hasta completar aislamiento por club, monitoreo, backups restaurados en prueba y soporte operativo.

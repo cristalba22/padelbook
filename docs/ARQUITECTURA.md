@@ -22,7 +22,9 @@ La instalación piloto de Cloudflare usa `/api` en el mismo origen y lo reenvía
 1. **Tenencia por club:** usuarios, canchas, reservas, torneos, ajustes y finanzas aún carecen de `clubId`. La API actual representa un solo club.
 2. **Pagos:** reservas y torneos tienen registro manual de cobros, pero no hay cobro ni conciliación automática. Los cobros y reversiones de reservas exigen una clave UUID de idempotencia por operación para evitar duplicados por reintento. Los textos de la interfaz hablan de coordinación, no de dinero cobrado.
 3. **Alta segura de clubes:** una base nueva exige `ADMIN_EMAIL` y `ADMIN_PASSWORD`; los perfiles de prueba solo se insertan con `PADELBOOK_DEMO_SEED=true`. Aún falta un flujo de alta autoservicio.
-4. **Operación:** el backend está desplegado y se verificaron salud, configuración, profesores, torneos, disponibilidad y login del administrador. Faltan alertas, backups con restauración probada y migraciones versionadas.
+4. **Operación:** el backend está desplegado y hay un workflow diario de backup cifrado y un chequeo periódico de disponibilidad. La restauración automatizada se prueba contra una base temporal; falta documentar una restauración de un backup real de Atlas, alertas de baja latencia y migraciones versionadas.
 5. **Datos comerciales:** tienda, algunos textos y contenido inicial son de muestra. El panel de configuración debe gobernar el catálogo y los datos públicos del club.
+
+El dueño puede configurar canchas, horarios, intervalos, duraciones y precios desde `/admin/config`; esos datos se persisten en la API. Los emails de reserva se envían si el proveedor está configurado, pero actualmente son asíncronos sin cola de reintentos ni seguimiento de entrega.
 
 La prioridad inmediata es probar el circuito de reserva, bloqueo, cancelación y cobro con usuarios en distintos dispositivos y datos descartables del club piloto. Antes de vender una única instancia a varios clubes hay que incorporar `clubId`, permisos por club y aislamiento de datos. Torneos, comunidad, jugador y profesor siguen siendo partes del producto.

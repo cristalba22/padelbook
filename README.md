@@ -1,129 +1,74 @@
 # PadelBook
 
-PadelBook es una demo de plataforma para clubes de pádel con frontend React y una API Express/MongoDB que puede ejecutarse por separado. Incluye reservas, torneos, agenda de jugadores, clases con profesores y operación administrativa.
+Reservas y gestión diaria para clubes de pádel. Un jugador consulta la disponibilidad y solicita un turno; recepción administra la agenda y registra cobros; el dueño configura canchas, horarios, precios y accesos del equipo.
 
-El proyecto está pensado como un producto recorrible de punta a punta: el jugador puede reservar y seguir su actividad, el profesor puede revisar sus clases y disponibilidad, y el administrador puede controlar reservas, calendario, torneos, precios, pagos y métricas del club.
+**Web:** [padelbook.crisalbavideografo.workers.dev](https://padelbook.crisalbavideografo.workers.dev) · **Estado:** instalación conectada para preparar el primer piloto en Córdoba. Todavía no se presenta como un servicio multiclub ni como una plataforma con pagos online.
 
-## Accesos de prueba
+## Producto
 
-Desde el botón **Ingresar** podés cargar perfiles preparados para recorrer cada rol.
+| Área | Qué permite hacer |
+| --- | --- |
+| Reservas | Elegir cancha, fecha y duración de 1, 1:30, 2 o 2:30 horas; ver disponibilidad y precio antes de confirmar. |
+| Agenda del club | Consultar reservas y bloqueos, registrar turnos de mostrador, confirmar o cancelar y seguir saldos. |
+| Configuración | Crear, editar y desactivar canchas; establecer horarios, intervalos, duraciones admitidas y precios. |
+| Equipo | Dar acceso individual a recepción y profesores con permisos distintos a los del dueño. |
+| Otras áreas | Torneos, comunidad, perfil del jugador, clases con profesores y caja operativa. |
 
-| Rol | Email | Password | Qué revisar |
-| --- | --- | --- | --- |
-| Jugador | `crisalba@test.com` | `player123` | Reservas, mis turnos, torneos inscriptos y panel personal |
-| Profe | `lucio@club.com` | `profe123` | Clases del día, horarios y disponibilidad |
-| Recepción | `recepcion@club.com` | `recepcion123` | Agenda, reservas y cobros operativos |
-| Admin | `admin@club.com` | `admin123` | Dashboard ejecutivo, reservas, calendario, profesores, torneos y precios |
+Las reservas y los bloqueos reclaman franjas únicas de 30 minutos en transacciones de MongoDB para impedir que dos operaciones simultáneas ocupen el mismo horario. La API vuelve a calcular el importe y valida permisos antes de guardar cambios.
 
-## Funcionalidades
+Los **cobros son manuales**: elegir seña o pago total indica cómo coordinar el pago, pero no cobra dinero. El club registra después el importe recibido. Los correos de creación, cambio y cancelación de reservas están implementados y dependen de que el proveedor de email esté configurado; el envío es asíncrono y no tiene todavía una cola con reintentos.
 
-- Home con disponibilidad, precios, beneficios y estado del club.
-- Reserva de cancha o clase con profesor.
-- Registro e inicio de sesión con roles.
-- Agenda del jugador con reservas, pagos, cancelaciones y torneos inscriptos.
-- Inscripción a torneos vinculada al perfil del jugador.
-- Panel administrativo con métricas de caja, ocupación, pagos pendientes y actividad reciente.
-- Módulo financiero para controlar ingresos, egresos, comisiones de profesores y neto por día, semana, mes y año.
-- Gestión de reservas con filtros, estados y acción rápida por WhatsApp.
-- Panel de profesores para consultar clases y bloqueos.
-- Configuración del club: precios, horarios, textos y datos visibles.
-- API REST conectada a MongoDB Atlas.
-- Registro de egresos persistido en MongoDB.
+## Capturas actuales
 
-## Stack
+Capturadas el 24 de septiembre de 2026. Inicio y reserva corresponden a la web publicada. El panel usa **datos de ejemplo locales** para no exponer información de usuarios del piloto.
 
-- React
-- Vite
-- TailwindCSS
-- React Router
-- Hooks y Context API
-- Node.js
-- Express
-- MongoDB Atlas
-- Mongoose
-- JWT
+| Escritorio | Celular |
+| --- | --- |
+| [Inicio](docs/screenshots/home-desktop.png) | [Inicio](docs/screenshots/home-mobile.png) |
+| [Reserva y opciones de pago](docs/screenshots/reserva-desktop.png) | [Resumen de reserva](docs/screenshots/reserva-mobile.png) |
+| [Panel del club, datos de ejemplo](docs/screenshots/panel-admin-ejemplo.png) | [Agenda del club, datos de ejemplo](docs/screenshots/agenda-admin-mobile-ejemplo.png) |
 
-## Seguridad
+![Inicio de PadelBook en escritorio](docs/screenshots/home-desktop.png)
 
-La sesión productiva usa una cookie `HttpOnly`, `Secure` y `SameSite=Strict`, con protección CSRF y revocación al cambiar accesos. La API aplica roles, rate limits, límites de payload, validación de entradas, headers seguros y un canal privado desde Cloudflare mediante secreto de proxy. CI incluye auditoría de dependencias, revisión de cambios y CodeQL.
+![Selección de turno y opciones de pago coordinado](docs/screenshots/reserva-desktop.png)
 
-Los pasos obligatorios de infraestructura, riesgos pendientes y respuesta a incidentes están en [Seguridad](docs/SEGURIDAD.md). El sistema debe desplegarse con una API y una base separadas por club hasta implementar aislamiento multiclub completo.
+![Panel del club con datos de ejemplo](docs/screenshots/panel-admin-ejemplo.png)
 
-## Cómo correrlo
+## Arquitectura
 
-Instalá dependencias:
+- **Interfaz:** React, Vite, React Router, Tailwind CSS y Framer Motion; publicada en Cloudflare Workers.
+- **API:** Node.js y Express en Render. Cloudflare reenvía `/api` hacia ella mediante un secreto privado.
+- **Datos:** MongoDB Atlas y Mongoose. La API usa transacciones para reservas y bloqueos.
+- **Acceso:** sesiones en cookie `HttpOnly`, `Secure` y `SameSite=Strict` en producción; CSRF, validación de entradas, límites de intentos y autorización por rol en el servidor.
+- **Operación:** pruebas automáticas y CI, healthcheck, chequeo periódico y workflow diario de backup cifrado. El procedimiento de restauración se prueba automáticamente con una base temporal; la restauración de un backup real de Atlas debe verificarse antes de operar con el club.
 
-```bash
-npm install
+Más detalles y riesgos pendientes: [Arquitectura](docs/ARQUITECTURA.md), [Seguridad](docs/SEGURIDAD.md), [Backups y restauración](docs/BACKUP_RESTORE.md) y [Plan del piloto](docs/PLAN_PILOTO.md).
+
+## Ejecutar localmente
+
+Requiere Node.js 24 y npm. Para recorrer la interfaz con datos de ejemplo, sin conectarla al club:
+
+```powershell
+npm ci
+$env:VITE_DEMO_MODE="true"
+npm run dev
 ```
 
-Creá el archivo de entorno:
+Abrí `http://localhost:5173` y elegí un perfil de prueba desde **Ingresar**. Este modo guarda cambios solo en el navegador. Nunca se debe activar en el despliegue de un club.
 
-```bash
-cp .env.example .env
-```
+Para ejecutar la API con una base propia, copiá `.env.example` a `.env`, configurá MongoDB y los secretos indicados allí y usá `npm run dev:full`. Para una base nueva de club, establecé `PADELBOOK_DEMO_SEED=false` y las variables del administrador inicial. La [guía de despliegue](docs/DESPLIEGUE_PILOTO.md) incluye la puesta en marcha y la prueba de aceptación.
 
-Completá `MONGODB_URI` y `JWT_SECRET` en `.env`. Para pruebas con datos de ejemplo, usá `PADELBOOK_DEMO_SEED=true`. Para una base nueva sin perfiles de prueba, usá `PADELBOOK_DEMO_SEED=false` y configurá `ADMIN_NAME`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 12 caracteres). La recuperación de contraseña usa Resend y requiere `PUBLIC_APP_ORIGIN`, `RESEND_API_KEY` y `PASSWORD_RESET_FROM`.
-
-Levantá frontend y backend juntos:
-
-```bash
-npm run dev:full
-```
-
-Frontend:
-
-```text
-http://localhost:5173
-```
-
-API:
-
-```text
-http://localhost:4000/api
-```
-
-Healthcheck:
-
-```text
-http://localhost:4000/api/health
-```
-
-Build de producción:
-
-```bash
+```powershell
+npm test
 npm run build
 ```
 
-Pruebas de reglas de reserva:
+## Límites conocidos
 
-```bash
-npm test
-```
+- Una instalación representa **un solo club**. Para alojar varios en la misma API falta aislamiento obligatorio por `clubId`; hasta entonces se necesitan API y base separadas por club.
+- No hay pasarela de cobro ni conciliación automática. Mercado Pago y sus webhooks son trabajo pendiente.
+- No existe alta autoservicio de clubes. El primer club se configura de forma controlada.
+- La entrega de correos requiere un remitente verificado. Todavía faltan recordatorios automáticos y seguimiento de fallos de envío.
+- Antes del piloto con datos reales hay que probar la restauración del backup de Atlas, los accesos del equipo y el circuito completo de reserva y cobro con el club.
 
-## Capturas
-
-![Home](image-1.png)
-![Reserva](image-2.png)
-![Panel jugador](image-3.png)
-![Admin](image-4.png)
-![Finanzas](image-5.png)
-![Torneos](image-6.png)
-
-## Estado actual
-
-La URL de [Cloudflare](https://padelbook.crisalbavideografo.workers.dev) está conectada a la API de Render y a MongoDB Atlas para el piloto de un solo club. Los subdominios `*.vercel.app` siguen tratándose explícitamente como demos sin datos reales. Cloudflare reenvía `/api` por el proxy seguro del Worker; la URL pública de la API no se incorpora al JavaScript. El frontend bloquea la operación si la API falla. `VITE_DEMO_MODE=true` se reserva para una demo explícita sin datos reales. Los perfiles de prueba requieren activación explícita y no deben usarse en producción. El estado y las tareas pendientes están documentados en [Arquitectura](docs/ARQUITECTURA.md), el [plan del piloto](docs/PLAN_PILOTO.md) y la [guía de despliegue Cloudflare/Render](docs/DESPLIEGUE_CLOUDFLARE_MONSTER.md).
-
-La secuencia concreta de infraestructura, configuración y aceptación está en [Despliegue del piloto](docs/DESPLIEGUE_PILOTO.md). La API dispone de `Dockerfile.api` para un servicio persistente; el modo productivo rechaza semilla demo y configuración insegura.
-
-Próximos pasos posibles:
-
-- Integración real con Mercado Pago.
-- Webhooks de pagos.
-- Deploy productivo.
-- Panel de analítica comercial más avanzado.
-- Notificaciones automáticas por email o WhatsApp.
-
-## Nota
-
-El objetivo de PadelBook es mostrar cómo podría funcionar una herramienta real para la operación diaria de un club: reservas, clases, torneos, pagos y administración en un solo lugar.
+El objetivo del piloto es aprender de la operación diaria de un club real antes de ampliar el producto.

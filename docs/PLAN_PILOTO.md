@@ -1,36 +1,46 @@
-# Plan de mejora: del demo al primer club piloto
+# Plan del primer club piloto
 
-## 1. Base operativa compartida — implementada en esta rama
+La instalación conectada de PadelBook está preparada para **un club**. El club de Córdoba comenzará una prueba piloto; la aceptación operativa debe completarse con su equipo y sus datos antes de invitar jugadores. La web pública es [padelbook.crisalbavideografo.workers.dev](https://padelbook.crisalbavideografo.workers.dev).
 
-- Perfil persistido en API con validación; los cambios no se anuncian como guardados si el servidor falla.
-- Torneos, inscripciones y profesores conectados a la API. El listado público de torneos excluye contactos de inscriptos.
-- Reservas y bloqueos coordinados por franjas únicas de 30 minutos mediante transacciones MongoDB. Cancelar libera las franjas; reactivar exige que sigan libres.
-- Caja de torneos integrada al resumen financiero cuando el club marca un cobro. Los pagos siguen siendo **manuales**.
-- Cobros y reversiones de reservas protegidos con una clave de idempotencia por operación. Si una respuesta se pierde, reintentar la misma acción no agrega otro movimiento.
-- Fechas de caja calculadas en horario de Argentina. La vista móvil de reservas reduce horas pasadas y ofrece acceso directo al resumen.
-- Dependencias actualizadas y pruebas unitarias y de integración añadidas.
+## Ya implementado
 
-**Verificación:** `npm test`, `npm run build`, `npm audit --audit-level=high`. La integración usa un replica set temporal de MongoDB y comprueba permisos, perfil, reserva, bloqueo, carrera entre ambos, torneos, privacidad y caja.
-GitHub Actions ejecuta esas comprobaciones en cada PR y cambio de `main`.
+- Reserva de cancha con duraciones permitidas de 60, 90, 120 y 150 minutos, según la configuración de cada cancha. Disponibilidad y precio se validan en la API.
+- Franjas únicas de 30 minutos reclamadas mediante transacciones MongoDB para evitar reservas y bloqueos simultáneos sobre el mismo horario.
+- Panel para dueño y recepción. El dueño crea, edita y desactiva canchas y ajusta horarios, intervalos, duraciones y precios sin modificar código.
+- Registro manual de señas, saldos y reversiones con clave de idempotencia por operación. **No se cobra online.**
+- Sesión en cookie protegida, roles comprobados en la API, CSRF, validación de entradas y rate limits.
+- Recuperación de contraseña y correos de reserva con Resend cuando el remitente está configurado. El envío de reservas es asíncrono sin cola de reintentos.
+- Workflow de backup cifrado y prueba automatizada de restauración sobre MongoDB temporal. Chequeo periódico de disponibilidad.
 
-## 2. Puesta en marcha de un club piloto — requiere infraestructura y datos del club
+## Antes de abrir la agenda del club
 
-1. Crear una base MongoDB Atlas exclusiva para el piloto, con backups y credenciales de mínimo privilegio.
-2. Desplegar la API Express en un servicio persistente con HTTPS. Configurar `MONGODB_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`, `PADELBOOK_DEMO_SEED=false` y las credenciales iniciales del administrador.
-3. Configurar `VITE_API_URL` en Vercel hacia la API, reconstruir el frontend y verificar que `/api/health` responda 200. Una instalación configurada con API no debe caer a modo demo ante una falla del servidor.
-4. Cargar nombre, dirección y WhatsApp reales del club, sus precios y profesores. La agenda de reservas todavía tiene tres canchas y horario 09:00–22:00 definidos en código; validar que el piloto opere exactamente con esa configuración.
-5. Hacer una prueba de aceptación con dos dispositivos y cuentas distintas: reserva de 1, 1:30, 2 y 2:30 horas; bloqueo simultáneo; cancelación; reactivación; seña y saldo; inscripción y cobro de torneo; cierre de caja.
-   Para cobros y reversiones, repetir la misma solicitud con la misma clave de idempotencia y comprobar que aparece un único movimiento.
-6. Definir política escrita de señas, cancelaciones y reembolsos; preparar procedimiento de soporte, restauración de backup y monitoreo de errores.
+1. Confirmar nombre, dirección, contacto, reglas de cancelación y quién operará recepción. Configurar las canchas, sus horarios, duraciones y precios reales en **Ajustes**.
+2. Crear accesos individuales para el dueño y recepcionistas. Desactivar cualquier cuenta de prueba y verificar permisos por rol.
+3. Verificar en Atlas el usuario de base, restricciones de red y backups. Restaurar **un backup real del piloto** en una base separada y documentar fecha, duración, reservas y cobros recuperados.
+4. Confirmar remitente de email y probar creación, modificación y cancelación de una reserva desde cuentas de prueba. Registrar si el correo llega o falla.
+5. Definir por escrito cómo se reciben, registran y devuelven señas. La interfaz no debe presentarse como pasarela de pago.
 
-**Criterio de salida:** ninguna operación del piloto depende de `localStorage`, las dos cuentas ven la misma agenda y caja, y el club puede resolver un conflicto o caída de la API sin perder datos.
+## Prueba de aceptación con el club
 
-## 3. Producto para muchos clubes — siguiente versión
+| Caso | Resultado esperado |
+| --- | --- |
+| Dos jugadores solicitan el mismo horario | Solo una reserva se guarda. La otra recibe conflicto y puede elegir otro turno. |
+| Recepción bloquea la cancha a la vez que reserva un jugador | Solo una operación ocupa esas franjas. |
+| Turnos de 1, 1:30, 2 y 2:30 h | Se ofrecen solo las duraciones permitidas; el precio y el final respetan el horario de cierre. |
+| Reserva, seña, saldo, cancelación y reversión | Agenda y caja muestran estados coherentes; reintentar el mismo cobro no lo duplica. |
+| API caída o conexión móvil lenta | No se confirma localmente una operación que el servidor no guardó; se muestra el error y se puede reintentar. |
+| Dueño, recepción, profesor y jugador | Cada perfil ve y modifica solo lo permitido. |
+| Restauración | Los usuarios, turnos y movimientos del backup real quedan legibles en una base aislada. |
 
-- Modelar `clubId` en todas las entidades, permisos por club, invitación de staff y alta de clubes; probar aislamiento entre clubes.
-- Mover canchas, horarios, feriados, precios por cancha y disponibilidad de profesores a configuración persistida.
-- Incorporar pasarela de pagos con webhooks e idempotencia, comprobantes, conciliación y reembolsos. Hasta entonces, presentar los cobros como registros manuales.
-- Convertir el catálogo en un módulo administrable o mantenerlo como consulta sin precios ni stock prometidos.
-- Añadir observabilidad, migraciones versionadas, pruebas completas por rol y revisiones periódicas de accesibilidad y rendimiento móvil.
+Registrar fecha, dispositivos, cuentas de prueba y resultado de cada caso en una copia privada de esta lista. No publicar nombres ni teléfonos de jugadores en el repositorio.
 
-La URL pública actual continúa siendo la demo. No se debe presentarla como instalación productiva del piloto hasta completar la etapa 2.
+## Medición durante el piloto
+
+- Reservas creadas por jugadores y por recepción; conflictos y cancelaciones.
+- Tiempo que recepción tarda en confirmar una reserva y registrar el cobro.
+- Errores de API, fallos de correo y momentos sin servicio.
+- Problemas reportados por jugadores y encargados, con prioridad y resolución.
+
+## Límites de esta versión
+
+La API y la base representan un único club; para compartir infraestructura entre clubes falta aislamiento obligatorio por `clubId`. También faltan Mercado Pago con webhooks, alta autoservicio de clubes, recordatorios automáticos, una cola de emails con reintentos y migraciones versionadas. La prueba con el primer club servirá para priorizar estas mejoras con evidencia de uso.
