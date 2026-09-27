@@ -17,7 +17,7 @@ jobs:
       MONGODB_DB_NAME: ${{ vars.MONGODB_DB_NAME }}
       BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
