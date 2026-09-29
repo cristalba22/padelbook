@@ -59,6 +59,14 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 
 ## Advertencias de producto
 
+### Inicio sin esperar el arranque de la API (29/09/2026)
+
+- La portada y navegación se muestran mientras la API conecta. No se muestran precios, horarios, disponibilidad ni datos locales durante esa espera.
+- Las páginas operativas y los proveedores de datos se montan únicamente después de verificar la API y la sesión. Ingresar durante la espera lleva a la pantalla de conexión, sin habilitar perfiles de prueba.
+- La comprobación inicial de sesión tiene un límite de 15 segundos; un visitante sin sesión no recibe un modal de login automático. Los errores 401 de operaciones posteriores conservan el aviso de sesión vencida.
+- QA sobre el build productivo: API retenida, API con 503, recuperación por reintento, entrada directa a `/admin` sin sesión y pantalla móvil de 390 × 844 sin desborde. Build, 20 pruebas existentes y validación de despliegue pasaron.
+- Esta corrección elimina la espera para ver el inicio; no elimina la suspensión de Render ni permite reservar sin conexión. Para evitar espera en operaciones, usar una instancia que permanezca activa.
+
 - Verificar la disponibilidad real, el precio y el SLA del proveedor antes de abrir el piloto. Evitar servicios discontinuados aunque su documentación antigua siga indexada.
 - Cloudflare aloja el frontend y actúa como proxy seguro. Express se ejecuta en Render y se conecta a Atlas.
 - El plan gratuito de Render puede suspender el contenedor por inactividad y agregar unos 50 segundos al primer pedido. Para una prueba con clientes se recomienda una instancia sin suspensión.

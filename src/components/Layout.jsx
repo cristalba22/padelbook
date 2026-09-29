@@ -13,7 +13,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { user, logout, showLogin, apiReady, openLogin: openGlobalLogin, closeLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminWorkspace = location.pathname.startsWith("/admin");
@@ -30,6 +30,7 @@ export default function Layout({ children }) {
 
   const openLogin = () => {
     setMobileOpen(false);
+    if (!apiReady) { navigate(ROUTES.ACCOUNT); return; }
     openGlobalLogin();
   };
 
@@ -196,11 +197,11 @@ export default function Layout({ children }) {
       </div>
 
       {/* MODAL LOGIN */}
-      <LoginModal
+      {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}
         onLoggedIn={(role) => { closeLogin(); navigate(routeForRole(role)); }}
-      />
+      />}
     </>
   );
 }

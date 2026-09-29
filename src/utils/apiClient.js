@@ -6,6 +6,7 @@ export function setCsrfToken(value = "") {
 }
 
 export async function apiRequest(path, options = {}) {
+  const { notifyAuthExpired = true, ...fetchOptions } = options;
   const method = String(options.method || "GET").toUpperCase();
   const unsafe = !["GET", "HEAD", "OPTIONS"].includes(method);
   const headers = {
@@ -13,7 +14,7 @@ export async function apiRequest(path, options = {}) {
     ...(options.headers || {}),
     ...(unsafe && csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
   };
-  const response = await fetch(`${API_BASE}${path}`, { ...options, method, headers, credentials: "include" });
+  const response = await fetch(`${API_BASE}${path}`, { ...fetchOptions, method, headers, credentials: "include" });
   if (response.status === 204) return {};
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) throw new Error("La API no devolvió una respuesta JSON válida.");
@@ -21,7 +22,7 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     if (response.status === 401) {
       setCsrfToken();
-      window.dispatchEvent(new CustomEvent("padel:auth-expired", { detail: payload }));
+      if (notifyAuthExpired) window.dispatchEvent(new CustomEvent("padel:auth-expired", { detail: payload }));
     }
     const error = new Error(payload.message || "No se pudo completar la operación.");
     error.status = response.status;

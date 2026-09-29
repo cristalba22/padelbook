@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiRequest, checkApiHealth, setCsrfToken } from "../utils/apiClient.js";
 import { safeRead, safeRemove, safeWrite } from "../utils/storage.js";
+import { useLocation } from "react-router-dom";
+import ConnectionScreen from "../components/ConnectionScreen.jsx";
 
 const AuthContext = createContext(null);
 const AUTH_KEY = "padel_auth_user";
@@ -35,6 +37,7 @@ function publicProfile(user) {
 }
 
 export function AuthProvider({ children }) {
+  const { pathname } = useLocation();
   const hostedVercelDemo = typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
   const demoMode = import.meta.env.VITE_DEMO_MODE === "true" || hostedVercelDemo;
   const configuredApi = Boolean(import.meta.env.VITE_API_URL) || (import.meta.env.PROD && !demoMode);
@@ -46,6 +49,7 @@ export function AuthProvider({ children }) {
 
   const initialize = useCallback(async (isActive) => {
     setApiReady(false);
+    setApiOnline(false);
     setApiError(false);
     let online = false;
     const attempts = configuredApi ? 3 : 1;
@@ -61,7 +65,7 @@ export function AuthProvider({ children }) {
     }
     if (online) {
       try {
-        const { user: profile, csrfToken } = await apiRequest("/auth/me");
+        const { user: profile, csrfToken } = await apiRequest("/auth/me", { signal: AbortSignal.timeout(15000), notifyAuthExpired: false });
         if (!isActive()) return;
         setCsrfToken(csrfToken);
         setUser(profile);
@@ -104,6 +108,7 @@ export function AuthProvider({ children }) {
   function closeLogin() { setShowLogin(false); }
 
   async function login(email, password = "") {
+    if (configuredApi && !apiOnline) throw new Error("Esperá a que se restablezca la conexión con el club.");
     if (apiOnline) {
       const { user: profile, csrfToken } = await apiRequest("/auth/login", {
         method: "POST",
@@ -128,6 +133,7 @@ export function AuthProvider({ children }) {
   }
 
   async function register({ name, email, password, phone = "", category = "Sin categoría" }) {
+    if (configuredApi && !apiOnline) throw new Error("Esperá a que se restablezca la conexión con el club.");
     if (apiOnline) {
       const { user: profile, csrfToken } = await apiRequest("/auth/register", {
         method: "POST",
@@ -215,7 +221,7 @@ export function AuthProvider({ children }) {
   }
 
   const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
-  return <AuthContext.Provider value={value}>{apiReady ? children : <div role={apiError ? "alert" : "status"} className="grid min-h-screen place-items-center bg-[#080c16] px-6 text-center text-white"><div className="max-w-md"><h1 className="text-2xl font-bold">{apiError ? "El club no está disponible en este momento" : "Conectando con el club..."}</h1>{apiError ? <><p className="mt-3 text-sm text-white/65">No podemos consultar la agenda. Para proteger tus reservas, esperá a que se restablezca la conexión.</p><button type="button" onClick={retryApi} className="mt-6 rounded-full bg-lime-300 px-5 py-3 font-semibold text-black">Volver a intentar</button></> : <p className="mt-3 text-sm text-white/65">La primera conexión puede tardar cerca de un minuto.</p>}</div></div>}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{apiReady ? children : <ConnectionScreen home={pathname === "/"} error={apiError} retry={retryApi} />}</AuthContext.Provider>;
 }
 
 export function useAuth() {
