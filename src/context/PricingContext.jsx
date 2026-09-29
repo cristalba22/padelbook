@@ -1,4 +1,3 @@
-// src/context/PricingContext.jsx
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { DEFAULT_PRICING, loadPricing, savePricing } from "../utils/pricing.js";
 import { apiRequest } from "../utils/apiClient.js";

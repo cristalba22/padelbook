@@ -1,4 +1,3 @@
-// src/utils/storage.js
 export function safeRead(key, fallback) {
   if (typeof window === "undefined") return fallback;
   try {

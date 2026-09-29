@@ -1,4 +1,3 @@
-// src/data/bookingConfig.js
 export const COURTS = [
   {
     id: "court1",

@@ -9,7 +9,7 @@
 | Profesor | `/profe` | Producción piloto |
 | Club | `/admin`, `/admin/calendar`, `/admin/bookings`, `/admin/finance`, `/admin/teachers`, `/admin/tournaments`, `/admin/config`, `/admin/staff` | Producción piloto |
 
-Las rutas antiguas `/reservar` y `/panel-profe` redirigen a sus equivalentes actuales. Ninguna de las páginas anteriores debe eliminarse al evolucionar el producto.
+Las rutas antiguas `/reservar` y `/panel-profe` redirigen a sus equivalentes actuales.
 
 ## Flujo de datos actual
 
@@ -23,7 +23,7 @@ La instalación piloto de Cloudflare usa `/api` en el mismo origen y lo reenvía
 2. **Pagos:** reservas y torneos tienen registro manual de cobros, pero no hay cobro ni conciliación automática. Los cobros y reversiones de reservas exigen una clave UUID de idempotencia por operación para evitar duplicados por reintento. Los textos de la interfaz hablan de coordinación, no de dinero cobrado.
 3. **Alta segura de clubes:** una base nueva exige `ADMIN_EMAIL` y `ADMIN_PASSWORD`; los perfiles de prueba solo se insertan con `PADELBOOK_DEMO_SEED=true`. Aún falta un flujo de alta autoservicio.
 4. **Operación:** el backend está desplegado y hay un workflow diario de backup cifrado y un chequeo periódico de disponibilidad. La restauración automatizada se prueba contra una base temporal; falta documentar una restauración de un backup real de Atlas, alertas de baja latencia y migraciones versionadas.
-5. **Datos comerciales:** tienda, algunos textos y contenido inicial son de muestra. El panel de configuración debe gobernar el catálogo y los datos públicos del club.
+5. **Configuración del club:** antes de abrir el piloto, cargar nombre, contacto, canchas y precios reales desde el panel. El contenido de prueba pertenece al modo local y no debe usarse para operaciones del club.
 
 El dueño puede configurar canchas, horarios, intervalos, duraciones y precios desde `/admin/config`; esos datos se persisten en la API. Los emails de reserva se envían si el proveedor está configurado, pero actualmente son asíncronos sin cola de reintentos ni seguimiento de entrega.
 

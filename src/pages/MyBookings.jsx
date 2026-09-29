@@ -1,4 +1,3 @@
-// src/pages/MyBookings.jsx
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useBooking } from "../hooks/useBooking";
@@ -255,7 +254,6 @@ export default function MyBookings() {
 
   return (
     <div className="main-container interior-page mybookings-page max-w-6xl">
-      {/* Encabezado */}
       <header className="interior-hero mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="page-kicker">Mis turnos</p>
@@ -265,7 +263,6 @@ export default function MyBookings() {
           </p>
         </div>
 
-        {/* Mini resumen */}
         <div className="mobile-snap-row compact grid grid-cols-2 gap-3 text-xs md:text-sm">
           <div className="rounded-2xl border border-lime-400/40 bg-lime-400/10 px-4 py-3 shadow-lg shadow-lime-400/20">
             <p className="uppercase tracking-[0.18em] text-lime-200/80 text-[0.65rem]">
@@ -293,7 +290,6 @@ export default function MyBookings() {
       </header>
 
       <div className="flex flex-col gap-5 lg:flex-row">
-        {/* Columna izquierda: filtros / resumen */}
         <aside className="w-full lg:w-64 lg:flex-shrink-0">
           <div className="rounded-3xl border border-zinc-700/70 bg-gradient-to-b from-zinc-900/90 to-zinc-950/95 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.8)]">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-zinc-400">
@@ -333,7 +329,6 @@ export default function MyBookings() {
           </div>
         </aside>
 
-        {/* Columna derecha: lista de turnos */}
         <section className="flex-1">
           {listToShow.length === 0 ? (
             <div className="rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-900/80 to-zinc-950/95 p-8 text-center text-sm text-zinc-400 shadow-[0_18px_60px_rgba(0,0,0,0.8)]">
@@ -359,7 +354,6 @@ export default function MyBookings() {
                     }
                     className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-gradient-to-br from-zinc-950/95 via-zinc-900/95 to-zinc-950/95 p-4 md:p-5 shadow-[0_18px_70px_rgba(0,0,0,0.95)] hover:border-lime-400/40 hover:shadow-[0_18px_90px_rgba(190,254,41,0.25)] transition"
                   >
-                    {/* Glow lateral */}
                     <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-lime-400/10 via-transparent to-transparent" />
 
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -408,7 +402,6 @@ export default function MyBookings() {
                         </div>
                       </div>
 
-                      {/* Acciones */}
                       <div className="flex flex-col items-stretch gap-2 text-xs md:text-[0.8rem] z-10">
                         {!clubPhone && status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && <p className="rounded-lg border border-white/15 px-3 py-2 text-slate-300">Consultá en recepción para coordinar el saldo.</p>}
                         {clubPhone && status !== "cancelado" && booking.source !== "tournament" && paymentSummary(booking).due > 0 && (

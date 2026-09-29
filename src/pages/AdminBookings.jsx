@@ -1,4 +1,3 @@
-// src/pages/AdminBookings.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { useBooking } from "../hooks/useBooking.jsx";

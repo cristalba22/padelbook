@@ -1,4 +1,3 @@
-// src/data/adminMock.js
 
 const today = new Date();
 const addDays = (days) => {

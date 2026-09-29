@@ -1,4 +1,3 @@
-// src/pages/AdminConfig.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../components/AdminLayout.jsx";
 import { usePricing } from "../context/PricingContext.jsx";

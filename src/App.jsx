@@ -1,24 +1,20 @@
-// src/App.jsx
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout.jsx";
 import Footer from "./components/Footer.jsx";
 
-// Páginas públicas / jugador
 import Home from "./pages/Home.jsx";
 import Booking from "./pages/Booking.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import Tournaments from "./pages/Tournaments.jsx";
 import Comunidad from "./pages/Comunidad.jsx";
 
-// Dashboards
 import PlayerDashboard from "./pages/PlayerDashboard.jsx";
 import Account from "./pages/Account.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 
-// Panel Admin
 import Admin from "./pages/Admin.jsx";
 import AdminCalendar from "./pages/AdminCalendar.jsx";
 import AdminTeachers from "./pages/AdminTeachers.jsx";
@@ -32,9 +28,6 @@ import NotFound from "./pages/NotFound.jsx";
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
 
-/* ================================
-   PROTECCIÓN DE RUTAS
-================================ */
 function AdminRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to={ROUTES.HOME} replace />;
@@ -63,17 +56,12 @@ function PlayerRoute({ children }) {
   return children;
 }
 
-/* ================================
-            APP
-================================ */
 export default function App() {
   const location = useLocation();
   return (
     <div className={`app-shell ${location.pathname === ROUTES.HOME ? "home-experience" : ""}`}>
-      {/* HEADER + MODAL LOGIN */}
       <Layout>
         <Routes>
-          {/* PÚBLICO / JUGADOR */}
           <Route path="/" element={<Home />} />
           <Route path={ROUTES.BOOKING} element={<Booking />} />
           <Route path={ROUTES.BOOKING_LEGACY} element={<Navigate to={ROUTES.BOOKING} replace />} />
@@ -83,7 +71,6 @@ export default function App() {
           <Route path={ROUTES.ACCOUNT} element={<Account />} />
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
 
-          {/* Dashboard jugador */}
           <Route
             path={ROUTES.PLAYER}
             element={
@@ -93,7 +80,6 @@ export default function App() {
             }
           />
 
-          {/* PANEL PROFESOR */}
           <Route
             path={ROUTES.TEACHER}
             element={
@@ -105,7 +91,6 @@ export default function App() {
 
           <Route path={ROUTES.TEACHER_LEGACY} element={<Navigate to={ROUTES.TEACHER} replace />} />
 
-          {/* PANEL ADMIN */}
           <Route
             path={ROUTES.ADMIN}
             element={
@@ -164,12 +149,10 @@ export default function App() {
           />
           <Route path={ROUTES.ADMIN_STAFF} element={<AdminRoute><AdminStaff /></AdminRoute>} />
 
-          {/* CUALQUIER OTRA RUTA */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
 
-      {/* FOOTER GLOBAL */}
       {!location.pathname.startsWith("/admin") && <Footer />}
     </div>
   );

@@ -12,4 +12,4 @@ Guías vigentes para la instalación de **un club piloto**:
 | [Backups y restauración](BACKUP_RESTORE.md) | Política y simulacro de recuperación. |
 | [QA del piloto](QA_PILOTO.md) | Casos de concurrencia, móvil y conexión lenta. |
 
-Las capturas en [screenshots](screenshots/) muestran la web publicada y un panel local con datos de ejemplo. Los documentos de diseño y mejora de etapas previas se retiraron para evitar instrucciones contradictorias; permanecen disponibles en el historial de Git.
+Las capturas en [screenshots](screenshots/) muestran la web publicada y un panel local con datos de ejemplo.
