@@ -1,4 +1,3 @@
-// src/constants/routes.js
 // Rutas centralizadas para evitar navegacion rota al cambiar URLs.
 export const ROUTES = Object.freeze({
   HOME: "/",

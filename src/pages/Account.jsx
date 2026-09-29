@@ -109,8 +109,6 @@ export default function Account() {
             </form>
           </div>
 
-
-
           <div className="rounded-[2rem] border border-white/10 bg-[#0B1326]/80 p-6 shadow-xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>

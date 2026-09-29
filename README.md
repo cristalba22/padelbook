@@ -2,7 +2,7 @@
 
 Reservas y gestión diaria para clubes de pádel. Un jugador consulta la disponibilidad y solicita un turno; recepción administra la agenda y registra cobros; el dueño configura canchas, horarios, precios y accesos del equipo.
 
-**Web:** [padelbook.crisalbavideografo.workers.dev](https://padelbook.crisalbavideografo.workers.dev) · **Estado:** instalación conectada para preparar el primer piloto en Córdoba. Todavía no se presenta como un servicio multiclub ni como una plataforma con pagos online.
+**Web:** [padelbook.crisalbavideografo.workers.dev](https://padelbook.crisalbavideografo.workers.dev) · **Estado:** preparación del primer piloto en un club de Córdoba. Cada instalación opera un club; los cobros se registran manualmente.
 
 ## Producto
 
@@ -36,7 +36,7 @@ Capturadas el 24 de septiembre de 2026. Inicio y reserva corresponden a la web p
 
 ## Arquitectura
 
-- **Interfaz:** React, Vite, React Router, Tailwind CSS y Framer Motion; publicada en Cloudflare Workers.
+- **Interfaz:** React, Vite, React Router y Tailwind CSS; animaciones en CSS. Publicada en Cloudflare Workers.
 - **API:** Node.js y Express en Render. Cloudflare reenvía `/api` hacia ella mediante un secreto privado.
 - **Datos:** MongoDB Atlas y Mongoose. La API usa transacciones para reservas y bloqueos.
 - **Acceso:** sesiones en cookie `HttpOnly`, `Secure` y `SameSite=Strict` en producción; CSRF, validación de entradas, límites de intentos y autorización por rol en el servidor.
@@ -70,5 +70,3 @@ npm run build
 - No existe alta autoservicio de clubes. El primer club se configura de forma controlada.
 - La entrega de correos requiere un remitente verificado. Todavía faltan recordatorios automáticos y seguimiento de fallos de envío.
 - Antes del piloto con datos reales hay que probar la restauración del backup de Atlas, los accesos del equipo y el circuito completo de reserva y cobro con el club.
-
-El objetivo del piloto es aprender de la operación diaria de un club real antes de ampliar el producto.

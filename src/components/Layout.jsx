@@ -1,4 +1,3 @@
-// src/components/Layout.jsx
 import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -79,10 +78,8 @@ export default function Layout({ children }) {
     <>
       <div className="app-shell">
         <a href="#contenido" className="skip-link">Ir al contenido</a>
-        {/* HEADER */}
         {!isAdminWorkspace && <header className="site-header sticky top-0 z-40 border-b border-white/10 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-            {/* Logo */}
             <button
               type="button"
               onClick={() => {
@@ -95,12 +92,10 @@ export default function Layout({ children }) {
               <span>padelbook</span>
             </button>
 
-            {/* Navegación escritorio */}
             <nav className="hidden items-center gap-5 lg:gap-7 md:flex" aria-label="Navegación principal">
               {renderNavLinks()}
             </nav>
 
-            {/* Usuario / Ingresar / Salir (escritorio) */}
             <div className="hidden items-center gap-2 md:flex">
               {user ? (
                 <>
@@ -129,7 +124,6 @@ export default function Layout({ children }) {
               )}
             </div>
 
-            {/* Botón hamburguesa (mobile) */}
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
@@ -152,7 +146,6 @@ export default function Layout({ children }) {
             </button>
           </div>
 
-          {/* Menú móvil desplegable */}
           {mobileOpen && (
             <div className="border-t border-slate-900/70 bg-black/95 md:hidden">
               <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 pb-4 pt-3">
@@ -192,11 +185,9 @@ export default function Layout({ children }) {
           )}
         </header>}
 
-        {/* CONTENIDO */}
         <div id="contenido" className="relative z-10 flex-1">{children}</div>
       </div>
 
-      {/* MODAL LOGIN */}
       {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}

@@ -1,4 +1,3 @@
-// src/utils/pricing.js
 import { safeRead, safeWrite } from "./storage.js";
 
 export const PRICING_KEY = "padel_pricing";

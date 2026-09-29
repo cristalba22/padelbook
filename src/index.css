@@ -1,13 +1,9 @@
-/* =========================
-   Tailwind
-========================= */
+/* Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* =========================
-   Base y colores
-========================= */
+/* Base y colores */
 :root{
   --bg:#050814;
   --bg-soft:#070C1D;
@@ -85,7 +81,7 @@ a:active{
   width:100%;
   max-width:1360px;
   margin:0 auto;
-  /* Ajuste de padding para mobile en el @media de abajo */
+
   padding:32px 20px 64px;
 }
 
@@ -101,13 +97,13 @@ a:active{
   color:var(--muted);
 }
 
-/* Ajustes de tipografía para títulos en móviles */
+
 @media (max-width: 768px) {
     .page-title {
-        font-size: 1.5rem; /* Hacemos el título un poco más chico */
+        font-size: 1.5rem;
     }
     .page-subtitle {
-        font-size: 0.85rem; /* Subtítulo ligeramente más pequeño */
+        font-size: 0.85rem;
     }
 }
 
@@ -117,9 +113,7 @@ a:active{
 ::-webkit-scrollbar-thumb{background:#4b5563;border-radius:999px;}
 ::-webkit-scrollbar-thumb:hover{background:#3DF7A8;}
 
-/* =========================
-   Botones genéricos
-========================= */
+/* Botones genéricos */
 
 .btn-primary{
   @apply inline-flex items-center justify-center px-5 py-2 rounded-full text-sm font-semibold;
@@ -195,7 +189,7 @@ a:active{
   to{transform:rotate(360deg);}
 }
 
-/* Pill para iconitos */
+/* Iconos */
 .icon-pill{
   width:40px;
   height:40px;
@@ -208,18 +202,16 @@ a:active{
   font-size:1.1rem;
 }
 
-/* =========================
-   HOME (landing)
-========================= */
+/* HOME (landing) */
 
 .home-wrapper{
   max-width:1360px;
   margin:0 auto;
-  /* Ajuste de padding para mobile en el @media de abajo */
+
   padding:70px 20px 72px;
 }
 
-/* HERO principal – compacto, pro */
+/* Hero */
 .home-hero{
   display:grid;
   grid-template-columns: 1.05fr 0.95fr;
@@ -351,15 +343,13 @@ a:active{
     padding:1.8rem 1.4rem 2.1rem;
     gap:1.6rem;
   }
-  /* Ajuste: Ocultar la burbuja informativa en tablets/móviles para ahorrar espacio */
+
   .hero-meta {
       display: none;
   }
 }
 
-/* =========================
-   Secciones tipo Adelux
-========================= */
+/* Secciones tipo Adelux */
 
 .section-block{
   margin-top:3.5rem;
@@ -385,7 +375,7 @@ a:active{
   max-width:38rem;
 }
 
-/* Ajustes de tipografía para secciones en móviles */
+
 @media (max-width: 768px) {
     .section-block {
         margin-top: 2.5rem; /* Margen superior más compacto */
@@ -398,7 +388,7 @@ a:active{
     }
 }
 
-/* grid de features (ya es responsive con 1024px) */
+
 .feature-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -441,9 +431,9 @@ a:active{
   margin-top:1.2rem;
 }
 .stat-item{
-  /* min-width:120px; */ /* Eliminado para permitir mayor flexibilidad en móvil */
-  flex: 1 1 auto; /* Permite que los ítems se ajusten y crezcan */
-  min-width: 45%; /* Asegura que al menos dos ítems quepan por fila en la mayoría de los móviles */
+
+  flex: 1 1 auto;
+  min-width: 45%;
 }
 .stat-number{
   font-size:1.3rem;
@@ -483,9 +473,7 @@ a:active{
   color:#cbd5f5;
 }
 
-/* =========================
-   Genéricos que usan otros módulos
-========================= */
+/* Genéricos que usan otros módulos */
 
 .card{
   background-color:var(--bg-surface);
@@ -519,7 +507,7 @@ a:active{
 
 /* Para mejorar la experiencia de las tablas en móviles (haciéndolas scrollables) */
 .responsive-table-container {
-    overflow-x: auto; /* Permite el scroll horizontal */
+    overflow-x: auto;
     width: 100%;
     margin-top: 1rem;
 }
@@ -531,8 +519,8 @@ a:active{
         -webkit-overflow-scrolling: touch;
     }
     .table {
-        /* Evita que la tabla se haga más pequeña que su contenido mínimo */
-        min-width: 600px; 
+
+        min-width: 600px;
     }
 }
 
@@ -580,20 +568,18 @@ a:active{
   font-size:0.8rem;
 }
 
-/* Ajuste de lista de reservas en móvil */
+
 @media (max-width: 480px) {
     .mybookings-item {
-        /* Permite que el contenido se apile si es necesario */
-        flex-direction: column; 
+
+        flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
         padding: 0.8rem;
     }
 }
 
-/* =========================
-   Footer
-========================= */
+/* Footer */
 
 .footer{
   border-top:1px solid rgba(31,41,55,0.95);
@@ -612,7 +598,7 @@ a:active{
   flex-wrap:wrap;
 }
 
-/* WhatsApp / cancelar (por si los usás) */
+
 .btn-wa{
   display:inline-flex;
   align-items:center;
@@ -635,9 +621,7 @@ a:active{
   background-color:#b91c1c;
 }
 
-/* =========================
-   Layout club / badges / extra
-========================= */
+/* Layout club / badges / extra */
 
 .club-layout{
   display:grid;
@@ -648,8 +632,8 @@ a:active{
 @media (max-width:1024px){
   .club-layout{
     grid-template-columns:1fr;
-    gap:1.5rem; /* Pequeño ajuste en el gap */
-    margin-top:2.5rem; /* Margen más compacto */
+    gap:1.5rem;
+    margin-top:2.5rem;
   }
 }
 
@@ -695,7 +679,7 @@ a:active{
   flex-wrap:wrap;
   gap:1.5rem;
 }
-/* Ajuste para que las métricas se vean bien en móvil */
+
 @media (max-width: 480px) {
     .club-metrics {
         gap: 1.2rem;
@@ -716,9 +700,7 @@ a:active{
   color:#d4d4d8;
 }
 
-/* =========================
-   Admin – tabla de reservas
-========================= */
+/* Admin – tabla de reservas */
 
 .bookings-card{
   margin-top:1.75rem;
@@ -836,17 +818,13 @@ a:active{
 
 /* Mejorar tabla de reservas admin en móvil */
 @media (max-width: 768px) {
-    /* Envolvemos la tabla en un div con overflow-x: auto; en el HTML,
-       o la forzamos a tener un ancho mínimo si es muy compleja */
+
     .mybookings-table {
-        min-width: 800px; /* Asegura que no se rompa en móvil, forzando el scroll horizontal */
+        min-width: 800px;
     }
 }
 
-/* ==========================
-   SELECT FIX – Panel Admin
-   Estilo visible en dark mode
-========================== */
+/* SELECT FIX – Panel Admin Estilo visible en dark mode */
 
 .admin-select {
   background-color: rgba(255, 255, 255, 0.05);
@@ -869,9 +847,7 @@ a:active{
   color: #f1f5f9;
 }
 
-/* ==========================
-   NUEVO: filtros admin (inputs de arriba)
-========================== */
+/* Filtros de administración */
 
 .filter-label{
   font-size:0.7rem;
@@ -901,9 +877,7 @@ a:active{
   box-shadow:0 0 0 1px rgba(61,247,168,0.45);
 }
 
-/* ==========================
-   NUEVO: responsive general (admin + resto) en mobile
-========================== */
+/* Adaptación a pantallas móviles */
 
 @media (max-width:768px){
   .home-wrapper{
@@ -914,25 +888,24 @@ a:active{
     padding:24px 16px 56px;
   }
 
-  /* cualquier layout principal que esté en fila
-     (admin, reservas, torneos…) pasa a columna */
+
   .main-container > .flex{
     flex-direction:column;
   }
 
-  /* grids principales dentro de main → 1 columna */
+
   .main-container > .grid{
     grid-template-columns:1fr !important;
   }
 
-  /* footer apilado */
+
   .footer-inner{
     flex-direction:column;
     align-items:flex-start;
   }
 }
 
-/* un poquito más compacto en teléfonos chicos */
+
 @media (max-width:480px){
   .hero-title{
     font-size:1.9rem;
@@ -943,174 +916,12 @@ a:active{
   .cta-text-main{
     font-size:1.1rem;
   }
-  /* Ajuste: Forzar a los botones a ser de ancho completo en CTA si se apilan */
+
   .cta-block .btn-primary,
   .cta-block .btn-outline {
       width: 100%;
       margin-top: 0.4rem;
   }
-}
-/* =========================
-   NAVBAR & MENU HAMBURGUESA (CORREGIDO PARA DESKTOP)
-========================= */
-
-/* Estilo de la cabecera (Header) - CLASE: main-header */
-.main-header{
-    background-color: var(--bg); 
-    border-bottom: 1px solid rgba(255,255,255,.06);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    /* backdrop-filter: blur(8px); // Opcional */
-}
-
-/* Contenedor interno que centra el contenido - CLASE: header-inner */
-.header-inner {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0.9rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.logo-box {
-    cursor: pointer;
-}
-
-/* --- ESTILOS DE ESCRITORIO (BASE) --- */
-
-/* Contenedor principal de enlaces y acciones */
-.header-links { 
-    display: flex; 
-    align-items: center;
-    /* ⬅️ CLAVE: Separa los dos grupos (enlaces y acciones) al máximo */
-    justify-content: space-between; 
-    width: 100%; /* Ocupa el espacio entre el logo y el borde */
-}
-
-/* ⬅️ NUEVO: Contenedor para los NavLinks */
-.nav-links-group {
-    display: flex; 
-    align-items: center;
-    gap: 1.5rem; /* Espacio entre los NavLinks */
-}
-
-/* Contenedor de botones (Ingresar / EMPEZAR / salir) */
-.header-actions { 
-    display: flex; 
-    align-items: center;
-    gap: 0.75rem; 
-}
-
-/* Ocultar el botón hamburguesa por defecto en Desktop */
-.menu-toggle {
-    display: none; 
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    padding: 0;
-}
-
-/* Estilos de las líneas del botón hamburguesa */
-.menu-toggle span {
-    display: block;
-    width: 28px;
-    height: 2px;
-    margin: 4px 0;
-    background: var(--lime);
-    border-radius: 999px;
-    transition: all 0.3s ease-in-out;
-}
-
-/* --- Responsive del Navbar (Móviles < 768px) --- */
-
-@media (max-width: 768px) {
-    .header-inner {
-        padding: 0.8rem 1rem;
-    }
-
-    /* Mostrar el botón hamburguesa */
-    .menu-toggle {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-    }
-
-    /* Ocultar la navegación de escritorio y preparar para desplegar */
-    .header-links {
-        position: absolute;
-        top: 100%; 
-        left: 0;
-        width: 100%;
-        background-color: var(--bg);
-        border-top: 1px solid rgba(255,255,255,.06);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
-        
-        /* Comportamiento de menú móvil */
-        flex-direction: column; 
-        align-items: flex-start;
-        justify-content: flex-start; /* Reseteo */
-        max-height: 0; 
-        overflow: hidden;
-        transition: max-height 0.3s ease-in-out;
-    }
-
-    /* El nuevo grupo debe apilarse en móvil */
-    .nav-links-group {
-        flex-direction: column; 
-        gap: 0;
-        width: 100%;
-        order: 1; /* Para que aparezca primero */
-    }
-    
-    /* Estilo de los NavLinks en modo móvil (apilados) */
-    .nav-links-group a {
-        padding: 0.8rem 1.5rem; 
-        border-bottom: 1px solid rgba(255,255,255,.05);
-        width: 100%;
-        display: block;
-        background: transparent !important; 
-        border-radius: 0 !important;
-        font-weight: 400 !important;
-    }
-    
-    .header-links a.activeClass {
-        color: var(--lime) !important;
-        background-color: rgba(190,254,41,0.08) !important;
-    }
-
-    /* Clase que se activa con JS para mostrar el menú */
-    .header-links.is-open {
-        max-height: 500px;
-    }
-    
-    /* Contenedor de botones en móvil: apilarlos */
-    .header-actions {
-        width: 100%;
-        display: flex;
-        flex-direction: column; 
-        gap: 0.6rem; 
-        padding: 1rem 1.5rem;
-        border-top: 1px solid rgba(255,255,255,.08);
-        order: 2; /* Para que aparezca después de los links */
-        
-        & button { width: 100%; } 
-        & span { width: 100%; text-align: left; margin-bottom: 0.5rem;}
-    }
-
-    /* Efecto hamburguesa a X */
-    .menu-toggle.is-active span:nth-child(1) {
-        transform: translateY(6px) rotate(45deg);
-    }
-    .menu-toggle.is-active span:nth-child(2) {
-        opacity: 0;
-    }
-    .menu-toggle.is-active span:nth-child(3) {
-        transform: translateY(-6px) rotate(-45deg);
-    }
 }
 /* Admin enhanced controls */
 .field{
@@ -1159,9 +970,7 @@ a:active{
   font-weight: 900;
 }
 
-/* =========================
-   Premium card depth
-========================= */
+/* Premium card depth */
 
 .depth-card{
   position:relative;
@@ -1232,9 +1041,7 @@ a:active{
   }
 }
 
-/* =========================
-   Mobile UX helpers
-========================= */
+/* Mobile UX helpers */
 
 .mobile-snap-row{
   min-width:0;

@@ -78,8 +78,6 @@ export default function Home() {
   const courtPrice = getCourtPrice("15:00", new Date(), primaryCourt ? { ...prices, courtPrice: primaryCourt.basePrice, nightPrice: primaryCourt.nightPrice, weekendExtra: primaryCourt.weekendExtra } : prices);
   const todayLabel = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "long", day: "numeric", month: "long" }).format(new Date());
 
-
-
   return (
     <main className="home-page">
       <HomeHero settings={settings} courtCount={courts.length} />
