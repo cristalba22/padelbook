@@ -82,6 +82,17 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       });
       return { status: response.status, data: await response.json() };
     };
+    const myOrganizations = async (user) => {
+      const response = await fetch(`${base.replace(/\/venues$/, "")}/auth/organizations`, {
+        headers: user ? { Authorization: `Bearer ${createSession(user).token}` } : {},
+      });
+      return { status: response.status, data: await response.json() };
+    };
+
+    assert.equal((await myOrganizations()).status, 401);
+    assert.deepEqual((await myOrganizations(adminA)).data.organizations.map((item) => item.slug), ["club-a"]);
+    assert.deepEqual((await myOrganizations(receptionistA)).data.organizations[0].venues.map((item) => item.slug), ["centro"]);
+    assert.deepEqual((await myOrganizations(playerB)).data.organizations.map((item) => item.slug), ["club-b"]);
 
     assert.equal((await organizationRequest("/club-a/admin/staff", receptionistA)).status, 404);
     assert.equal((await organizationRequest("/club-b/admin/staff", adminA)).status, 404);

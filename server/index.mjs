@@ -25,6 +25,7 @@ import { tournamentFields, registrationStatusFields, tournamentSignupFields } fr
 import { venueRouter } from "./venueRoutes.mjs";
 import { organizationStaffRouter } from "./organizationStaff.mjs";
 import { buildFinanceSummary } from "./financeSummary.mjs";
+import { listMyOrganizations } from "./organizationPortfolio.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -107,6 +108,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/venues", venueRouter);
 app.use("/api/organizations", organizationStaffRouter);
+app.get("/api/auth/organizations", requireAuth, listMyOrganizations);
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
   const schema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(72) }).strict();

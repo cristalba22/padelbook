@@ -15,11 +15,13 @@ import { ToastProvider } from "./components/ToastProvider.jsx";
 import { TournamentsProvider } from "./hooks/useTournaments.jsx";
 import { TeachersProvider } from "./hooks/useTeachers.jsx";
 import { CourtConfigProvider } from "./context/CourtConfigContext.jsx";
+import { OrganizationsProvider } from "./hooks/useOrganizations.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <OrganizationsProvider>
         <BookingProvider>
           <PricingProvider>
             <ClubSettingsProvider>
@@ -37,6 +39,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             </ClubSettingsProvider>
           </PricingProvider>
         </BookingProvider>
+        </OrganizationsProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

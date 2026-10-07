@@ -24,6 +24,7 @@ import AdminTournaments from "./pages/AdminTournaments.jsx";
 import AdminConfig from "./pages/AdminConfig.jsx";
 import AdminStaff from "./pages/AdminStaff.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import { Organizations, OrganizationDashboard, VenueOverview } from "./pages/Organizations.jsx";
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -70,6 +71,9 @@ export default function App() {
           <Route path={ROUTES.COMMUNITY} element={<Comunidad />} />
           <Route path={ROUTES.ACCOUNT} element={<Account />} />
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+          <Route path={ROUTES.CLUBS} element={<Organizations />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug`} element={<OrganizationDashboard />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug`} element={<VenueOverview />} />
 
           <Route
             path={ROUTES.PLAYER}
@@ -153,7 +157,7 @@ export default function App() {
         </Routes>
       </Layout>
 
-      {!location.pathname.startsWith("/admin") && <Footer />}
+      {!location.pathname.startsWith("/admin") && !location.pathname.startsWith(ROUTES.CLUBS) && <Footer />}
     </div>
   );
 }

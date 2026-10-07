@@ -19,6 +19,7 @@ export const ROUTES = Object.freeze({
   ADMIN_TOURNAMENTS: "/admin/tournaments",
   ADMIN_CONFIG: "/admin/config",
   ADMIN_STAFF: "/admin/staff",
+  CLUBS: "/clubes",
 });
 
 export function routeForRole(role) {
