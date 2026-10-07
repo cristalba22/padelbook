@@ -21,6 +21,7 @@ import { addMinutesToHour, fitsCourtHours, publicCourt, validCourtSchedule } fro
 import { courtFields } from "./courtInput.mjs";
 import { isValidDateISO } from "./dateValidation.mjs";
 import { withAgendaTransaction } from "./agendaTransaction.mjs";
+import { parseSettingsPatch } from "./settingsInput.mjs";
 import { venueRouter } from "./venueRoutes.mjs";
 
 const app = express();
@@ -798,44 +799,8 @@ app.get("/api/settings", async (_req, res) => {
 });
 
 app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => {
-  const schema = z.object({
-    clubName: z.string().trim().min(2).max(120).optional(),
-    clubShortName: z.string().trim().min(2).max(40).optional(),
-    address: z.string().trim().max(200).optional(),
-    mapsQuery: z.string().trim().max(200).optional(),
-    whatsapp: z.string().trim().max(40).optional(),
-    instagram: z.string().trim().max(80).optional(),
-    openingHours: z.string().trim().max(100).optional(),
-    clubStatus: z.string().trim().max(160).optional(),
-    homeHeadline: z.string().trim().max(180).optional(),
-    homeSubtitle: z.string().trim().max(500).optional(),
-    promoText: z.string().trim().max(160).optional(),
-    courtPrice: z.number().or(z.string()).transform(Number).optional(),
-    nightPrice: z.number().or(z.string()).transform(Number).optional(),
-    weekendExtra: z.number().or(z.string()).transform(Number).optional(),
-    classPrice: z.number().or(z.string()).transform(Number).optional(),
-    tournamentPrice: z.number().or(z.string()).transform(Number).optional(),
-    teacherCommissionPercent: z.number().or(z.string()).transform(Number).optional(),
-  }).strict();
-
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Datos de configuracion invalidos." });
-
-  const numericKeys = ["courtPrice", "nightPrice", "weekendExtra", "classPrice", "tournamentPrice", "teacherCommissionPercent"];
-  for (const key of numericKeys) {
-    if (parsed.data[key] !== undefined && (!Number.isFinite(parsed.data[key]) || Number(parsed.data[key]) < 0 || Number(parsed.data[key]) > (key === "teacherCommissionPercent" ? 100 : 100_000_000))) {
-      return res.status(400).json({ message: "Los precios deben ser numeros positivos." });
-    }
-  }
-  if (parsed.data.teacherCommissionPercent > 100) return res.status(400).json({ message: "La comisión debe estar entre 0 y 100%." });
-
-  const patch = {
-    ...parsed.data,
-    whatsapp: parsed.data.whatsapp ? String(parsed.data.whatsapp).replace(/\D/g, "") : parsed.data.whatsapp,
-    instagram: parsed.data.instagram ? String(parsed.data.instagram).replace(/^@/, "").trim() : parsed.data.instagram,
-  };
-
-  Object.keys(patch).forEach((key) => patch[key] === undefined && delete patch[key]);
+  const patch = parseSettingsPatch(req.body);
+  if (!patch) return res.status(400).json({ message: "Datos de configuración inválidos." });
   const settings = await Setting.findOneAndUpdate({}, { $set: patch }, { returnDocument: "after", upsert: true, setDefaultsOnInsert: true });
   await addActivity({ type: "settings_updated", title: "Configuracion actualizada", detail: "Precios y datos del club", actor: req.user.name });
   res.json({ settings: settings.toJSON() });

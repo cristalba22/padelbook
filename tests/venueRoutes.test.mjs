@@ -15,7 +15,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
   let server;
   try {
     await mongoose.connect(mongo.getUri(), { dbName: process.env.MONGODB_DB_NAME });
-    await Promise.all([Booking.init(), SlotClaim.init()]);
+    await Promise.all([Booking.init(), SlotClaim.init(), Setting.init()]);
     const [orgA, orgB] = await Organization.create([{ slug: "club-a", name: "Club A" }, { slug: "club-b", name: "Club B" }]);
     const [venueA, venueA2, venueB] = await Venue.create([
       { organizationId: orgA.id, slug: "centro", name: "Centro A" },
@@ -81,7 +81,32 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.deepEqual((await request("/club-a/centro/availability?date=2026-10-20")).data.occupied.map((booking) => booking.courtId), ["court-a"]);
     assert.deepEqual((await request("/club-a/norte/availability?date=2026-10-20")).data.occupied, []);
     assert.deepEqual((await request("/club-a/centro/teachers")).data.teachers.map((teacher) => teacher.name), ["Profe A"]);
+    const createdTeacher = await request("/club-a/norte/admin/teachers", adminA, { method: "POST",
+      body: { name: "Profe Norte", specialty: "Clases individuales", price: 33000 } });
+    assert.equal(createdTeacher.status, 201);
+    assert.equal((await request("/club-a/norte/admin/teachers", receptionistA)).status, 403);
+    assert.equal((await request("/club-a/norte/admin/teachers", receptionistA,
+      { method: "POST", body: { name: "Otro", price: 1 } })).status, 403);
+    assert.equal((await request(`/club-a/norte/admin/teachers/${teacherB.id}`, adminA,
+      { method: "PATCH", body: { price: 1000 } })).status, 404);
+    assert.equal((await request(`/club-a/norte/admin/teachers/${createdTeacher.data.teacher.id}`, adminA,
+      { method: "PATCH", body: { price: 35000 } })).data.teacher.price, 35000);
+    assert.deepEqual((await request("/club-a/norte/teachers")).data.teachers.map((teacher) => teacher.name), ["Profe Norte"]);
+    assert.deepEqual((await request("/club-b/centro/teachers")).data.teachers.map((teacher) => teacher.name), ["Profe B"]);
     assert.equal((await request("/club-a/centro/settings")).data.settings.clubName, "Club A Centro");
+    assert.equal((await request("/club-a/norte/admin/settings", receptionistA,
+      { method: "PUT", body: { clubName: "Otra marca" } })).status, 403);
+    assert.equal((await request("/club-a/norte/admin/settings", adminA,
+      { method: "PUT", body: { organizationId: orgB.id } })).status, 400);
+    assert.equal((await request("/club-a/norte/admin/settings", adminA,
+      { method: "PUT", body: { teacherCommissionPercent: 101 } })).status, 400);
+    const updatedSettings = await request("/club-a/norte/admin/settings", adminA,
+      { method: "PUT", body: { clubName: "Club A Norte Renovado", address: "Av. Norte 123", courtPrice: 22000 } });
+    assert.equal(updatedSettings.status, 200);
+    assert.equal(updatedSettings.data.settings.clubName, "Club A Norte Renovado");
+    assert.equal((await request("/club-a/norte")).data.venue.address, "Av. Norte 123");
+    assert.equal((await request("/club-a/centro/settings")).data.settings.clubName, "Club A Centro");
+    assert.equal((await request("/club-b/centro/settings")).data.settings.clubName, "Club B Centro");
     const publicTournaments = (await request("/club-a/centro/tournaments")).data.tournaments;
     assert.deepEqual(publicTournaments.map((tournament) => tournament.name), ["Torneo A"]);
     assert.equal("registrations" in publicTournaments[0], false);

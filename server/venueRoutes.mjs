@@ -10,6 +10,8 @@ import { recordVenuePayment, reverseVenuePayment } from "./venuePayments.mjs";
 import { isValidDateISO } from "./dateValidation.mjs";
 import { createVenueCourt, updateVenueCourt } from "./venueCourts.mjs";
 import { createVenueBlocks, deleteVenueBlocks, listAdminVenueBlocks, listVenueBlocks } from "./venueBlocks.mjs";
+import { updateVenueSettings } from "./venueSettings.mjs";
+import { createVenueTeacher, listAdminVenueTeachers, updateVenueTeacher } from "./venueTeachers.mjs";
 
 export const venueRouter = express.Router();
 venueRouter.use("/:organizationSlug/:venueSlug", requireVenueContext);
@@ -39,6 +41,9 @@ venueRouter.get("/:organizationSlug/:venueSlug/teachers", async (req, res) => {
   const teachers = await Teacher.find(venueScope(req.venueContext)).sort({ name: 1 });
   res.json({ teachers: teachers.map(({ id, name, nickname, specialty, status, price }) => ({ id, name, nickname, specialty, status, price })) });
 });
+venueRouter.get("/:organizationSlug/:venueSlug/admin/teachers", requireAuth, requireVenueRole("admin"), listAdminVenueTeachers);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/teachers", requireAuth, requireVenueRole("admin"), createVenueTeacher);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/teachers/:id", requireAuth, requireVenueRole("admin"), updateVenueTeacher);
 
 venueRouter.get("/:organizationSlug/:venueSlug/tournaments", async (req, res) => {
   const tournaments = await Tournament.find(venueScope(req.venueContext)).sort({ date: 1 });
@@ -60,6 +65,7 @@ venueRouter.get("/:organizationSlug/:venueSlug/settings", async (req, res) => {
   delete item.venueId;
   res.json({ settings: item });
 });
+venueRouter.put("/:organizationSlug/:venueSlug/admin/settings", requireAuth, requireVenueRole("admin"), updateVenueSettings);
 venueRouter.get("/:organizationSlug/:venueSlug/blocks", listVenueBlocks);
 venueRouter.get("/:organizationSlug/:venueSlug/admin/blocks", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), listAdminVenueBlocks);
 venueRouter.post("/:organizationSlug/:venueSlug/admin/blocks/batch", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), createVenueBlocks);

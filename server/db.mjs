@@ -181,6 +181,9 @@ const settingsSchema = new mongoose.Schema({
   tournamentPrice: { type: Number, default: 25000 },
   teacherCommissionPercent: { type: Number, default: 50 },
 }, baseOptions);
+settingsSchema.index({ organizationId: 1, venueId: 1 }, {
+  unique: true, partialFilterExpression: { organizationId: { $exists: true }, venueId: { $exists: true } },
+});
 
 const activitySchema = new mongoose.Schema({
   ...scopeFields,
