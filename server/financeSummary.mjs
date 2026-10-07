@@ -49,7 +49,7 @@ export function buildFinanceSummary({ bookings, expenses, settings, tournaments 
     return { date, income, expenses: expensesAmount, commissions, net: income - expensesAmount - commissions };
   });
   const incomeByCategory = [
-    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class")
+    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class" && !booking.teacherId && !booking.teacherName)
       .reduce((sum, booking) => sum + paymentSummary(booking).paid, 0) },
     { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName)
       .reduce((sum, booking) => sum + paymentSummary(booking).paid, 0) },
