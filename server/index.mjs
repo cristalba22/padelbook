@@ -17,6 +17,8 @@ import { pathToFileURL } from "node:url";
 import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 import { API_PROXY_SECRET } from "./config.mjs";
 import { passwordEmailConfigured, sendBookingEmail, sendPasswordResetEmail } from "./email.mjs";
+import { addMinutesToHour, fitsCourtHours, publicCourt, validCourtSchedule } from "./courtView.mjs";
+import { venueRouter } from "./venueRoutes.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -98,54 +100,6 @@ function moneyBucket(items, from, getDate, getValue) {
     .reduce((acc, item) => acc + Number(getValue(item) || 0), 0);
 }
 
-function minutesFromHour(hour = "00:00") {
-  const [hh = "0", mm = "0"] = String(hour).split(":");
-  return Number(hh) * 60 + Number(mm);
-}
-
-function addMinutesToHour(hour, minutes) {
-  const total = minutesFromHour(hour) + Number(minutes || 0);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-}
-
-function isClockTime(value) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
-}
-
-function courtHours(court) {
-  if (!isClockTime(court.openingTime) || !isClockTime(court.closingTime)) return [];
-  const start = minutesFromHour(court.openingTime);
-  const end = minutesFromHour(court.closingTime);
-  const interval = Number(court.slotIntervalMinutes || 30);
-  if (start < 0 || end > 24 * 60 || end <= start || ![30, 60].includes(interval)) return [];
-  return Array.from({ length: Math.ceil((end - start) / interval) }, (_, index) => addMinutesToHour(court.openingTime, index * interval))
-    .filter((hour) => minutesFromHour(hour) < end);
-}
-
-function fitsCourtHours(court, hour, durationMinutes) {
-  return courtHours(court).includes(hour) && minutesFromHour(hour) + Number(durationMinutes || 0) <= minutesFromHour(court.closingTime);
-}
-
-function publicCourt(court) {
-  const item = court.toJSON ? court.toJSON() : court;
-  return {
-    id: item.courtId,
-    name: item.name,
-    description: item.description,
-    tag: item.tag,
-    active: item.active !== false,
-    sortOrder: Number(item.sortOrder || 0),
-    openingTime: item.openingTime,
-    closingTime: item.closingTime,
-    slotIntervalMinutes: Number(item.slotIntervalMinutes || 30),
-    allowedDurations: (item.allowedDurations || []).map(Number),
-    basePrice: Number(item.basePrice || 0),
-    nightPrice: Number(item.nightPrice || 0),
-    weekendExtra: Number(item.weekendExtra || 0),
-    hours: courtHours(item),
-  };
-}
-
 function queueBookingEmail(booking, action) {
   if (!booking?.userEmail) return;
   void Setting.findOne().lean()
@@ -172,6 +126,8 @@ app.get("/api/health", (_req, res) => {
   const connected = dbState() === "connected";
   res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
 });
+
+app.use("/api/venues", venueRouter);
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
   const schema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(72) }).strict();
@@ -378,11 +334,6 @@ const courtFields = z.object({
   nightPrice: z.number().int().min(0).max(100_000_000),
   weekendExtra: z.number().int().min(0).max(100_000_000).optional().default(0),
 }).strict();
-
-function validCourtSchedule(court) {
-  return isClockTime(court.openingTime) && isClockTime(court.closingTime) &&
-    minutesFromHour(court.openingTime) < minutesFromHour(court.closingTime) && courtHours(court).length > 0;
-}
 
 app.post("/api/admin/courts", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = courtFields.safeParse(req.body);

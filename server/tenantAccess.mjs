@@ -23,3 +23,20 @@ export function venueScope(context, filter = {}) {
   if (!context?.organizationId || !context?.venueId) throw new Error("Falta el contexto de sede validado.");
   return { ...filter, organizationId: context.organizationId, venueId: context.venueId };
 }
+
+export async function requireVenueContext(req, res, next) {
+  const context = await resolveVenue(req.params.organizationSlug, req.params.venueSlug);
+  if (!context) return res.status(404).json({ message: "Sede no encontrada." });
+  req.venueContext = context;
+  next();
+}
+
+export function requireVenueRole(...roles) {
+  return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ message: "Necesitás iniciar sesión." });
+    const membership = await membershipForVenue(req.user.id, req.venueContext);
+    if (!membership || !roles.includes(membership.role)) return res.status(403).json({ message: "No tenés permisos para esta sede." });
+    req.venueMembership = membership;
+    next();
+  };
+}
