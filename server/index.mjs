@@ -18,6 +18,9 @@ import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, start
 import { API_PROXY_SECRET } from "./config.mjs";
 import { passwordEmailConfigured, sendBookingEmail, sendPasswordResetEmail } from "./email.mjs";
 import { addMinutesToHour, fitsCourtHours, publicCourt, validCourtSchedule } from "./courtView.mjs";
+import { courtFields } from "./courtInput.mjs";
+import { isValidDateISO } from "./dateValidation.mjs";
+import { withAgendaTransaction } from "./agendaTransaction.mjs";
 import { venueRouter } from "./venueRoutes.mjs";
 
 const app = express();
@@ -70,12 +73,6 @@ function todayString() {
 
 function isPastDate(date) {
   return String(date || "") < todayString();
-}
-
-function isValidDateISO(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function addDaysString(days) {
@@ -319,21 +316,6 @@ app.get("/api/admin/courts", requireAuth, requireRole("admin"), async (_req, res
   const courts = await Court.find().sort({ sortOrder: 1, name: 1 });
   res.json({ courts: courts.map(publicCourt) });
 });
-
-const courtFields = z.object({
-  name: z.string().trim().min(2).max(100),
-  description: z.string().trim().max(160).optional().default(""),
-  tag: z.string().trim().max(120).optional().default(""),
-  active: z.boolean().optional().default(true),
-  sortOrder: z.number().int().min(0).max(1000).optional().default(0),
-  openingTime: z.string().regex(/^\d{2}:\d{2}$/),
-  closingTime: z.string().regex(/^\d{2}:\d{2}$/),
-  slotIntervalMinutes: z.union([z.literal(30), z.literal(60)]).optional().default(30),
-  allowedDurations: z.array(z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(150)])).min(1).max(4),
-  basePrice: z.number().int().min(0).max(100_000_000),
-  nightPrice: z.number().int().min(0).max(100_000_000),
-  weekendExtra: z.number().int().min(0).max(100_000_000).optional().default(0),
-}).strict();
 
 app.post("/api/admin/courts", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = courtFields.safeParse(req.body);
@@ -689,15 +671,6 @@ function publicTournament(tournament) {
 
 function claimsFor({ date, courtId, time, durationMinutes }, ownerType, ownerId) {
   return bookingSlotStarts(time, durationMinutes).map((slot) => ({ date, courtId, slot, ownerType, ownerId: String(ownerId) }));
-}
-
-async function withAgendaTransaction(work) {
-  const session = await mongoose.startSession();
-  try {
-    return await session.withTransaction(() => work(session));
-  } finally {
-    await session.endSession();
-  }
 }
 
 app.get("/api/tournaments", async (_req, res) => {

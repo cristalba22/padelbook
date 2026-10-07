@@ -9,7 +9,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
   process.env.MONGODB_URI = mongo.getUri();
   process.env.MONGODB_DB_NAME = "padelbook_venue_routes_qa";
   process.env.JWT_SECRET = "venue-routes-test-secret-long-enough-to-be-private";
-  const [{ app }, { Organization, Venue, Membership, User, Court, Booking, Setting, Teacher, Tournament, SlotClaim, ScheduleBlock }, { createSession }] = await Promise.all([
+  const [{ app }, { Organization, Venue, Membership, User, Court, Booking, Setting, Teacher, Tournament, SlotClaim }, { createSession }] = await Promise.all([
     import("../server/index.mjs"), import("../server/db.mjs"), import("../server/auth.mjs"),
   ]);
   let server;
@@ -44,13 +44,14 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { organizationId: orgA.id, venueId: venueA.id, date: "2026-10-20", time: "19:00", courtId: "court-a", courtName: "Cancha A", playerName: "Jugadora A" },
       { organizationId: orgB.id, venueId: venueB.id, date: "2026-10-20", time: "20:00", courtId: "court-b", courtName: "Cancha B", playerName: "Jugador B" },
     ]);
-    const [adminA, adminB, receptionistA, playerA, playerA2, playerB] = await User.create([
+    const [adminA, adminB, receptionistA, playerA, playerA2, playerB, teacherUserA] = await User.create([
       { name: "Admin A", email: "admin-a@test.local", passwordHash: "test-hash", role: "player" },
       { name: "Admin B", email: "admin-b@test.local", passwordHash: "test-hash", role: "admin" },
       { name: "Recepción A", email: "recepcion-a@test.local", passwordHash: "test-hash", role: "player" },
       { name: "Jugador A", email: "jugador-a@test.local", passwordHash: "test-hash", role: "player" },
       { name: "Jugador A2", email: "jugador-a2@test.local", passwordHash: "test-hash", role: "player" },
       { name: "Jugador B", email: "jugador-b@test.local", passwordHash: "test-hash", role: "player" },
+      { name: "Profesor A", email: "profe-a@test.local", passwordHash: "test-hash", role: "player" },
     ]);
     await Membership.create([
       { userId: adminA.id, organizationId: orgA.id, role: "admin", venueIds: [venueA.id] },
@@ -59,6 +60,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { userId: playerA.id, organizationId: orgA.id, role: "player", venueIds: [] },
       { userId: playerA2.id, organizationId: orgA.id, role: "player", venueIds: [] },
       { userId: playerB.id, organizationId: orgB.id, role: "player", venueIds: [] },
+      { userId: teacherUserA.id, organizationId: orgA.id, role: "teacher", venueIds: [venueA.id] },
     ]);
 
     server = app.listen(0);
@@ -94,6 +96,18 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.equal((await request("/club-a/norte/admin/bookings", receptionistA)).status, 403);
     assert.equal((await request("/club-a/norte/admin/bookings", adminA)).status, 200);
     assert.equal((await request("/club-a/centro/admin/courts", receptionistA)).status, 403);
+    const newCourt = await request("/club-a/norte/admin/courts", adminA, { method: "POST", body: {
+      name: "Cancha nueva", openingTime: "09:00", closingTime: "22:00", allowedDurations: [60, 90],
+      basePrice: 20000, nightPrice: 27000, weekendExtra: 2000,
+    } });
+    assert.equal(newCourt.status, 201);
+    assert.equal((await request("/club-a/norte/admin/courts", receptionistA, { method: "POST", body: {} })).status, 403);
+    assert.equal((await request("/club-a/norte/admin/courts/court-b", adminA, { method: "PATCH", body: { active: false } })).status, 404);
+    assert.equal((await request(`/club-a/norte/admin/courts/${newCourt.data.court.id}`, adminA,
+      { method: "PATCH", body: { openingTime: "25:00" } })).status, 400);
+    assert.equal((await request(`/club-a/norte/admin/courts/${newCourt.data.court.id}`, adminA,
+      { method: "PATCH", body: { active: false } })).data.court.active, false);
+    assert.deepEqual((await request("/club-a/norte/courts")).data.courts.map((court) => court.id), ["court-a2"]);
     assert.equal((await request("/club-b/centro/admin/bookings", adminA)).status, 403);
     assert.equal((await request("/club-a/centro/admin/bookings", adminB)).status, 403);
     assert.equal((await request(`/club-a/centro/admin/bookings/${bookingB.id}`, adminA)).status, 404);
@@ -120,10 +134,45 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       body: { ...slot, time: "15:00", playerName: "Jugador por recepción", phone: "3511234567" } });
     assert.equal(receptionBooking.status, 201);
     assert.equal(receptionBooking.data.booking.source, "reception");
-    await ScheduleBlock.create({ organizationId: orgA.id, venueId: venueA2.id, date: slot.date,
-      courtId: "court-a2", hour: "12:00", durationMinutes: 60 });
+    const blockPath = "/club-a/norte/admin/blocks/batch";
+    const blockBody = { blocks: [{ date: slot.date, courtId: "court-a2", hour: "12:00", durationMinutes: 60, reason: "Mantenimiento" }] };
+    assert.equal((await request(blockPath, receptionistA, { method: "POST", body: blockBody })).status, 403);
+    const storedBlock = await request(blockPath, adminA, { method: "POST", body: blockBody });
+    assert.equal(storedBlock.status, 201);
+    assert.deepEqual((await request("/club-a/norte/blocks")).data.blocks.map((block) => block.courtId), ["court-a2"]);
+    assert.equal("reason" in (await request("/club-a/norte/blocks")).data.blocks[0], false);
+    assert.deepEqual((await request("/club-b/centro/blocks")).data.blocks, []);
+    assert.equal((await request(blockPath, adminA, { method: "POST", body: blockBody })).status, 409);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", receptionistA, { method: "POST",
+      body: { blocks: [{ date: slot.date, courtId: "court-a", hour: "11:00", durationMinutes: 60 }] } })).status, 409);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", receptionistA, { method: "POST",
+      body: { blocks: [{ date: slot.date, courtId: "court-b", hour: "12:00", durationMinutes: 60 }] } })).status, 400);
     assert.equal((await request("/club-a/norte/bookings", adminA, { method: "POST",
       body: { ...slot, courtId: "court-a2", time: "12:00" } })).status, 409);
+    assert.equal((await request("/club-b/centro/admin/blocks/batch", adminA, { method: "POST", body: blockBody })).status, 403);
+    assert.equal((await request(blockPath, adminA, { method: "DELETE",
+      body: { keys: [{ date: slot.date, courtId: "court-a2", hour: "12:00" }] } })).data.deleted, 1);
+    assert.equal((await request("/club-a/norte/bookings", adminA, { method: "POST",
+      body: { ...slot, courtId: "court-a2", time: "12:00" } })).status, 201);
+    const raceBlockBody = { blocks: [{ date: slot.date, courtId: "court-a2", hour: "14:00", durationMinutes: 60 }] };
+    const [raceVenueBooking, raceVenueBlock] = await Promise.all([
+      request("/club-a/norte/bookings", playerA, { method: "POST", body: { ...slot, courtId: "court-a2", time: "14:00" } }),
+      request(blockPath, adminA, { method: "POST", body: raceBlockBody }),
+    ]);
+    assert.deepEqual([raceVenueBooking.status, raceVenueBlock.status].sort(), [201, 409]);
+    const teacherBlockBody = { blocks: [{ date: slot.date, courtId: "court-a", hour: "10:00", durationMinutes: 60 }] };
+    assert.equal((await request("/club-a/norte/admin/blocks/batch", teacherUserA, { method: "POST", body: teacherBlockBody })).status, 403);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA, { method: "POST", body: teacherBlockBody })).status, 201);
+    assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...slot, time: "10:00" } })).status, 409);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA, { method: "DELETE",
+      body: { keys: [{ date: slot.date, courtId: "court-a", hour: "10:00" }] } })).data.deleted, 1);
+    const clubBlockBody = { blocks: [{ date: slot.date, courtId: "court-a", hour: "17:00", durationMinutes: 60 }] };
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", adminA, { method: "POST", body: clubBlockBody })).status, 201);
+    const clubBlockKey = { keys: [{ date: slot.date, courtId: "court-a", hour: "17:00" }] };
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA,
+      { method: "DELETE", body: clubBlockKey })).data.deleted, 0);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", adminA,
+      { method: "DELETE", body: clubBlockKey })).data.deleted, 1);
     const paymentPath = `/club-a/centro/admin/bookings/${winner.data.booking.id}/payments`;
     const payment = { amount: 5000, method: "transferencia", idempotencyKey: randomUUID() };
     const [paidOnce, paidAgain] = await Promise.all([

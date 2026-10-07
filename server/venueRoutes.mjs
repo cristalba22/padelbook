@@ -7,15 +7,12 @@ import { requireVenueContext, requireVenueRole, venueScope } from "./tenantAcces
 import { canonicalCourtId } from "../src/utils/bookingDomain.js";
 import { cancelVenueBooking, createVenueBooking, updateVenueBookingStatus } from "./venueBookings.mjs";
 import { recordVenuePayment, reverseVenuePayment } from "./venuePayments.mjs";
+import { isValidDateISO } from "./dateValidation.mjs";
+import { createVenueCourt, updateVenueCourt } from "./venueCourts.mjs";
+import { createVenueBlocks, deleteVenueBlocks, listAdminVenueBlocks, listVenueBlocks } from "./venueBlocks.mjs";
 
 export const venueRouter = express.Router();
 venueRouter.use("/:organizationSlug/:venueSlug", requireVenueContext);
-
-function validDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
 
 venueRouter.get("/:organizationSlug/:venueSlug", (req, res) => {
   const { organization, venue } = req.venueContext;
@@ -30,7 +27,7 @@ venueRouter.get("/:organizationSlug/:venueSlug/courts", async (req, res) => {
 
 venueRouter.get("/:organizationSlug/:venueSlug/availability", async (req, res) => {
   const date = String(req.query.date || "");
-  if (!validDate(date)) return res.status(400).json({ message: "Fecha inválida." });
+  if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha inválida." });
   const occupied = await Booking.find(venueScope(req.venueContext, { date, status: { $ne: "cancelado" } }))
     .select("date time durationMinutes courtId status teacherId").lean();
   res.json({ occupied: occupied.map(({ date: bookingDate, time, durationMinutes, courtId, status }) => ({
@@ -63,6 +60,10 @@ venueRouter.get("/:organizationSlug/:venueSlug/settings", async (req, res) => {
   delete item.venueId;
   res.json({ settings: item });
 });
+venueRouter.get("/:organizationSlug/:venueSlug/blocks", listVenueBlocks);
+venueRouter.get("/:organizationSlug/:venueSlug/admin/blocks", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), listAdminVenueBlocks);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/blocks/batch", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), createVenueBlocks);
+venueRouter.delete("/:organizationSlug/:venueSlug/admin/blocks/batch", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), deleteVenueBlocks);
 
 venueRouter.post("/:organizationSlug/:venueSlug/bookings", requireAuth, createVenueBooking);
 venueRouter.post("/:organizationSlug/:venueSlug/bookings/:id/cancel", requireAuth, cancelVenueBooking);
@@ -74,6 +75,8 @@ venueRouter.get("/:organizationSlug/:venueSlug/admin/courts", requireAuth, requi
   const courts = await Court.find(venueScope(req.venueContext)).sort({ sortOrder: 1, name: 1 });
   res.json({ courts: courts.map(publicCourt) });
 });
+venueRouter.post("/:organizationSlug/:venueSlug/admin/courts", requireAuth, requireVenueRole("admin"), createVenueCourt);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/courts/:courtId", requireAuth, requireVenueRole("admin"), updateVenueCourt);
 
 venueRouter.get("/:organizationSlug/:venueSlug/admin/bookings", requireAuth, requireVenueRole("admin", "receptionist"), async (req, res) => {
   const bookings = await Booking.find(venueScope(req.venueContext)).sort({ date: 1, time: 1 });

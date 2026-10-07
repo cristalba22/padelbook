@@ -5,6 +5,8 @@ import { addMinutesToHour, fitsCourtHours } from "./courtView.mjs";
 import { membershipForVenue, venueScope } from "./tenantAccess.mjs";
 import { sendBookingEmail } from "./email.mjs";
 import { CLASS_HOURS } from "../src/data/bookingConfig.js";
+import { withAgendaTransaction } from "./agendaTransaction.mjs";
+import { isValidDateISO } from "./dateValidation.mjs";
 import { argentinaDateISO, blockOverlapsBooking, bookingSlotStarts, bookingsOverlap, calculateBookingPrice, canonicalCourtId, isPastSlot } from "../src/utils/bookingDomain.js";
 
 const bookingInput = z.object({
@@ -20,18 +22,6 @@ const bookingInput = z.object({
   phone: z.string().trim().max(40).optional(),
   userEmail: z.union([z.string().email(), z.literal("")]).optional(),
 }).strict();
-
-function validDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-async function withAgendaTransaction(work) {
-  const session = await mongoose.startSession();
-  try { return await session.withTransaction(() => work(session)); }
-  finally { await session.endSession(); }
-}
 
 function notifyBooking(booking, action, settings) {
   if (!booking.userEmail) return;
@@ -52,7 +42,7 @@ export async function createVenueBooking(req, res) {
   const membership = await membershipForVenue(req.user.id, req.venueContext);
   if (!membership) return res.status(403).json({ message: "No tenés acceso a esta sede." });
   const parsed = bookingInput.safeParse(req.body);
-  if (!parsed.success || !validDate(parsed.data?.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.data?.time || "")) {
+  if (!parsed.success || !isValidDateISO(parsed.data?.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.data?.time || "")) {
     return res.status(400).json({ message: "Datos de reserva inválidos." });
   }
   const input = parsed.data;
