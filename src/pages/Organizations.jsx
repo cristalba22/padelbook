@@ -149,7 +149,8 @@ export function VenueOverview() {
       Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link>
       {canManageBookings && <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/recepcion/reservas`}>Gestionar reservas</Link>}</div>
     {organization?.role === "admin" && organization.venues.some((item) => item.slug === venueSlug) &&
-      <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/configuracion`}>Configurar sede <ArrowRight size={17} /></Link></div>}
+      <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/caja`}>Caja de la sede</Link>
+        <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/configuracion`}>Configurar sede <ArrowRight size={17} /></Link></div>}
     <section className="org-section" aria-labelledby="venue-courts-title"><div className="org-section__heading"><div><span className="org-eyebrow">Instalaciones</span><h2 id="venue-courts-title">Canchas</h2></div></div>
       {courts.length ? <div className="org-court-list">{courts.map((court) => <article key={court.id}><div><strong>{court.name}</strong><small>{court.surface || court.description || "Cancha de pádel"}</small></div>
         <span>{court.openingTime}–{court.closingTime}</span><b>Desde {money(court.basePrice)} / h</b></article>)}</div>

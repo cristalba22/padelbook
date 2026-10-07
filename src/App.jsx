@@ -30,6 +30,7 @@ import VenueMyBookings from "./pages/VenueMyBookings.jsx";
 import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
 const VenueAdminConfig = lazy(() => import("./pages/VenueAdminConfig.jsx"));
 const OrganizationStaff = lazy(() => import("./pages/OrganizationStaff.jsx"));
+const VenueFinance = lazy(() => import("./pages/VenueFinance.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -85,6 +86,7 @@ export default function App() {
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/reservas`} element={<VenueAdminBookings />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/nueva-reserva`} element={<VenueBooking receptionMode />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/configuracion`} element={<Suspense fallback={<div className="org-state" role="status">Cargando configuración…</div>}><VenueAdminConfig /></Suspense>} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/caja`} element={<Suspense fallback={<div className="org-state" role="status">Cargando caja…</div>}><VenueFinance /></Suspense>} />
 
           <Route
             path={ROUTES.PLAYER}
