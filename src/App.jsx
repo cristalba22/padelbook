@@ -29,6 +29,7 @@ import VenueBooking from "./pages/VenueBooking.jsx";
 import VenueMyBookings from "./pages/VenueMyBookings.jsx";
 import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
 const VenueAdminConfig = lazy(() => import("./pages/VenueAdminConfig.jsx"));
+const OrganizationStaff = lazy(() => import("./pages/OrganizationStaff.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -77,6 +78,7 @@ export default function App() {
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
           <Route path={ROUTES.CLUBS} element={<Organizations />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug`} element={<OrganizationDashboard />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/equipo`} element={<Suspense fallback={<div className="org-state" role="status">Cargando equipo…</div>}><OrganizationStaff /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug`} element={<VenueOverview />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/reservar`} element={<VenueBooking />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/mis-turnos`} element={<VenueMyBookings />} />

@@ -57,6 +57,8 @@
 .org-team-count { margin: 0 0 15px; color: #445464; font-size: .9rem; }
 .org-team-count strong { margin-right: 5px; color: #234b36; font-size: 1.8rem; }
 .org-team-list li { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid #e6ebed; }
+.org-staff-link { display: inline-flex; align-items: center; gap: 6px; color: #286541; font-size: .8rem; font-weight: 750; text-decoration: none; }
+.org-staff-link:hover { text-decoration: underline; }
 .org-empty { margin: 0; color: var(--org-muted); font-size: .88rem; }
 
 .org-list { display: grid; gap: 12px; max-width: 760px; }
