@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 
@@ -8,12 +9,13 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
   process.env.MONGODB_URI = mongo.getUri();
   process.env.MONGODB_DB_NAME = "padelbook_venue_routes_qa";
   process.env.JWT_SECRET = "venue-routes-test-secret-long-enough-to-be-private";
-  const [{ app }, { Organization, Venue, Membership, User, Court, Booking, Setting, Teacher, Tournament }, { createSession }] = await Promise.all([
+  const [{ app }, { Organization, Venue, Membership, User, Court, Booking, Setting, Teacher, Tournament, SlotClaim, ScheduleBlock }, { createSession }] = await Promise.all([
     import("../server/index.mjs"), import("../server/db.mjs"), import("../server/auth.mjs"),
   ]);
   let server;
   try {
     await mongoose.connect(mongo.getUri(), { dbName: process.env.MONGODB_DB_NAME });
+    await Promise.all([Booking.init(), SlotClaim.init()]);
     const [orgA, orgB] = await Organization.create([{ slug: "club-a", name: "Club A" }, { slug: "club-b", name: "Club B" }]);
     const [venueA, venueA2, venueB] = await Venue.create([
       { organizationId: orgA.id, slug: "centro", name: "Centro A" },
@@ -30,7 +32,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { organizationId: orgA.id, venueId: venueA2.id, clubName: "Club A Norte" },
       { organizationId: orgB.id, venueId: venueB.id, clubName: "Club B Centro" },
     ]);
-    await Teacher.create([
+    const [teacherA, teacherB] = await Teacher.create([
       { organizationId: orgA.id, venueId: venueA.id, name: "Profe A" },
       { organizationId: orgB.id, venueId: venueB.id, name: "Profe B" },
     ]);
@@ -42,23 +44,30 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { organizationId: orgA.id, venueId: venueA.id, date: "2026-10-20", time: "19:00", courtId: "court-a", courtName: "Cancha A", playerName: "Jugadora A" },
       { organizationId: orgB.id, venueId: venueB.id, date: "2026-10-20", time: "20:00", courtId: "court-b", courtName: "Cancha B", playerName: "Jugador B" },
     ]);
-    const [adminA, adminB, receptionistA] = await User.create([
+    const [adminA, adminB, receptionistA, playerA, playerA2, playerB] = await User.create([
       { name: "Admin A", email: "admin-a@test.local", passwordHash: "test-hash", role: "player" },
       { name: "Admin B", email: "admin-b@test.local", passwordHash: "test-hash", role: "admin" },
       { name: "Recepción A", email: "recepcion-a@test.local", passwordHash: "test-hash", role: "player" },
+      { name: "Jugador A", email: "jugador-a@test.local", passwordHash: "test-hash", role: "player" },
+      { name: "Jugador A2", email: "jugador-a2@test.local", passwordHash: "test-hash", role: "player" },
+      { name: "Jugador B", email: "jugador-b@test.local", passwordHash: "test-hash", role: "player" },
     ]);
     await Membership.create([
       { userId: adminA.id, organizationId: orgA.id, role: "admin", venueIds: [venueA.id] },
       { userId: adminB.id, organizationId: orgB.id, role: "admin", venueIds: [venueB.id] },
       { userId: receptionistA.id, organizationId: orgA.id, role: "receptionist", venueIds: [venueA.id] },
+      { userId: playerA.id, organizationId: orgA.id, role: "player", venueIds: [] },
+      { userId: playerA2.id, organizationId: orgA.id, role: "player", venueIds: [] },
+      { userId: playerB.id, organizationId: orgB.id, role: "player", venueIds: [] },
     ]);
 
     server = app.listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     const base = `http://127.0.0.1:${server.address().port}/api/venues`;
-    const request = async (path, user) => {
+    const request = async (path, user, { method = "GET", body } = {}) => {
       const token = user ? createSession(user).token : "";
-      const response = await fetch(`${base}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const response = await fetch(`${base}${path}`, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       return { status: response.status, data: await response.json() };
     };
 
@@ -88,6 +97,63 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.equal((await request("/club-b/centro/admin/bookings", adminA)).status, 403);
     assert.equal((await request("/club-a/centro/admin/bookings", adminB)).status, 403);
     assert.equal((await request(`/club-a/centro/admin/bookings/${bookingB.id}`, adminA)).status, 404);
+
+    const slot = { date: "2099-10-20", time: "11:00", courtId: "court-a", type: "court", durationMinutes: 60, paymentOption: "cash" };
+    const [raceA, raceA2] = await Promise.all([
+      request("/club-a/centro/bookings", playerA, { method: "POST", body: slot }),
+      request("/club-a/centro/bookings", playerA2, { method: "POST", body: slot }),
+    ]);
+    assert.deepEqual([raceA.status, raceA2.status].sort(), [201, 409]);
+    const winner = raceA.status === 201 ? raceA : raceA2;
+    const winningPlayer = raceA.status === 201 ? playerA : playerA2;
+    assert.equal(String(winner.data.booking.venueId), venueA.id);
+    assert.equal(winner.data.booking.price, 18000);
+    assert.equal(await SlotClaim.countDocuments({ organizationId: orgA._id, venueId: venueA._id, courtId: "court-a" }), 2);
+    const otherVenueBooking = await request("/club-b/centro/bookings", playerB, { method: "POST", body: { ...slot, courtId: "court-b" } });
+    assert.equal(otherVenueBooking.status, 201);
+    assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...slot, courtId: "court-b" } })).status, 400);
+    assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...slot, organizationId: orgB.id } })).status, 400);
+    const classSlot = { ...slot, time: "09:00", type: "class", teacherId: teacherB.id };
+    assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: classSlot })).status, 409);
+    assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...classSlot, teacherId: teacherA.id } })).status, 201);
+    const receptionBooking = await request("/club-a/centro/bookings", receptionistA, { method: "POST",
+      body: { ...slot, time: "15:00", playerName: "Jugador por recepción", phone: "3511234567" } });
+    assert.equal(receptionBooking.status, 201);
+    assert.equal(receptionBooking.data.booking.source, "reception");
+    await ScheduleBlock.create({ organizationId: orgA.id, venueId: venueA2.id, date: slot.date,
+      courtId: "court-a2", hour: "12:00", durationMinutes: 60 });
+    assert.equal((await request("/club-a/norte/bookings", adminA, { method: "POST",
+      body: { ...slot, courtId: "court-a2", time: "12:00" } })).status, 409);
+    const paymentPath = `/club-a/centro/admin/bookings/${winner.data.booking.id}/payments`;
+    const payment = { amount: 5000, method: "transferencia", idempotencyKey: randomUUID() };
+    const [paidOnce, paidAgain] = await Promise.all([
+      request(paymentPath, receptionistA, { method: "POST", body: payment }),
+      request(paymentPath, receptionistA, { method: "POST", body: payment }),
+    ]);
+    assert.equal(paidOnce.status, 200);
+    assert.equal(paidAgain.status, 200);
+    assert.equal((await Booking.findById(winner.data.booking.id)).paymentEntries.length, 1);
+    assert.equal((await request(`/club-a/centro/admin/bookings/${otherVenueBooking.data.booking.id}/payments`, adminA,
+      { method: "POST", body: { ...payment, idempotencyKey: randomUUID() } })).status, 404);
+    assert.equal((await request(paymentPath, playerA, { method: "POST", body: { ...payment, idempotencyKey: randomUUID() } })).status, 403);
+    const reversePath = `${paymentPath}/reverse`;
+    const reverse = { idempotencyKey: randomUUID() };
+    assert.equal((await request(reversePath, adminA, { method: "POST", body: reverse })).data.booking.amountPaid, 0);
+    assert.equal((await request(reversePath, adminA, { method: "POST", body: reverse })).data.replayed, true);
+    const statusPath = `/club-a/centro/admin/bookings/${winner.data.booking.id}/status`;
+    assert.equal((await request(statusPath, receptionistA, { method: "PATCH", body: { status: "confirmado" } })).data.booking.status, "confirmado");
+    assert.equal((await request(`/club-a/centro/admin/bookings/${otherVenueBooking.data.booking.id}/status`, adminA,
+      { method: "PATCH", body: { status: "confirmado" } })).status, 404);
+    assert.equal((await request(`/club-a/centro/bookings/${otherVenueBooking.data.booking.id}/cancel`, adminA, { method: "POST" })).status, 404);
+    assert.equal((await request(`/club-a/centro/bookings/${winner.data.booking.id}/cancel`, playerB, { method: "POST" })).status, 403);
+    assert.equal((await request(`/club-a/centro/bookings/${winner.data.booking.id}/cancel`, winningPlayer, { method: "POST" })).status, 200);
+    assert.equal(await SlotClaim.countDocuments({ organizationId: orgA._id, venueId: venueA._id, courtId: "court-a", ownerId: winner.data.booking.id }), 0);
+    assert.equal((await request(statusPath, adminA, { method: "PATCH", body: { status: "confirmado" } })).data.booking.status, "confirmado");
+    assert.equal(await SlotClaim.countDocuments({ organizationId: orgA._id, venueId: venueA._id, courtId: "court-a", ownerId: winner.data.booking.id }), 2);
+    assert.equal((await request(statusPath, adminA, { method: "PATCH", body: { status: "cancelado" } })).data.booking.status, "cancelado");
+    assert.equal(await SlotClaim.countDocuments({ organizationId: orgA._id, venueId: venueA._id, courtId: "court-a", ownerId: winner.data.booking.id }), 0);
+    assert.equal(await SlotClaim.countDocuments({ organizationId: orgB._id, venueId: venueB._id, courtId: "court-b" }), 2);
+
     await Membership.updateOne({ userId: adminA.id }, { $set: { active: false } });
     assert.equal((await request("/club-a/centro/admin/bookings", adminA)).status, 403);
   } finally {

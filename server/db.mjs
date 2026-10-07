@@ -315,10 +315,11 @@ export async function addActivity(item) {
   const { requestContext } = await import("./requestContext.mjs");
   const context = requestContext.getStore() || {};
   await Activity.create({ ...item, actorId: item.actorId || context.actorId || "", actorRole: item.actorRole || context.actorRole || "", requestId: context.requestId || "", ipHash: context.ipHash || "" });
-  const count = await Activity.countDocuments();
+  const scope = item.organizationId && item.venueId ? { organizationId: item.organizationId, venueId: item.venueId } : {};
+  const count = await Activity.countDocuments(scope);
   if (count > 5000) {
-    const old = await Activity.find().sort({ createdAt: -1 }).skip(5000).select("_id");
-    await Activity.deleteMany({ _id: { $in: old.map((item) => item._id) } });
+    const old = await Activity.find(scope).sort({ createdAt: -1 }).skip(5000).select("_id");
+    await Activity.deleteMany({ ...scope, _id: { $in: old.map((item) => item._id) } });
   }
 }
 

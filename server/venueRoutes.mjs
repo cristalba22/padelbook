@@ -5,6 +5,8 @@ import { requireAuth } from "./auth.mjs";
 import { publicCourt } from "./courtView.mjs";
 import { requireVenueContext, requireVenueRole, venueScope } from "./tenantAccess.mjs";
 import { canonicalCourtId } from "../src/utils/bookingDomain.js";
+import { cancelVenueBooking, createVenueBooking, updateVenueBookingStatus } from "./venueBookings.mjs";
+import { recordVenuePayment, reverseVenuePayment } from "./venuePayments.mjs";
 
 export const venueRouter = express.Router();
 venueRouter.use("/:organizationSlug/:venueSlug", requireVenueContext);
@@ -61,6 +63,12 @@ venueRouter.get("/:organizationSlug/:venueSlug/settings", async (req, res) => {
   delete item.venueId;
   res.json({ settings: item });
 });
+
+venueRouter.post("/:organizationSlug/:venueSlug/bookings", requireAuth, createVenueBooking);
+venueRouter.post("/:organizationSlug/:venueSlug/bookings/:id/cancel", requireAuth, cancelVenueBooking);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/bookings/:id/payments", requireAuth, requireVenueRole("admin", "receptionist"), recordVenuePayment);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/bookings/:id/payments/reverse", requireAuth, requireVenueRole("admin", "receptionist"), reverseVenuePayment);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/bookings/:id/status", requireAuth, requireVenueRole("admin", "receptionist"), updateVenueBookingStatus);
 
 venueRouter.get("/:organizationSlug/:venueSlug/admin/courts", requireAuth, requireVenueRole("admin"), async (req, res) => {
   const courts = await Court.find(venueScope(req.venueContext)).sort({ sortOrder: 1, name: 1 });
