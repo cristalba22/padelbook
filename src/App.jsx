@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout.jsx";
@@ -28,6 +28,7 @@ import { Organizations, OrganizationDashboard, VenueOverview } from "./pages/Org
 import VenueBooking from "./pages/VenueBooking.jsx";
 import VenueMyBookings from "./pages/VenueMyBookings.jsx";
 import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
+const VenueAdminConfig = lazy(() => import("./pages/VenueAdminConfig.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -81,6 +82,7 @@ export default function App() {
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/mis-turnos`} element={<VenueMyBookings />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/reservas`} element={<VenueAdminBookings />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/nueva-reserva`} element={<VenueBooking receptionMode />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/configuracion`} element={<Suspense fallback={<div className="org-state" role="status">Cargando configuración…</div>}><VenueAdminConfig /></Suspense>} />
 
           <Route
             path={ROUTES.PLAYER}

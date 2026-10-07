@@ -195,6 +195,8 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { method: "PUT", body: { clubName: "Club A Norte Renovado", address: "Av. Norte 123", courtPrice: 22000 } });
     assert.equal(updatedSettings.status, 200);
     assert.equal(updatedSettings.data.settings.clubName, "Club A Norte Renovado");
+    assert.equal((await request("/club-a/norte")).data.venue.name, "Club A Norte Renovado");
+    assert.equal((await request("/club-b/centro")).data.venue.name, "Centro B");
     assert.equal((await request("/club-a/norte")).data.venue.address, "Av. Norte 123");
     assert.equal((await request("/club-a/centro/settings")).data.settings.clubName, "Club A Centro");
     assert.equal((await request("/club-b/centro/settings")).data.settings.clubName, "Club B Centro");

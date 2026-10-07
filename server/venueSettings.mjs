@@ -13,8 +13,10 @@ export async function updateVenueSettings(req, res) {
     settings = await session.withTransaction(async () => {
       const updated = await Setting.findOneAndUpdate(venueScope(context), { $set: patch },
         { returnDocument: "after", upsert: true, setDefaultsOnInsert: true, session });
-      if (patch.address !== undefined) {
-        const result = await Venue.updateOne({ _id: context.venueId, organizationId: context.organizationId }, { $set: { address: patch.address } }, { session });
+      if (patch.address !== undefined || patch.clubName !== undefined) {
+        const venuePatch = { ...(patch.address !== undefined ? { address: patch.address } : {}),
+          ...(patch.clubName !== undefined ? { name: patch.clubName } : {}) };
+        const result = await Venue.updateOne({ _id: context.venueId, organizationId: context.organizationId }, { $set: venuePatch }, { session });
         if (result.matchedCount !== 1) throw new Error("La sede dejó de estar disponible.");
       }
       return updated;

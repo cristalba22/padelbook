@@ -1,12 +1,16 @@
 # Evolución de PadelBook: varias sedes y varios clubes
 
-Estado al 7 de octubre de 2026: etapa 1 implementada en código y etapa 2 avanzada en `codex/multisite-foundation`. La migración todavía no se aplicó al piloto. No habilita aún el uso compartido de la base.
-
-Estimación de avance hacia una versión multiclub operable: **aproximadamente 50 % completado, 50 % pendiente**. Es una estimación por criterios de salida, no por cantidad de archivos: inventario y base están hechos y los principales módulos de la API ya tienen rutas con contexto; la experiencia del propietario comenzó con un panel de lectura. Siguen pendientes el flujo de reserva y la gestión completa por sede en el frontend, el ensayo de migración y restauración con datos del piloto, cerrar la convivencia con la API anterior y operar dos organizaciones en un entorno de prueba real.
+Estado al 7 de octubre de 2026: la base, rutas y primeros recorridos multiclub están implementados en `codex/multisite-foundation`. La migración todavía no se aplicó al piloto y la plataforma compartida no está habilitada. La API anterior conserva consultas globales; una guarda de arranque impide usarla con varias organizaciones en la misma base.
 
 ## Decisión de producto
 
-Primero resolver **un propietario con varias sedes**. Después habilitar **varias organizaciones independientes** en la misma plataforma. Una organización administra una o más sedes; cada sede tiene dirección, canchas, horarios y personal operativo propios. El propietario puede consultar el conjunto y filtrar por sede. El jugador reserva en una sede identificada sin ambigüedad.
+PadelBook será **multiclub desde su arquitectura de producto**: una plataforma para varios clubes independientes; cada club puede tener una o más sedes. Una sede tiene dirección, canchas, horarios, precios y personal operativo propios. El propietario ve el conjunto de su organización. El jugador reserva en una sede identificada sin ambigüedad.
+
+El foco comercial inicial son clubes de pádel chicos y medianos de Córdoba que hoy coordinan turnos por WhatsApp. La propuesta combina la agenda sencilla para jugadores con operación diaria para recepción y una vista consolidada para el dueño. Frente a un marketplace como ATC, la ventaja que se busca validar es **menos trabajo manual para el club y más control de su relación con los jugadores**: enlace directo a su sede, reservas fiables, cobros trazables y datos propios. No se prometerá que PadelBook supera a ATC hasta medir estos resultados en clubes reales.
+
+Un directorio de clubes con búsqueda geográfica podría incorporarse después como canal optativo de descubrimiento. No condiciona la reserva directa ni es requisito para la primera versión multiclub. Tampoco se amplía ahora a otros deportes, tienda o funciones sociales generales: desplazarían el trabajo crítico de agenda, caja y soporte.
+
+**Criterios del primer lanzamiento multiclub:** dos organizaciones independientes, con dos sedes en al menos una de ellas, deben poder configurar canchas y precios, recibir reservas y operar la caja sin cruzar datos; recepción solo accede a sus sedes; el dueño ve su consolidado; el jugador puede reservar en clubes distintos desde una cuenta. El flujo debe pasar pruebas de concurrencia, restauración y móvil. La seña online y su conciliación son un hito comercial posterior, señalado claramente como pendiente hasta que exista integración real.
 
 Se conserva React/Vite en Cloudflare, el Worker como proxy de `/api`, Express en Render y MongoDB Atlas. Cambiar de base de datos no es un requisito de esta evolución. La instalación piloto de un solo club sigue funcionando mientras se prepara y prueba la migración en un entorno separado.
 
@@ -88,7 +92,7 @@ Para el primer alcance, las reservas, clases, canchas, bloqueos y gastos pertene
 
 ## Siguiente trabajo concreto
 
-Continuar la etapa 2: llevar el contexto de sede y la membresía validada a **todas** las rutas de la API, retirar las consultas globales y probar operaciones entre dos organizaciones y dos sedes. La instalación de producción se migra solo después de probar la restauración y pasar estas pruebas de aislamiento.
+Completar la superficie operativa por sede y eliminar la dependencia de rutas globales en la experiencia multiclub. Después, cerrar o adaptar las rutas antiguas, ensayar migración y restauración de una copia del piloto y ejecutar las pruebas de aislamiento con dos organizaciones en un entorno separado. Solo entonces habilitar una base compartida y migrar producción.
 
 ## Etapa 0: inventario inicial y línea de base
 
@@ -144,5 +148,7 @@ La cuenta autenticada puede consultar sus organizaciones y sedes permitidas medi
 El recorrido público de cada sede ahora incluye `/clubes/:organizationSlug/:venueSlug/reservar` y `/mis-turnos`. La agenda consulta disponibilidad y bloqueos solo de la fecha y sede elegidas; el jugador elige cancha y duración permitida, ve el precio estimado y solicita el turno con pago en el club. La API calcula el importe definitivo, exige membresía activa y protege las franjas con reclamos únicos en una transacción. Una cuenta autenticada puede incorporarse como jugadora a la organización al reservar; las membresías de personal siguen sujetas a sus sedes asignadas. Mis turnos consulta y cancela únicamente las reservas propias de esa sede. El frontend no reutiliza el estado ni las rutas de reservas monoclub.
 
 Recepción y administración tienen `/clubes/:organizationSlug/:venueSlug/recepcion/reservas` para ver la agenda de un día, filtrar turnos, confirmar o cancelar y registrar dinero recibido. Los cobros usan una clave de idempotencia que se conserva al reintentar el mismo formulario. La carga manual de turnos usa la disponibilidad y el alta de reservas de esa sede para los pedidos que llegan por WhatsApp o teléfono. Un ingreso iniciado en estas rutas mantiene la URL de la sede después de autenticarse.
+
+El administrador dispone de `/clubes/:organizationSlug/:venueSlug/configuracion` para editar los datos públicos, horarios y precios de las canchas de esa sede. El nombre público se sincroniza con la ficha de la sede. Los cambios de horario o estado no cancelan reservas existentes; recepción debe revisar la agenda antes de cerrar una cancha. La API aplica permisos y pertenencia de la sede en cada escritura.
 
 **Pendiente antes de activar multiclub en producción:** conectar canchas, ajustes, profesorado, torneos, personal y caja del frontend a las rutas nuevas; migrar el piloto en una copia y probar restauración, concurrencia y navegación completa en móvil; sustituir el contrato monoclub heredado y su guardián de arranque; definir onboarding de nuevas organizaciones. La seña online y la conciliación de pagos no están implementadas. Ningún cambio de esta rama debe desplegarse sobre el piloto actual hasta completar esa transición.
