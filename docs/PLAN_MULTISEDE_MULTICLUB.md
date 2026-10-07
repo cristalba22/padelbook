@@ -1,6 +1,6 @@
 # Evolución de PadelBook: varias sedes y varios clubes
 
-Estado: etapa 1 en desarrollo en `codex/multisite-foundation`. No modifica la instalación piloto ni habilita todavía el uso compartido de la base.
+Estado: etapa 1 terminada en código local y etapa 2 iniciada en `codex/multisite-foundation`. No modifica la instalación piloto ni habilita todavía el uso compartido de la base.
 
 ## Decisión de producto
 
@@ -86,7 +86,7 @@ Para el primer alcance, las reservas, clases, canchas, bloqueos y gastos pertene
 
 ## Siguiente trabajo concreto
 
-Empezar la etapa 1 en una rama `codex/` y un entorno de prueba: preparar el script de migración idempotente, los nuevos modelos y las verificaciones de conteos e índices. La instalación de producción se migra solo después de probar la restauración y pasar las pruebas de aislamiento de la etapa 2.
+Continuar la etapa 2: llevar el contexto de sede y la membresía validada a **todas** las rutas de la API, retirar las consultas globales y probar operaciones entre dos organizaciones y dos sedes. La instalación de producción se migra solo después de probar la restauración y pasar estas pruebas de aislamiento.
 
 ## Etapa 0: inventario inicial y línea de base
 
@@ -122,3 +122,9 @@ npm run db:migrate:multisite -- --target-db padelbook_multisite_qa --confirm-db 
 ```
 
 El comando exige una confirmación adicional para escribir en `MONGODB_DB_NAME`; este plan aún no autoriza ese paso. Los índices globales heredados de cancha y franja se conservan, por lo que todavía no se pueden operar dos sedes independientes con el mismo identificador de cancha. Cambiarlos corresponde a la etapa 2, junto con filtros y permisos completos.
+
+## Etapa 2: primera barrera de seguridad
+
+`connectDb()` rechaza ahora una base con más de una organización o sede antes de ejecutar las semillas y migraciones heredadas. También rechaza datos de sede sin organización o documentos asignados a otra sede. Esta barrera evita usar por accidente la API monoclub sobre una base compartida.
+
+`server/tenantAccess.mjs` ya puede resolver una organización y sede activas por sus slugs, comprobar membresías activas y construir filtros de consulta con los identificadores obtenidos del servidor. La prueba usa dos organizaciones y verifica que un administrador de A no reciba membresía en B. Estas funciones todavía no sustituyen la autorización ni los filtros de las rutas existentes; hasta completar ese trabajo el sistema continúa siendo monoclub.

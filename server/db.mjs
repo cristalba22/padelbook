@@ -258,6 +258,7 @@ export async function connectDb() {
     throw new Error("Falta MONGODB_URI. Configura MongoDB Atlas o una instancia local en .env.");
   }
   await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB_NAME, serverSelectionTimeoutMS: 10000 });
+  await assertLegacySingleVenue();
   await seedDatabase();
   await seedCourts();
   await Booking.init();
@@ -267,6 +268,39 @@ export async function connectDb() {
   await migrateTournamentPayments();
   await SlotClaim.init();
   await migrateSlotClaims();
+}
+
+export async function assertLegacySingleVenue() {
+  const scopedModels = [Court, Booking, Tournament, Setting, Activity, Expense, ScheduleBlock, Teacher, SlotClaim];
+  const [organizations, venues] = await Promise.all([
+    Organization.find().select("_id").lean().limit(2),
+    Venue.find().select("_id organizationId").lean().limit(2),
+  ]);
+  if (organizations.length > 1 || venues.length > 1 || organizations.length !== venues.length ||
+    (venues.length === 1 && String(venues[0].organizationId) !== String(organizations[0]._id))) {
+    throw new Error("La API actual solo admite una organización y una sede. No se puede iniciar sobre una base multiclub.");
+  }
+  if (!organizations.length) {
+    if (await Membership.exists({})) throw new Error("La base heredada no puede contener membresías sin organización.");
+    for (const model of scopedModels) {
+      if (await model.exists({ $or: [{ organizationId: { $exists: true } }, { venueId: { $exists: true } }] })) {
+        throw new Error(`La base heredada contiene datos de sede sin organización en ${model.modelName}.`);
+      }
+    }
+    return;
+  }
+  const organizationId = organizations[0]._id;
+  const venueId = venues[0]._id;
+  if (await Membership.exists({ organizationId: { $ne: organizationId } })) {
+    throw new Error("La API actual no admite membresías de otra organización.");
+  }
+  for (const model of scopedModels) {
+    const foreign = await model.exists({ $or: [
+      { organizationId: { $exists: true, $nin: [null, organizationId] } },
+      { venueId: { $exists: true, $nin: [null, venueId] } },
+    ] });
+    if (foreign) throw new Error(`La API actual no admite datos de otra sede en ${model.modelName}.`);
+  }
 }
 
 export function dbState() {
