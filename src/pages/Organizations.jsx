@@ -7,6 +7,7 @@ import { apiRequest } from "../utils/apiClient.js";
 import { argentinaDateISO } from "../utils/bookingDomain.js";
 import { ROUTES } from "../constants/routes.js";
 import "./organizations.css";
+import "./venueBooking.css";
 
 const money = (value) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(value || 0));
 const segment = (value) => encodeURIComponent(String(value || ""));
@@ -143,6 +144,8 @@ export function VenueOverview() {
       <p><MapPin size={16} aria-hidden="true" /> {identity.venue.address || settings.address || "Dirección pendiente"}</p></header>
     <div className="org-venue-info"><span><Building2 size={18} /> {courts.length} {courts.length === 1 ? "cancha" : "canchas"}</span>
       <span><CalendarDays size={18} /> {settings.openingHours || "Consultá los horarios de cada cancha"}</span></div>
+    <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/reservar`}>
+      Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link></div>
     <section className="org-section" aria-labelledby="venue-courts-title"><div className="org-section__heading"><div><span className="org-eyebrow">Instalaciones</span><h2 id="venue-courts-title">Canchas</h2></div></div>
       {courts.length ? <div className="org-court-list">{courts.map((court) => <article key={court.id}><div><strong>{court.name}</strong><small>{court.surface || court.description || "Cancha de pádel"}</small></div>
         <span>{court.openingTime}–{court.closingTime}</span><b>Desde {money(court.basePrice)} / h</b></article>)}</div>

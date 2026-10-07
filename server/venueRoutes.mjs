@@ -1,9 +1,9 @@
 import express from "express";
 import mongoose from "mongoose";
-import { Booking, Court, Setting, Teacher, Tournament } from "./db.mjs";
+import { Booking, Court, Membership, Setting, Teacher, Tournament } from "./db.mjs";
 import { requireAuth } from "./auth.mjs";
 import { publicCourt } from "./courtView.mjs";
-import { requireVenueContext, requireVenueRole, venueScope } from "./tenantAccess.mjs";
+import { membershipForVenue, requireVenueContext, requireVenueRole, venueScope } from "./tenantAccess.mjs";
 import { canonicalCourtId } from "../src/utils/bookingDomain.js";
 import { cancelVenueBooking, createVenueBooking, updateVenueBookingStatus } from "./venueBookings.mjs";
 import { recordVenuePayment, reverseVenuePayment } from "./venuePayments.mjs";
@@ -78,6 +78,30 @@ venueRouter.get("/:organizationSlug/:venueSlug/settings", async (req, res) => {
 });
 venueRouter.put("/:organizationSlug/:venueSlug/admin/settings", requireAuth, requireVenueRole("admin"), updateVenueSettings);
 venueRouter.get("/:organizationSlug/:venueSlug/blocks", listVenueBlocks);
+venueRouter.post("/:organizationSlug/:venueSlug/join", requireAuth, async (req, res) => {
+  const context = req.venueContext;
+  const existing = await Membership.findOne({ userId: req.user.id, organizationId: context.organizationId });
+  if (existing) {
+    if (!existing.active) return res.status(403).json({ message: "Tu acceso a este club está inactivo." });
+    if (!await membershipForVenue(req.user.id, context)) return res.status(403).json({ message: "No tenés acceso a esta sede." });
+    return res.json({ role: existing.role });
+  }
+  try {
+    await Membership.create({ userId: req.user.id, organizationId: context.organizationId, role: "player", venueIds: [] });
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+    const current = await Membership.findOne({ userId: req.user.id, organizationId: context.organizationId });
+    if (!current?.active) return res.status(403).json({ message: "Tu acceso a este club está inactivo." });
+    if (!await membershipForVenue(req.user.id, context)) return res.status(403).json({ message: "No tenés acceso a esta sede." });
+    return res.json({ role: current.role });
+  }
+  res.status(201).json({ role: "player" });
+});
+venueRouter.get("/:organizationSlug/:venueSlug/bookings/mine", requireAuth, async (req, res) => {
+  if (!await membershipForVenue(req.user.id, req.venueContext)) return res.status(403).json({ message: "No tenés acceso a esta sede." });
+  const bookings = await Booking.find(venueScope(req.venueContext, { userId: req.user.id })).sort({ date: -1, time: -1 });
+  res.json({ bookings: bookings.map((booking) => booking.toJSON()) });
+});
 venueRouter.get("/:organizationSlug/:venueSlug/admin/blocks", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), listAdminVenueBlocks);
 venueRouter.post("/:organizationSlug/:venueSlug/admin/blocks/batch", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), createVenueBlocks);
 venueRouter.delete("/:organizationSlug/:venueSlug/admin/blocks/batch", requireAuth, requireVenueRole("admin", "receptionist", "teacher"), deleteVenueBlocks);

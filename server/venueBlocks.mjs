@@ -29,7 +29,9 @@ async function auditBlock(req, type, title, detail) {
 }
 
 export async function listVenueBlocks(req, res) {
-  const blocks = await ScheduleBlock.find(venueScope(req.venueContext)).sort({ date: 1, courtId: 1, hour: 1 }).limit(5000);
+  const date = String(req.query.date || "");
+  if (!isValidDateISO(date)) return res.status(400).json({ message: "Fecha inválida." });
+  const blocks = await ScheduleBlock.find(venueScope(req.venueContext, { date })).sort({ courtId: 1, hour: 1 });
   res.json({ blocks: blocks.map((block) => ({ date: block.date, courtId: block.courtId,
     hour: block.hour, durationMinutes: block.durationMinutes })) });
 }

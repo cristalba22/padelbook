@@ -93,6 +93,11 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.deepEqual((await myOrganizations(adminA)).data.organizations.map((item) => item.slug), ["club-a"]);
     assert.deepEqual((await myOrganizations(receptionistA)).data.organizations[0].venues.map((item) => item.slug), ["centro"]);
     assert.deepEqual((await myOrganizations(playerB)).data.organizations.map((item) => item.slug), ["club-b"]);
+    assert.equal((await request("/club-a/norte/join", receptionistA, { method: "POST" })).status, 403);
+    assert.equal((await request("/club-a/centro/join", playerB, { method: "POST" })).status, 201);
+    assert.equal((await request("/club-a/centro/join", playerB, { method: "POST" })).status, 200);
+    assert.deepEqual((await myOrganizations(playerB)).data.organizations.map((item) => item.slug), ["club-a", "club-b"]);
+    assert.deepEqual((await request("/club-a/centro/bookings/mine", playerB)).data.bookings, []);
 
     assert.equal((await organizationRequest("/club-a/admin/staff", receptionistA)).status, 404);
     assert.equal((await organizationRequest("/club-b/admin/staff", adminA)).status, 404);
@@ -275,6 +280,8 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.deepEqual([raceA.status, raceA2.status].sort(), [201, 409]);
     const winner = raceA.status === 201 ? raceA : raceA2;
     const winningPlayer = raceA.status === 201 ? playerA : playerA2;
+    assert.deepEqual((await request("/club-a/centro/bookings/mine", winningPlayer)).data.bookings.map((item) => item.id), [winner.data.booking.id]);
+    assert.deepEqual((await request("/club-b/centro/bookings/mine", winningPlayer)).status, 403);
     assert.equal(String(winner.data.booking.venueId), venueA.id);
     assert.equal(winner.data.booking.price, 18000);
     assert.equal(await SlotClaim.countDocuments({ organizationId: orgA._id, venueId: venueA._id, courtId: "court-a" }), 2);
@@ -294,9 +301,11 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.equal((await request(blockPath, receptionistA, { method: "POST", body: blockBody })).status, 403);
     const storedBlock = await request(blockPath, adminA, { method: "POST", body: blockBody });
     assert.equal(storedBlock.status, 201);
-    assert.deepEqual((await request("/club-a/norte/blocks")).data.blocks.map((block) => block.courtId), ["court-a2"]);
-    assert.equal("reason" in (await request("/club-a/norte/blocks")).data.blocks[0], false);
-    assert.deepEqual((await request("/club-b/centro/blocks")).data.blocks, []);
+    assert.equal((await request("/club-a/norte/blocks")).status, 400);
+    assert.deepEqual((await request(`/club-a/norte/blocks?date=${slot.date}`)).data.blocks.map((block) => block.courtId), ["court-a2"]);
+    assert.equal("reason" in (await request(`/club-a/norte/blocks?date=${slot.date}`)).data.blocks[0], false);
+    assert.deepEqual((await request("/club-a/norte/blocks?date=2099-10-21")).data.blocks, []);
+    assert.deepEqual((await request(`/club-b/centro/blocks?date=${slot.date}`)).data.blocks, []);
     assert.equal((await request(blockPath, adminA, { method: "POST", body: blockBody })).status, 409);
     assert.equal((await request("/club-a/centro/admin/blocks/batch", receptionistA, { method: "POST",
       body: { blocks: [{ date: slot.date, courtId: "court-a", hour: "11:00", durationMinutes: 60 }] } })).status, 409);

@@ -1,0 +1,45 @@
+.venue-overview-actions, .venue-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.venue-overview-actions a, .venue-actions a, .venue-actions button, .venue-empty-action button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 1px solid #afd2b4; border-radius: 10px; background: #e8f2e9; color: #1c4930; font-weight: 750; text-decoration: none; cursor: pointer; }
+.venue-overview-actions a:first-child, .venue-actions a, .venue-empty-action button { border-color: #b8e3ad; background: #bfeaa9; color: #10271c; }
+.venue-booking-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr); align-items: start; gap: 18px; }
+.venue-booking-layout .org-section { margin-top: 0; }
+.venue-reload, .venue-error button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: #286845; font-size: .82rem; font-weight: 750; cursor: pointer; }
+.venue-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.venue-filters label { display: grid; gap: 7px; color: #435347; font-size: .77rem; font-weight: 750; }
+.venue-filters input, .venue-filters select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #17291e; font: inherit; }
+.venue-durations { margin: 23px 0; padding: 0; border: 0; }
+.venue-durations legend { margin-bottom: 9px; color: #435347; font-size: .77rem; font-weight: 750; }
+.venue-durations div { display: flex; flex-wrap: wrap; gap: 8px; }
+.venue-durations button { min-width: 72px; min-height: 40px; padding: 0 10px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #173226; font-weight: 700; cursor: pointer; }
+.venue-durations button.is-selected, .venue-slots button.is-selected { border-color: #246443; background: #e4f4e3; box-shadow: inset 0 0 0 1px #246443; }
+.venue-slots-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: #1b3023; }
+.venue-slots-heading span { display: inline-flex; align-items: center; gap: 7px; font-size: .88rem; font-weight: 800; }
+.venue-slots-heading small { color: #6c7c73; }
+.venue-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.venue-slots button { display: flex; flex-direction: column; align-items: start; gap: 3px; min-height: 58px; padding: 10px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #183025; text-align: left; cursor: pointer; }
+.venue-slots button strong { font-size: .83rem; white-space: nowrap; }
+.venue-slots button small { color: #427b52; font-size: .68rem; }
+.venue-slots button:disabled { border-color: #e5e8e6; background: #f1f3f1; color: #839088; cursor: not-allowed; }
+.venue-slots button:disabled small { color: #839088; }
+.venue-summary { position: sticky; top: 20px; }
+.venue-summary h2 { margin: 7px 0 25px; color: #13251b; font-size: 1.55rem; letter-spacing: -.04em; }
+.venue-summary p { display: flex; align-items: center; gap: 7px; color: #334b3c; }
+.venue-summary__price { display: block; margin: 28px 0 4px; color: #153d29; font-size: 2rem; }
+.venue-summary > small { color: #637569; }
+.venue-confirm { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 49px; margin-top: 26px; padding: 0 17px; border: 0; border-radius: 10px; background: #183f2d; color: #fff; font-weight: 800; cursor: pointer; }
+.venue-confirm:disabled { opacity: .6; cursor: not-allowed; }
+.venue-summary .venue-summary__note { margin-top: 14px; color: #637569; font-size: .79rem; line-height: 1.45; }
+.venue-my-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 15px; color: #286845; font-size: .86rem; font-weight: 750; text-decoration: none; }
+.venue-error { margin-bottom: 15px; padding: 12px 14px; border: 1px solid #ddaaa1; border-radius: 9px; background: #fff0ec; color: #77372b; font-size: .88rem; }
+.venue-error button { margin-left: 5px; color: #77372b; }
+.venue-success h1 { color: #152b1c; }
+.venue-success p { color: #425b48; }
+.venue-booking-list article { display: flex; justify-content: space-between; gap: 16px; padding: 17px 0; border-top: 1px solid #dce5de; }
+.venue-booking-list article:first-child { border-top: 0; }
+.venue-booking-list article > div { display: flex; flex-direction: column; align-items: start; gap: 5px; }
+.venue-booking-list span, .venue-booking-list small { color: #607568; font-size: .79rem; }
+.venue-booking-list__right { align-items: end !important; text-align: right; }
+.venue-booking-list__right button { padding: 6px 10px; border: 1px solid #b16e62; border-radius: 7px; background: #fff; color: #8b3d35; cursor: pointer; }
+@media (max-width: 850px) { .venue-booking-layout { grid-template-columns: 1fr; } .venue-summary { position: static; } }
+@media (max-width: 540px) { .venue-filters { grid-template-columns: 1fr; } .venue-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } .venue-booking-list article { flex-direction: column; } .venue-booking-list__right { align-items: start !important; text-align: left; } }
+@media (prefers-reduced-motion: reduce) { .venue-slots button, .venue-durations button { scroll-behavior: auto; } }
