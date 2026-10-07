@@ -25,6 +25,36 @@ const baseOptions = {
   },
 };
 
+const organizationSchema = new mongoose.Schema({
+  slug: { type: String, required: true, lowercase: true, trim: true, unique: true },
+  name: { type: String, required: true, trim: true },
+  status: { type: String, enum: ["active", "suspended"], default: "active" },
+}, baseOptions);
+
+const venueSchema = new mongoose.Schema({
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  slug: { type: String, required: true, lowercase: true, trim: true },
+  name: { type: String, required: true, trim: true },
+  address: { type: String, default: "" },
+  timeZone: { type: String, default: "America/Argentina/Cordoba" },
+  active: { type: Boolean, default: true },
+}, baseOptions);
+venueSchema.index({ organizationId: 1, slug: 1 }, { unique: true });
+
+const membershipSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  role: { type: String, enum: ["admin", "receptionist", "teacher", "player"], required: true },
+  venueIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  active: { type: Boolean, default: true },
+}, baseOptions);
+membershipSchema.index({ organizationId: 1, userId: 1 }, { unique: true });
+
+const scopeFields = {
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
+  venueId: { type: mongoose.Schema.Types.ObjectId, ref: "Venue" },
+};
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -46,6 +76,7 @@ const passwordResetSchema = new mongoose.Schema({
 passwordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const courtSchema = new mongoose.Schema({
+  ...scopeFields,
   courtId: { type: String, required: true, unique: true, trim: true },
   name: { type: String, required: true, trim: true },
   description: { type: String, default: "", trim: true },
@@ -62,6 +93,7 @@ const courtSchema = new mongoose.Schema({
 }, baseOptions);
 
 const bookingSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   time: { type: String, required: true },
   endTime: { type: String, default: "" },
@@ -113,6 +145,7 @@ const registrationSchema = new mongoose.Schema({
 }, { _id: true, versionKey: false, toJSON: { virtuals: true } });
 
 const tournamentSchema = new mongoose.Schema({
+  ...scopeFields,
   name: { type: String, required: true },
   status: { type: String, enum: ["abierto", "lleno", "en_curso", "finalizado", "cancelado"], default: "abierto" },
   date: { type: String, required: true },
@@ -129,6 +162,7 @@ const tournamentSchema = new mongoose.Schema({
 }, { ...baseOptions, versionKey: "__v", optimisticConcurrency: true });
 
 const settingsSchema = new mongoose.Schema({
+  ...scopeFields,
   clubName: { type: String, default: "PadelBook" },
   clubShortName: { type: String, default: "PadelBook" },
   address: { type: String, default: "" },
@@ -149,6 +183,7 @@ const settingsSchema = new mongoose.Schema({
 }, baseOptions);
 
 const activitySchema = new mongoose.Schema({
+  ...scopeFields,
   type: String,
   title: String,
   detail: String,
@@ -161,6 +196,7 @@ const activitySchema = new mongoose.Schema({
 }, baseOptions);
 
 const expenseSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   concept: { type: String, required: true },
   category: { type: String, default: "operativo" },
@@ -170,6 +206,7 @@ const expenseSchema = new mongoose.Schema({
 }, baseOptions);
 
 const scheduleBlockSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   courtId: { type: String, required: true },
   hour: { type: String, required: true },
@@ -181,6 +218,7 @@ const scheduleBlockSchema = new mongoose.Schema({
 scheduleBlockSchema.index({ date: 1, courtId: 1, hour: 1 }, { unique: true });
 
 const teacherSchema = new mongoose.Schema({
+  ...scopeFields,
   name: { type: String, required: true },
   nickname: { type: String, default: "" },
   specialty: { type: String, default: "Clases de pádel" },
@@ -190,6 +228,7 @@ const teacherSchema = new mongoose.Schema({
 }, baseOptions);
 
 const slotClaimSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   courtId: { type: String, required: true },
   slot: { type: Number, required: true },
@@ -199,6 +238,9 @@ const slotClaimSchema = new mongoose.Schema({
 slotClaimSchema.index({ date: 1, courtId: 1, slot: 1 }, { unique: true });
 slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 
+export const Organization = mongoose.model("Organization", organizationSchema);
+export const Venue = mongoose.model("Venue", venueSchema);
+export const Membership = mongoose.model("Membership", membershipSchema);
 export const User = mongoose.model("User", userSchema);
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 export const Court = mongoose.model("Court", courtSchema);
