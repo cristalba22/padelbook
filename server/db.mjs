@@ -318,7 +318,9 @@ export async function addActivity(item) {
   const { requestContext } = await import("./requestContext.mjs");
   const context = requestContext.getStore() || {};
   await Activity.create({ ...item, actorId: item.actorId || context.actorId || "", actorRole: item.actorRole || context.actorRole || "", requestId: context.requestId || "", ipHash: context.ipHash || "" });
-  const scope = item.organizationId && item.venueId ? { organizationId: item.organizationId, venueId: item.venueId } : {};
+  const scope = item.organizationId
+    ? { organizationId: item.organizationId, ...(item.venueId ? { venueId: item.venueId } : { venueId: { $exists: false } }) }
+    : { organizationId: { $exists: false } };
   const count = await Activity.countDocuments(scope);
   if (count > 5000) {
     const old = await Activity.find(scope).sort({ createdAt: -1 }).skip(5000).select("_id");

@@ -14,7 +14,6 @@ import { CLASS_HOURS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 import { API_PROXY_SECRET } from "./config.mjs";
 import { passwordEmailConfigured, sendBookingEmail, sendPasswordResetEmail } from "./email.mjs";
 import { addMinutesToHour, fitsCourtHours, publicCourt, validCourtSchedule } from "./courtView.mjs";
@@ -24,6 +23,8 @@ import { withAgendaTransaction } from "./agendaTransaction.mjs";
 import { parseSettingsPatch } from "./settingsInput.mjs";
 import { tournamentFields, registrationStatusFields, tournamentSignupFields } from "./tournamentInput.mjs";
 import { venueRouter } from "./venueRoutes.mjs";
+import { organizationStaffRouter } from "./organizationStaff.mjs";
+import { buildFinanceSummary } from "./financeSummary.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -77,28 +78,6 @@ function isPastDate(date) {
   return String(date || "") < todayString();
 }
 
-function addDaysString(days) {
-  return shiftClubDate(days);
-}
-
-function startOfWeekString() {
-  return startOfClubWeek();
-}
-
-function startOfMonthString() {
-  return startOfClubMonth();
-}
-
-function startOfYearString() {
-  return startOfClubYear();
-}
-
-function moneyBucket(items, from, getDate, getValue) {
-  return items
-    .filter((item) => String(getDate(item) || "") >= from)
-    .reduce((acc, item) => acc + Number(getValue(item) || 0), 0);
-}
-
 function queueBookingEmail(booking, action) {
   if (!booking?.userEmail) return;
   void Setting.findOne().lean()
@@ -127,6 +106,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/venues", venueRouter);
+app.use("/api/organizations", organizationStaffRouter);
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
   const schema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(72) }).strict();
@@ -797,88 +777,14 @@ app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => 
 });
 
 app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, res) => {
-  const [bookings, expenses, settingsDoc, tournaments] = await Promise.all([
+  const [bookings, expenses, settings, tournaments] = await Promise.all([
     Booking.find().sort({ date: -1, time: -1 }),
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(80),
     Setting.findOne().sort({ createdAt: 1 }),
     Tournament.find().select("name registrations pricePerPlayer"),
   ]);
-
-  const settings = settingsDoc?.toJSON?.() || {};
-  const commissionPercent = Number(settings.teacherCommissionPercent ?? 50);
-  const allBookings = bookings.map((booking) => booking.toJSON());
-  const activeBookings = allBookings.filter((booking) => booking.status !== "cancelado");
-  const expenseRows = expenses.map((expense) => expense.toJSON());
-  const collectedBookings = allBookings.filter((booking) => paymentSummary(booking).paid > 0);
-  const pendingBookings = activeBookings.filter((booking) => paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
-  const tournamentIncomeRows = tournaments.flatMap((tournament) => tournament.registrations.flatMap((registration) => (registration.paymentEntries || [])
-    .map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: "tournament", label: tournament.name }))));
-  const incomeRows = [...allBookings.flatMap((booking) => {
-    const entries = booking.paymentEntries || [];
-    return entries.length ? entries.map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
-      : paymentSummary(booking).paid > 0 ? [{ date: accountingDate(booking.updatedAt || booking.date), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : [];
-  }), ...tournamentIncomeRows];
-
-  const teacherCommissions = collectedBookings
-    .filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName)
-    .flatMap((booking) => {
-      const entries = booking.paymentEntries?.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
-      return entries.map((entry) => ({
-        date: accountingDate(entry.at), teacherName: booking.teacherName || "Profesor", bookingId: booking.id,
-        gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent,
-      }));
-    });
-
-  const expenseTotal = expenseRows.reduce((acc, item) => acc + Number(item.amount || 0), 0);
-  const commissionTotal = teacherCommissions.reduce((acc, item) => acc + Number(item.amount || 0), 0);
-  const periods = {
-    day: todayString(),
-    week: startOfWeekString(),
-    month: startOfMonthString(),
-    year: startOfYearString(),
-  };
-
-  const byPeriod = Object.fromEntries(Object.entries(periods).map(([key, from]) => {
-    const income = moneyBucket(incomeRows, from, (item) => item.date, (item) => item.amount);
-    const expensesAmount = moneyBucket(expenseRows, from, (item) => item.date, (item) => item.amount);
-    const commissions = moneyBucket(teacherCommissions, from, (item) => item.date, (item) => item.amount);
-    return [key, { income, expenses: expensesAmount, commissions, net: income - expensesAmount - commissions }];
-  }));
-
-  const dailyTrend = Array.from({ length: 7 }, (_, index) => {
-    const date = addDaysString(index - 6);
-    const income = moneyBucket(incomeRows, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    const expensesAmount = moneyBucket(expenseRows, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    const commissions = moneyBucket(teacherCommissions, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    return { date, income, expenses: expensesAmount, commissions, net: income - expensesAmount - commissions };
-  });
-
-  const incomeByCategory = [
-    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class").reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
-    { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName).reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
-    { label: "Torneos", amount: tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0) },
-  ];
-
-  res.json({
-    summary: {
-      byPeriod,
-      totals: {
-        grossIncome: incomeRows.reduce((acc, item) => acc + Number(item.amount || 0), 0),
-        collected: collectedBookings.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) + tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0),
-        pending: pendingBookings.reduce((acc, booking) => acc + booking.amountDue, 0),
-        expenses: expenseTotal,
-        teacherCommissions: commissionTotal,
-      },
-      commissionPercent,
-      dailyTrend,
-      incomeByCategory,
-      teacherCommissions: teacherCommissions.slice(0, 12),
-      expenses: expenseRows.slice(0, 12),
-      pendingPayments: pendingBookings.slice(0, 12),
-    },
-  });
+  res.json({ summary: buildFinanceSummary({ bookings, expenses, settings, tournaments }) });
 });
-
 app.post("/api/expenses", requireAuth, requireRole("admin"), async (req, res) => {
   const schema = z.object({
     date: z.string().min(8).optional().default(todayString()),

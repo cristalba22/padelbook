@@ -15,7 +15,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
   let server;
   try {
     await mongoose.connect(mongo.getUri(), { dbName: process.env.MONGODB_DB_NAME });
-    await Promise.all([Booking.init(), SlotClaim.init(), Setting.init()]);
+    await Promise.all([Booking.init(), SlotClaim.init(), Setting.init(), User.init(), Membership.init()]);
     const [orgA, orgB] = await Organization.create([{ slug: "club-a", name: "Club A" }, { slug: "club-b", name: "Club B" }]);
     const [venueA, venueA2, venueB] = await Venue.create([
       { organizationId: orgA.id, slug: "centro", name: "Centro A" },
@@ -41,8 +41,10 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { organizationId: orgB.id, venueId: venueB.id, name: "Torneo B", date: "2026-11-02", registrations: [{ name: "Privado B", email: "b@test.local" }] },
     ]);
     const [bookingA, bookingB] = await Booking.create([
-      { organizationId: orgA.id, venueId: venueA.id, date: "2026-10-20", time: "19:00", courtId: "court-a", courtName: "Cancha A", playerName: "Jugadora A" },
-      { organizationId: orgB.id, venueId: venueB.id, date: "2026-10-20", time: "20:00", courtId: "court-b", courtName: "Cancha B", playerName: "Jugador B" },
+      { organizationId: orgA.id, venueId: venueA.id, date: "2026-10-20", time: "19:00", courtId: "court-a", courtName: "Cancha A", playerName: "Jugadora A",
+        price: 24000, amountPaid: 10000, paymentEntries: [{ id: "seed-a", amount: 10000, method: "efectivo", actor: "QA", at: new Date() }] },
+      { organizationId: orgB.id, venueId: venueB.id, date: "2026-10-20", time: "20:00", courtId: "court-b", courtName: "Cancha B", playerName: "Jugador B",
+        price: 30000, amountPaid: 20000, paymentEntries: [{ id: "seed-b", amount: 20000, method: "efectivo", actor: "QA", at: new Date() }] },
     ]);
     const [adminA, adminB, receptionistA, playerA, playerA2, playerB, teacherUserA] = await User.create([
       { name: "Admin A", email: "admin-a@test.local", passwordHash: "test-hash", role: "player" },
@@ -72,6 +74,79 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
         ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
       return { status: response.status, data: await response.json() };
     };
+    const organizationRequest = async (path, user, { method = "GET", body } = {}) => {
+      const token = user ? createSession(user).token : "";
+      const response = await fetch(`${base.replace(/\/venues$/, "/organizations")}${path}`, {
+        method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      return { status: response.status, data: await response.json() };
+    };
+
+    assert.equal((await organizationRequest("/club-a/admin/staff", receptionistA)).status, 404);
+    assert.equal((await organizationRequest("/club-b/admin/staff", adminA)).status, 404);
+    assert.deepEqual((await organizationRequest("/club-a/venues", adminA)).data.venues.map((venue) => venue.slug), ["centro", "norte"]);
+    assert.equal((await organizationRequest("/club-a/venues", adminB)).status, 404);
+    assert.equal((await organizationRequest("/club-a/admin/staff", adminA)).data.staff.length, 2);
+    assert.equal((await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
+      name: "Recepción ajena", email: "ajena@test.local", password: "clave-muy-larga-123",
+      role: "receptionist", venueIds: [venueB.id],
+    } })).status, 400);
+    const createdStaff = await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
+      name: "Recepción Norte", email: "norte@test.local", password: "clave-muy-larga-123",
+      role: "receptionist", venueIds: [venueA.id],
+    } });
+    assert.equal(createdStaff.status, 201);
+    assert.equal((await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
+      name: "Cuenta existente", email: "jugador-b@test.local", password: "clave-muy-larga-123",
+      role: "teacher", venueIds: [venueA.id],
+    } })).status, 409);
+    const staffUser = await User.findById(createdStaff.data.employee.id);
+    assert.equal(staffUser.role, "player");
+    assert.equal((await organizationRequest("/club-a/admin/staff", adminA)).data.staff.length, 3);
+    assert.equal((await organizationRequest("/club-b/admin/staff", adminB)).data.staff.length, 0);
+    assert.equal((await request("/club-a/centro/admin/bookings", staffUser)).status, 200);
+    assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 403);
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminB,
+      { method: "PATCH", body: { active: false } })).status, 404);
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminA,
+      { method: "PATCH", body: { venueIds: [venueA2.id] } })).status, 200);
+    assert.equal((await request("/club-a/centro/admin/bookings", staffUser)).status, 403);
+    assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 200);
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminA,
+      { method: "PATCH", body: { active: false } })).status, 200);
+    assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 403);
+    assert.equal((await request("/club-a/centro/admin/finance/summary", receptionistA)).status, 403);
+    assert.equal((await request("/club-b/centro/admin/finance/summary", adminA)).status, 403);
+    assert.equal((await request("/club-a/centro/admin/expenses", adminA, { method: "POST", body: {
+      date: "2026-10-07", concept: "Pelotas", amount: 1000, venueId: venueB.id,
+    } })).status, 400);
+    assert.equal((await request("/club-a/centro/admin/expenses", adminA, { method: "POST", body: {
+      date: "2026-10-07", concept: "Pelotas Centro", amount: 1000,
+    } })).status, 201);
+    assert.equal((await request("/club-a/norte/admin/expenses", adminA, { method: "POST", body: {
+      date: "2026-10-07", concept: "Pelotas Norte", amount: 2000,
+    } })).status, 201);
+    assert.equal((await request("/club-b/centro/admin/expenses", adminB, { method: "POST", body: {
+      date: "2026-10-07", concept: "Pelotas B", amount: 3000,
+    } })).status, 201);
+    const financeA = (await request("/club-a/centro/admin/finance/summary", adminA)).data.summary;
+    const financeA2 = (await request("/club-a/norte/admin/finance/summary", adminA)).data.summary;
+    const financeB = (await request("/club-b/centro/admin/finance/summary", adminB)).data.summary;
+    const consolidatedA = (await organizationRequest("/club-a/admin/finance/summary", adminA)).data;
+    assert.equal(financeA.totals.collected, 10000);
+    assert.equal(financeA.totals.expenses, 1000);
+    assert.equal(financeA2.totals.collected, 0);
+    assert.equal(financeA2.totals.expenses, 2000);
+    assert.equal(financeB.totals.collected, 20000);
+    assert.equal(consolidatedA.summary.totals.collected, financeA.totals.collected + financeA2.totals.collected);
+    assert.equal(consolidatedA.summary.totals.expenses, financeA.totals.expenses + financeA2.totals.expenses);
+    assert.equal(consolidatedA.venues.length, 2);
+    assert.equal((await organizationRequest("/club-b/admin/finance/summary", adminA)).status, 404);
+    assert.deepEqual((await request("/club-a/centro/admin/activity", adminA)).data.activity
+      .filter((item) => item.type === "expense_created").map((item) => item.detail), ["Pelotas Centro - $1000"]);
+    assert.equal((await organizationRequest("/club-a/admin/activity", adminA)).data.activity
+      .filter((item) => item.type === "expense_created").length, 2);
 
     const courtsA = await request("/club-a/centro/courts");
     assert.equal(courtsA.status, 200);

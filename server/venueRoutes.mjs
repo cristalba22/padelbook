@@ -14,6 +14,7 @@ import { updateVenueSettings } from "./venueSettings.mjs";
 import { createVenueTeacher, listAdminVenueTeachers, updateVenueTeacher } from "./venueTeachers.mjs";
 import { createVenueTournament, deleteVenueTournament, listAdminVenueTournaments, listMyVenueTournaments,
   registerVenueTournament, updateVenueRegistration, updateVenueTournament } from "./venueTournaments.mjs";
+import { createVenueExpense, venueActivity, venueFinanceSummary } from "./venueFinance.mjs";
 
 export const venueRouter = express.Router();
 venueRouter.use("/:organizationSlug/:venueSlug", requireVenueContext);
@@ -86,6 +87,9 @@ venueRouter.post("/:organizationSlug/:venueSlug/bookings/:id/cancel", requireAut
 venueRouter.post("/:organizationSlug/:venueSlug/admin/bookings/:id/payments", requireAuth, requireVenueRole("admin", "receptionist"), recordVenuePayment);
 venueRouter.post("/:organizationSlug/:venueSlug/admin/bookings/:id/payments/reverse", requireAuth, requireVenueRole("admin", "receptionist"), reverseVenuePayment);
 venueRouter.patch("/:organizationSlug/:venueSlug/admin/bookings/:id/status", requireAuth, requireVenueRole("admin", "receptionist"), updateVenueBookingStatus);
+venueRouter.get("/:organizationSlug/:venueSlug/admin/finance/summary", requireAuth, requireVenueRole("admin"), venueFinanceSummary);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/expenses", requireAuth, requireVenueRole("admin"), createVenueExpense);
+venueRouter.get("/:organizationSlug/:venueSlug/admin/activity", requireAuth, requireVenueRole("admin"), venueActivity);
 
 venueRouter.get("/:organizationSlug/:venueSlug/admin/courts", requireAuth, requireVenueRole("admin"), async (req, res) => {
   const courts = await Court.find(venueScope(req.venueContext)).sort({ sortOrder: 1, name: 1 });
