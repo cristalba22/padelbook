@@ -123,8 +123,10 @@ venueRouter.post("/:organizationSlug/:venueSlug/admin/courts", requireAuth, requ
 venueRouter.patch("/:organizationSlug/:venueSlug/admin/courts/:courtId", requireAuth, requireVenueRole("admin"), updateVenueCourt);
 
 venueRouter.get("/:organizationSlug/:venueSlug/admin/bookings", requireAuth, requireVenueRole("admin", "receptionist"), async (req, res) => {
-  const bookings = await Booking.find(venueScope(req.venueContext)).sort({ date: 1, time: 1 });
-  res.json({ bookings: bookings.map((booking) => booking.toJSON()) });
+  const date = String(req.query.date || "");
+  if (date && !isValidDateISO(date)) return res.status(400).json({ message: "Fecha inválida." });
+  const bookings = await Booking.find(venueScope(req.venueContext, date ? { date } : {})).sort({ date: -1, time: 1 }).limit(301);
+  res.json({ bookings: bookings.slice(0, 300).map((booking) => booking.toJSON()), hasMore: bookings.length > 300 });
 });
 
 venueRouter.get("/:organizationSlug/:venueSlug/admin/bookings/:id", requireAuth, requireVenueRole("admin", "receptionist"), async (req, res) => {

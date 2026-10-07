@@ -43,3 +43,40 @@
 @media (max-width: 850px) { .venue-booking-layout { grid-template-columns: 1fr; } .venue-summary { position: static; } }
 @media (max-width: 540px) { .venue-filters { grid-template-columns: 1fr; } .venue-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } .venue-booking-list article { flex-direction: column; } .venue-booking-list__right { align-items: start !important; text-align: left; } }
 @media (prefers-reduced-motion: reduce) { .venue-slots button, .venue-durations button { scroll-behavior: auto; } }
+.venue-admin-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.venue-admin-metrics > div { display: flex; min-height: 100px; flex-direction: column; justify-content: space-between; padding: 17px 20px; border: 1px solid #dce7de; border-radius: 12px; background: #f9fbf9; }
+.venue-admin-metrics small { color: #5c7163; font-weight: 700; }
+.venue-admin-metrics strong { color: #193d29; font-size: 1.8rem; letter-spacing: -.04em; }
+.venue-admin-filters { display: grid; grid-template-columns: 180px 170px minmax(180px, 1fr); gap: 12px; margin-bottom: 20px; }
+.venue-admin-filters label, .venue-payment-dialog label { display: grid; gap: 6px; color: #435347; font-size: .78rem; font-weight: 750; }
+.venue-admin-filters input, .venue-admin-filters select, .venue-payment-dialog input, .venue-payment-dialog select { width: 100%; min-height: 42px; padding: 0 11px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #17291e; font: inherit; }
+.venue-admin-list article { display: grid; grid-template-columns: 80px minmax(150px, 1.5fr) minmax(110px, .7fr) minmax(180px, 1fr); align-items: center; gap: 16px; padding: 17px 0; border-top: 1px solid #e0e9e1; }
+.venue-admin-list article:first-child { border-top: 0; }
+.venue-admin-list article > div { display: flex; flex-direction: column; align-items: start; gap: 4px; min-width: 0; }
+.venue-admin-list strong { color: #182c20; font-size: .92rem; }
+.venue-admin-list span, .venue-admin-list small { color: #617568; font-size: .76rem; }
+.venue-admin-list__actions { display: flex !important; flex-direction: row !important; align-items: center !important; flex-wrap: wrap; gap: 6px !important; }
+.venue-admin-list__actions button { padding: 6px 9px; border: 1px solid #a6c5ac; border-radius: 7px; background: #f1f9ef; color: #235238; font-size: .75rem; font-weight: 700; cursor: pointer; }
+.venue-admin-list__actions button:disabled { opacity: .5; cursor: not-allowed; }
+.venue-admin-list__actions .venue-admin-cancel { border-color: #e4c3ba; background: #fff7f5; color: #8b4237; }
+.venue-admin-status { padding: 5px 8px; border-radius: 6px; font-weight: 800; text-transform: capitalize; }
+.venue-admin-status--confirmado { background: #e5f4e8; color: #286441 !important; }
+.venue-admin-status--pendiente { background: #fff2d8; color: #865b13 !important; }
+.venue-admin-status--cancelado { background: #f2ebeb; color: #8a5b58 !important; }
+.venue-admin-message { padding: 10px 12px; border-radius: 8px; background: #e8f5e8; color: #245239; font-size: .86rem; }
+.venue-admin-limit { margin: 18px 0 0; color: #8a4c2d; font-size: .82rem; }
+.venue-payment-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(3, 17, 10, .72); }
+.venue-payment-dialog { display: grid; gap: 14px; width: min(450px, 100%); padding: 26px; border: 1px solid #dce6de; border-radius: 17px; background: #f9fbf9; color: #183021; box-shadow: 0 24px 75px rgba(0, 0, 0, .28); }
+.venue-payment-dialog h2, .venue-payment-dialog p { margin: 0; }
+.venue-payment-dialog h2 { font-size: 1.5rem; letter-spacing: -.04em; }
+.venue-payment-dialog p { color: #506754; font-size: .86rem; line-height: 1.45; }
+.venue-payment-dialog__actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 5px; }
+.venue-payment-dialog__actions button { min-height: 40px; padding: 0 14px; border: 1px solid #abcdb3; border-radius: 8px; background: #fff; color: #254c32; font-weight: 750; cursor: pointer; }
+.venue-payment-dialog__actions button:last-child { border-color: #244e35; background: #244e35; color: #fff; }
+@media (max-width: 950px) { .venue-admin-list article { grid-template-columns: 70px minmax(130px, 1fr) minmax(110px, .5fr); } .venue-admin-list__actions { grid-column: 2 / -1; } }
+@media (max-width: 620px) { .venue-admin-metrics { grid-template-columns: 1fr 1fr; } .venue-admin-metrics > div:last-child { grid-column: 1 / -1; } .venue-admin-filters { grid-template-columns: 1fr 1fr; } .venue-admin-filters label:last-child { grid-column: 1 / -1; } .venue-admin-list article { grid-template-columns: 60px 1fr; } .venue-admin-list__money { grid-column: 2; } .venue-admin-list__actions { grid-column: 2; } }
+.venue-admin-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.venue-admin-heading-actions a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 10px; background: #bfeaa9; color: #14351f; font-size: .85rem; font-weight: 800; text-decoration: none; }
+.venue-reception-fields { display: grid; gap: 11px; margin-top: 22px; }
+.venue-reception-fields label { display: grid; gap: 5px; color: #415448; font-size: .77rem; font-weight: 750; }
+.venue-reception-fields input { width: 100%; min-height: 42px; padding: 0 11px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #17291e; font: inherit; }

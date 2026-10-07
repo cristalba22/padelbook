@@ -252,6 +252,9 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     const ownBookings = await request("/club-a/centro/admin/bookings", adminA);
     assert.equal(ownBookings.status, 200);
     assert.deepEqual(ownBookings.data.bookings.map((booking) => booking.id), [bookingA.id]);
+    assert.equal(ownBookings.data.hasMore, false);
+    assert.deepEqual((await request("/club-a/centro/admin/bookings?date=2026-10-21", adminA)).data.bookings, []);
+    assert.equal((await request("/club-a/centro/admin/bookings?date=2026-10-40", adminA)).status, 400);
     assert.equal((await request("/club-a/centro/admin/bookings", receptionistA)).status, 200);
     assert.equal((await request("/club-a/norte/admin/bookings", receptionistA)).status, 403);
     assert.equal((await request("/club-a/norte/admin/bookings", adminA)).status, 200);

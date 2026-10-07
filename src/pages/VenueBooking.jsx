@@ -14,10 +14,10 @@ const money = (value) => new Intl.NumberFormat("es-AR", { style: "currency", cur
 const segment = (value) => encodeURIComponent(String(value || ""));
 const durationLabel = (value) => ({ 60: "1 h", 90: "1 h 30", 120: "2 h", 150: "2 h 30" })[value];
 
-export default function VenueBooking() {
+export default function VenueBooking({ receptionMode = false }) {
   const { organizationSlug, venueSlug } = useParams();
   const { user, openLogin, apiOnline } = useAuth();
-  const { refresh: refreshOrganizations } = useOrganizations();
+  const { organizations, loading: permissionsLoading, refresh: refreshOrganizations } = useOrganizations();
   const root = `/venues/${segment(organizationSlug)}/${segment(venueSlug)}`;
   const venuePath = `/clubes/${segment(organizationSlug)}/${segment(venueSlug)}`;
   const [date, setDate] = useState(argentinaDateISO);
@@ -31,6 +31,11 @@ export default function VenueBooking() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(null);
   const [refresh, setRefresh] = useState(0);
+  const [playerName, setPlayerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const organization = organizations.find((item) => item.slug === organizationSlug);
+  const canManage = ["admin", "receptionist"].includes(organization?.role) && organization.venues.some((item) => item.slug === venueSlug);
 
   useEffect(() => {
     let active = true;
@@ -68,33 +73,43 @@ export default function VenueBooking() {
 
   async function confirm() {
     if (!user) { openLogin(); return; }
-    if (!apiOnline || !court || !selectedSlot || saving) return;
+    if (!apiOnline || !court || !selectedSlot || saving || (receptionMode && (!canManage || playerName.trim().length < 2))) return;
+    if (receptionMode && userEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail.trim())) {
+      setPageError("Ingresá un email válido o dejá el campo vacío."); return;
+    }
     setSaving(true);
     setPageError("");
     try {
-      await apiRequest(`${root}/join`, { method: "POST" });
+      if (!receptionMode) await apiRequest(`${root}/join`, { method: "POST" });
       const response = await apiRequest(`${root}/bookings`, { method: "POST", body: JSON.stringify({
         date, time, courtId: court.id, type: "court", durationMinutes: selectedDuration, paymentOption: "cash",
+        ...(receptionMode ? { playerName: playerName.trim(), phone: phone.trim(), userEmail: userEmail.trim() } : {}),
       }) });
       setSaved(response.booking);
-      void refreshOrganizations();
+      if (!receptionMode) void refreshOrganizations();
     } catch (error) {
       setPageError(error.message || "No pudimos confirmar el turno.");
       if (error.status === 409) setRefresh((value) => value + 1);
     } finally { setSaving(false); }
   }
 
+  if (receptionMode && !permissionsLoading && !canManage) return <main className="org-page"><section className="org-section venue-success">
+    <h1>Sin acceso a recepción</h1><p>Tu cuenta no puede cargar turnos en esta sede.</p></section></main>;
+
   if (saved) return <main className="org-page"><section className="org-section venue-success" role="status">
-    <span className="org-eyebrow">Reserva recibida</span><h1>Tu turno está solicitado</h1>
+    <span className="org-eyebrow">Reserva recibida</span><h1>{receptionMode ? "Turno cargado" : "Tu turno está solicitado"}</h1>
     <p>{saved.courtName} · {saved.date.split("-").reverse().join("/")} · {saved.time} a {saved.endTime}</p>
-    <p>Importe: <strong>{money(saved.price)}</strong>. Pagás en el club. El estado inicial es pendiente hasta que el club lo confirme.</p>
-    <div className="venue-actions"><Link to={`${venuePath}/mis-turnos`}>Ver mis turnos <ArrowRight size={16} /></Link>
+    <p>Importe: <strong>{money(saved.price)}</strong>. Pago en el club. El turno quedó pendiente de confirmación.</p>
+    <div className="venue-actions"><Link to={receptionMode ? `${venuePath}/recepcion/reservas` : `${venuePath}/mis-turnos`}>
+      {receptionMode ? "Ver reservas" : "Ver mis turnos"} <ArrowRight size={16} /></Link>
       <button type="button" onClick={() => { setSaved(null); setTime(""); setRefresh((value) => value + 1); }}>Reservar otro</button></div>
   </section></main>;
 
   return <main className="org-page venue-booking-page">
-    <header className="org-heading"><Link className="org-back" to={venuePath}><ArrowLeft size={16} /> Volver a la sede</Link>
-      <span className="org-eyebrow">Agenda de la sede</span><h1>Reservá tu cancha</h1>
+    <header className="org-heading"><Link className="org-back" to={receptionMode ? `${venuePath}/recepcion/reservas` : venuePath}>
+      <ArrowLeft size={16} /> {receptionMode ? "Volver a reservas" : "Volver a la sede"}</Link>
+      <span className="org-eyebrow">{receptionMode ? "Recepción · reserva manual" : "Agenda de la sede"}</span>
+      <h1>{receptionMode ? "Cargar un turno" : "Reservá tu cancha"}</h1>
       <p><MapPin size={16} /> {identity ? `${identity.organization.name} · ${identity.venue.name}` : "Consultando la sede"}</p></header>
     {pageError && <div className="venue-error" role="alert">{pageError} <button type="button" onClick={() => setRefresh((value) => value + 1)}>Reintentar</button></div>}
     <div className="venue-booking-layout">
@@ -102,7 +117,7 @@ export default function VenueBooking() {
         <div className="org-section__heading"><div><span className="org-eyebrow">Elegí tu turno</span><h2 id="venue-agenda-title">Disponibilidad</h2></div>
           <button type="button" className="venue-reload" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} /> Actualizar</button></div>
         <div className="venue-filters"><label><span>Fecha</span><input aria-label="Fecha del turno" type="date" min={argentinaDateISO()} max={shiftClubDate(90)} value={date}
-          onChange={(event) => setDate(event.target.value)} /></label>
+          onChange={(event) => { setDate(event.target.value); setTime(""); }} /></label>
           <label><span>Cancha</span><select aria-label="Cancha" value={court?.id || ""} onChange={(event) => { setCourtId(event.target.value); setTime(""); }}>
             {courts.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label></div>
         {court && <><fieldset className="venue-durations"><legend>Duración</legend><div>{validDurations.map((item) => <button type="button" key={item}
@@ -121,11 +136,15 @@ export default function VenueBooking() {
         {selectedSlot ? <><p><CalendarDays size={17} /> {date.split("-").reverse().join("/")} · {time}–{endTime(time, selectedDuration)}</p>
           <p>{court.name} · {durationLabel(selectedDuration)}</p><strong className="venue-summary__price">{money(estimate)}</strong>
           <small>Precio estimado. El servidor confirma el importe al reservar.</small>
-          <button className="venue-confirm" type="button" disabled={saving || !apiOnline} onClick={confirm}>
-            {saving ? "Confirmando…" : user ? "Solicitar turno" : "Ingresar para reservar"} <ArrowRight size={18} /></button>
+          {receptionMode && <div className="venue-reception-fields"><label>Nombre del jugador<input value={playerName} maxLength="100" required
+            onChange={(event) => setPlayerName(event.target.value)} placeholder="Nombre y apellido" /></label>
+            <label>Teléfono opcional<input value={phone} maxLength="40" onChange={(event) => setPhone(event.target.value)} placeholder="351…" /></label>
+            <label>Email opcional<input type="email" value={userEmail} onChange={(event) => setUserEmail(event.target.value)} placeholder="jugador@email.com" /></label></div>}
+          <button className="venue-confirm" type="button" disabled={saving || !apiOnline || (receptionMode && playerName.trim().length < 2)} onClick={confirm}>
+            {saving ? "Guardando…" : receptionMode ? "Cargar reserva" : user ? "Solicitar turno" : "Ingresar para reservar"} <ArrowRight size={18} /></button>
           <p className="venue-summary__note">Pago en el club. La reserva queda pendiente de confirmación; no se cobra online.</p></>
           : <p className="org-empty">Seleccioná un horario disponible para ver el importe y continuar.</p>}
-        {user && <Link className="venue-my-link" to={`${venuePath}/mis-turnos`}>Ver mis turnos</Link>}
+        {user && !receptionMode && <Link className="venue-my-link" to={`${venuePath}/mis-turnos`}>Ver mis turnos</Link>}
       </aside>
     </div>
   </main>;

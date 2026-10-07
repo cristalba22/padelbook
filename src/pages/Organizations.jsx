@@ -136,6 +136,7 @@ export function VenueOverview() {
   if (state.error) return <StatePanel title="No pudimos cargar la sede" detail={state.error} retry={() => setRetry((value) => value + 1)} />;
   const { identity, courts, settings, tournaments } = state.data;
   const organization = organizations.find((item) => item.slug === organizationSlug);
+  const canManageBookings = ["admin", "receptionist"].includes(organization?.role) && organization.venues.some((item) => item.slug === venueSlug);
   const back = organization?.role === "admin" ? `${ROUTES.CLUBS}/${segment(organizationSlug)}` : ROUTES.CLUBS;
   const upcoming = tournaments.filter((item) => item.date >= argentinaDateISO() && item.status === "abierto").slice(0, 3);
   return <main className="org-page org-venue-page">
@@ -145,7 +146,8 @@ export function VenueOverview() {
     <div className="org-venue-info"><span><Building2 size={18} /> {courts.length} {courts.length === 1 ? "cancha" : "canchas"}</span>
       <span><CalendarDays size={18} /> {settings.openingHours || "Consultá los horarios de cada cancha"}</span></div>
     <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/reservar`}>
-      Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link></div>
+      Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link>
+      {canManageBookings && <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/recepcion/reservas`}>Gestionar reservas</Link>}</div>
     <section className="org-section" aria-labelledby="venue-courts-title"><div className="org-section__heading"><div><span className="org-eyebrow">Instalaciones</span><h2 id="venue-courts-title">Canchas</h2></div></div>
       {courts.length ? <div className="org-court-list">{courts.map((court) => <article key={court.id}><div><strong>{court.name}</strong><small>{court.surface || court.description || "Cancha de pádel"}</small></div>
         <span>{court.openingTime}–{court.closingTime}</span><b>Desde {money(court.basePrice)} / h</b></article>)}</div>

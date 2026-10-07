@@ -199,7 +199,7 @@ export default function Layout({ children }) {
       {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}
-        onLoggedIn={(role) => { closeLogin(); navigate(routeForRole(role)); }}
+        onLoggedIn={(role) => { closeLogin(); if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
       />}
     </>
   );

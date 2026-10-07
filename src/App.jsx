@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound.jsx";
 import { Organizations, OrganizationDashboard, VenueOverview } from "./pages/Organizations.jsx";
 import VenueBooking from "./pages/VenueBooking.jsx";
 import VenueMyBookings from "./pages/VenueMyBookings.jsx";
+import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -78,6 +79,8 @@ export default function App() {
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug`} element={<VenueOverview />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/reservar`} element={<VenueBooking />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/mis-turnos`} element={<VenueMyBookings />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/reservas`} element={<VenueAdminBookings />} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/recepcion/nueva-reserva`} element={<VenueBooking receptionMode />} />
 
           <Route
             path={ROUTES.PLAYER}
