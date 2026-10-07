@@ -22,6 +22,7 @@ import { courtFields } from "./courtInput.mjs";
 import { isValidDateISO } from "./dateValidation.mjs";
 import { withAgendaTransaction } from "./agendaTransaction.mjs";
 import { parseSettingsPatch } from "./settingsInput.mjs";
+import { tournamentFields, registrationStatusFields, tournamentSignupFields } from "./tournamentInput.mjs";
 import { venueRouter } from "./venueRoutes.mjs";
 
 const app = express();
@@ -694,15 +695,6 @@ app.get("/api/admin/tournaments", requireAuth, requireRole("admin"), async (_req
   res.json({ tournaments: tournaments.map((tournament) => tournament.toJSON()) });
 });
 
-const tournamentFields = z.object({
-  name: z.string().trim().min(2).max(120), date: z.string(), hour: z.string(),
-  status: z.enum(["abierto", "lleno", "en_curso", "finalizado", "cancelado"]),
-  category: z.string().trim().max(80), surface: z.string().trim().max(80),
-  pricePerPlayer: z.number().int().min(0).max(100_000_000), seededPlayers: z.number().int().min(0),
-  maxPlayers: z.number().int().min(1), prize: z.string().trim().max(120),
-  description: z.string().trim().max(1000),
-});
-
 app.post("/api/admin/tournaments", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = tournamentFields.safeParse(req.body);
   if (!parsed.success || !isValidDateISO(parsed.data?.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.data?.hour || "") ||
@@ -737,8 +729,7 @@ app.delete("/api/admin/tournaments/:id", requireAuth, requireRole("admin"), asyn
 
 app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAuth, requireRole("admin"), async (req, res) => {
   if (!isValidObjectId(req.params.id) || !isValidObjectId(req.params.registrationId)) return res.status(400).json({ message: "ID inválido." });
-  const parsed = z.object({ status: z.enum(["pendiente", "confirmado", "cancelado"]).optional(),
-    paymentStatus: z.enum(["pendiente", "pagado", "sin_cargo"]).optional() }).strict().safeParse(req.body);
+  const parsed = registrationStatusFields.safeParse(req.body);
   if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Estado inválido." });
   const tournament = await Tournament.findById(req.params.id);
   if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
@@ -761,8 +752,7 @@ app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAut
 
 app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de torneo inválido." });
-  const schema = z.object({ partnerName: z.string().trim().max(100).optional().default(""), partnerPhone: z.string().trim().max(40).optional().default("") }).strict();
-  const parsed = schema.safeParse(req.body);
+  const parsed = tournamentSignupFields.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos invalidos." });
   const tournament = await Tournament.findById(req.params.id);
   if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });

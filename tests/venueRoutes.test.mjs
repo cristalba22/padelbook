@@ -36,7 +36,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { organizationId: orgA.id, venueId: venueA.id, name: "Profe A" },
       { organizationId: orgB.id, venueId: venueB.id, name: "Profe B" },
     ]);
-    await Tournament.create([
+    const [tournamentA, tournamentB] = await Tournament.create([
       { organizationId: orgA.id, venueId: venueA.id, name: "Torneo A", date: "2026-11-01", registrations: [{ name: "Privado A", email: "a@test.local" }] },
       { organizationId: orgB.id, venueId: venueB.id, name: "Torneo B", date: "2026-11-02", registrations: [{ name: "Privado B", email: "b@test.local" }] },
     ]);
@@ -110,6 +110,50 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     const publicTournaments = (await request("/club-a/centro/tournaments")).data.tournaments;
     assert.deepEqual(publicTournaments.map((tournament) => tournament.name), ["Torneo A"]);
     assert.equal("registrations" in publicTournaments[0], false);
+    assert.equal((await request("/club-a/centro/admin/tournaments", receptionistA)).status, 403);
+    assert.equal((await request(`/club-a/centro/admin/tournaments/${tournamentB.id}`, adminA,
+      { method: "PATCH", body: { name: "Robado" } })).status, 404);
+    assert.equal((await request(`/club-a/centro/tournaments/${tournamentB.id}/register`, playerA,
+      { method: "POST", body: {} })).status, 404);
+    const createdTournament = await request("/club-a/norte/admin/tournaments", adminA, { method: "POST", body: {
+      name: "Copa Norte", date: "2099-11-01", hour: "19:00", status: "abierto", category: "Mixto",
+      surface: "Césped", pricePerPlayer: 12000, seededPlayers: 0, maxPlayers: 1, prize: "Premio", description: "QA",
+    } });
+    assert.equal(createdTournament.status, 201);
+    const newTournamentId = createdTournament.data.tournament.id;
+    assert.deepEqual((await request("/club-a/norte/tournaments")).data.tournaments.map((item) => item.name), ["Copa Norte"]);
+    assert.deepEqual((await request("/club-b/centro/tournaments")).data.tournaments.map((item) => item.name), ["Torneo B"]);
+    assert.equal((await request(`/club-a/norte/admin/tournaments/${newTournamentId}`, receptionistA,
+      { method: "DELETE" })).status, 403);
+    const [signupOne, signupTwo] = await Promise.all([
+      request(`/club-a/norte/tournaments/${newTournamentId}/register`, playerA, { method: "POST", body: {} }),
+      request(`/club-a/norte/tournaments/${newTournamentId}/register`, playerA2, { method: "POST", body: {} }),
+    ]);
+    assert.deepEqual([signupOne.status, signupTwo.status].sort(), [201, 409]);
+    const signedUpPlayer = signupOne.status === 201 ? playerA : playerA2;
+    const registrationId = (signupOne.status === 201 ? signupOne : signupTwo).data.registration.id;
+    assert.equal((await request(`/club-a/norte/tournaments/${newTournamentId}/register`, signedUpPlayer,
+      { method: "POST", body: {} })).status, 409);
+    assert.equal((await request("/club-a/norte/tournaments/mine", signedUpPlayer)).data.registrations.length, 1);
+    assert.equal((await request("/club-b/centro/tournaments/mine", signedUpPlayer)).status, 403);
+    assert.equal((await request(`/club-a/norte/admin/tournaments/${newTournamentId}`, adminA,
+      { method: "DELETE" })).status, 409);
+    const paidRegistration = await request(`/club-a/norte/admin/tournaments/${newTournamentId}/registrations/${registrationId}`, adminA,
+      { method: "PATCH", body: { status: "confirmado", paymentStatus: "pagado" } });
+    assert.equal(paidRegistration.status, 200);
+    assert.equal(paidRegistration.data.tournament.registrations[0].paymentEntries[0].amount, 12000);
+    assert.equal(paidRegistration.data.tournament.currentPlayers, 1);
+    assert.equal((await request(`/club-a/centro/admin/tournaments/${newTournamentId}`, adminA,
+      { method: "PATCH", body: { maxPlayers: 10 } })).status, 404);
+    assert.equal((await request(`/club-b/centro/admin/tournaments/${tournamentA.id}`, adminB,
+      { method: "DELETE" })).status, 404);
+    const deletableTournament = await request("/club-a/norte/admin/tournaments", adminA, { method: "POST", body: {
+      name: "Torneo descartable", date: "2099-11-02", hour: "20:00", status: "abierto", category: "Mixto",
+      surface: "Césped", pricePerPlayer: 0, seededPlayers: 0, maxPlayers: 4, prize: "", description: "",
+    } });
+    assert.equal(deletableTournament.status, 201);
+    assert.equal((await request(`/club-a/norte/admin/tournaments/${deletableTournament.data.tournament.id}`, adminA,
+      { method: "DELETE" })).status, 200);
     assert.equal((await request("/club-a/centro/availability?date=2026-10-40")).status, 400);
     assert.equal((await request("/club-a/inexistente/courts")).status, 404);
 

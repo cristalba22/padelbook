@@ -12,6 +12,8 @@ import { createVenueCourt, updateVenueCourt } from "./venueCourts.mjs";
 import { createVenueBlocks, deleteVenueBlocks, listAdminVenueBlocks, listVenueBlocks } from "./venueBlocks.mjs";
 import { updateVenueSettings } from "./venueSettings.mjs";
 import { createVenueTeacher, listAdminVenueTeachers, updateVenueTeacher } from "./venueTeachers.mjs";
+import { createVenueTournament, deleteVenueTournament, listAdminVenueTournaments, listMyVenueTournaments,
+  registerVenueTournament, updateVenueRegistration, updateVenueTournament } from "./venueTournaments.mjs";
 
 export const venueRouter = express.Router();
 venueRouter.use("/:organizationSlug/:venueSlug", requireVenueContext);
@@ -56,6 +58,14 @@ venueRouter.get("/:organizationSlug/:venueSlug/tournaments", async (req, res) =>
     return item;
   }) });
 });
+venueRouter.get("/:organizationSlug/:venueSlug/tournaments/mine", requireAuth, listMyVenueTournaments);
+venueRouter.post("/:organizationSlug/:venueSlug/tournaments/:id/register", requireAuth, registerVenueTournament);
+venueRouter.get("/:organizationSlug/:venueSlug/admin/tournaments", requireAuth, requireVenueRole("admin"), listAdminVenueTournaments);
+venueRouter.post("/:organizationSlug/:venueSlug/admin/tournaments", requireAuth, requireVenueRole("admin"), createVenueTournament);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/tournaments/:id", requireAuth, requireVenueRole("admin"), updateVenueTournament);
+venueRouter.delete("/:organizationSlug/:venueSlug/admin/tournaments/:id", requireAuth, requireVenueRole("admin"), deleteVenueTournament);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/tournaments/:id/registrations/:registrationId",
+  requireAuth, requireVenueRole("admin"), updateVenueRegistration);
 
 venueRouter.get("/:organizationSlug/:venueSlug/settings", async (req, res) => {
   const settings = await Setting.findOne(venueScope(req.venueContext));
