@@ -125,6 +125,10 @@ export async function createInvitation(req, res) {
     await Invitation.deleteOne({ _id: invitation._id, status: "pending" });
     return res.status(503).json({ message: "No pudimos enviar la invitación. Intentá de nuevo." });
   }
+  try {
+    await addActivity({ organizationId: req.organization._id, type: "invitation_sent",
+      title: "Invitación enviada", detail: invitation.email, actor: req.user.name });
+  } catch { console.error("InvitationActivityError"); }
   res.status(201).json({ invitation: { id: invitation.id, email: invitation.email, role: invitation.role,
     venueIds: invitation.venueIds.map(String), expiresAt: invitation.expiresAt } });
 }
@@ -134,5 +138,9 @@ export async function revokeInvitation(req, res) {
   const result = await Invitation.findOneAndUpdate({ _id: req.params.id, organizationId: req.organization._id, status: "pending" },
     { $set: { status: "revoked" } });
   if (!result) return res.status(404).json({ message: "Invitación no encontrada." });
+  try {
+    await addActivity({ organizationId: req.organization._id, type: "invitation_revoked",
+      title: "Invitación cancelada", detail: result.email, actor: req.user.name });
+  } catch { console.error("InvitationActivityError"); }
   res.status(204).end();
 }
