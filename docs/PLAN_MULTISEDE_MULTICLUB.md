@@ -169,3 +169,21 @@ Profesorado tiene una pantalla administrativa por sede para publicar perfiles, c
 La prueba local en navegador usó dos organizaciones con el mismo identificador de cancha. Una reserva de 90 minutos en Club Córdoba quedó registrada por $30.000; Club Sierras no registró ningún turno ocupado para esa fecha y cancha. En otra base local de prueba, el ingreso desde la página de torneos conservó la ruta, se publicó un torneo de $12.000 por jugador, se inscribió una cuenta y se creó un perfil de profesor de $30.000 en la sede. Son verificaciones de desarrollo, no un ensayo de despliegue ni de volumen.
 
 **Pendiente antes de activar multiclub en producción:** migrar el piloto en una copia y probar restauración, índices, concurrencia y navegación completa en móvil; definir una invitación segura para cuentas existentes y el onboarding de nuevas organizaciones. La seña online y la conciliación de pagos no están implementadas. Ningún cambio de esta rama debe desplegarse sobre el piloto actual hasta completar esa transición.
+
+## Ensayo de restauración y migración
+
+El 7 de octubre de 2026 se agregó `npm run db:rehearse:multiclub` y una prueba integral con MongoDB aislado. La prueba crea un respaldo cifrado de un club de ensayo, lo verifica, lo restaura en otra base y migra documentos e índices. Compara cada campo original de cada documento (incluidos importes y pagos registrados), los conteos, las membresías y los índices. Comprueba que el origen no cambia y que una base de destino ocupada se rechaza. **Este resultado usa datos sintéticos; todavía no es una restauración del piloto real.**
+
+Para repetir el ensayo con un respaldo real, preparar `MONGODB_URI` y `BACKUP_ENCRYPTION_KEY` en el entorno de operación sin incorporarlos al repositorio. Verificar el archivo sin conexión a MongoDB:
+
+```powershell
+npm run db:backup -- --verify-only C:\ruta\al\backup.pbk
+```
+
+Con acceso a un servidor de prueba, o a una base de ensayo nueva en el mismo clúster, ejecutar:
+
+```powershell
+npm run db:rehearse:multiclub -- --input C:\ruta\al\backup.pbk --target-db padelbook_multiclub_qa --confirm-db padelbook_multiclub_qa --organization-slug club-cordoba --organization-name "Club Córdoba" --venue-slug sede-centro --venue-name "Sede Centro"
+```
+
+El comando solo acepta un nombre `padelbook_*_qa`, distinto del origen y de `MONGODB_DB_NAME`; exige confirmación exacta y una base de destino sin colecciones. El destino contiene una copia de los datos personales del respaldo: restringir el acceso y eliminarla siguiendo el procedimiento de retención del operador. Si una verificación falla, el comando se detiene y conserva la base de ensayo para investigar; no toca el origen. Registrar el informe JSON y revisar los conteos e índices antes de programar cualquier migración real. El ensayo no sustituye la prueba de la API y el frontend sobre la copia ni la ventana de cambio del piloto.
