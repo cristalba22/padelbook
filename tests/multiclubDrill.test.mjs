@@ -60,6 +60,9 @@ test("ensayo integral: backup, restauración, datos conservados y migración ais
     }
     assert.equal(encryptedDrill.rollbackCopyVerified, true);
     assert.equal(encryptedDrill.rollbackDocuments, 11);
+    assert.equal(encryptedDrill.legacyBootVerified, true);
+    assert.equal(encryptedDrill.multiclubBootVerified, true);
+    assert.equal(encryptedDrill.legacyReturnVerified, true);
 
     await assert.rejects(() => rehearseMulticlub({ uri: mongo.getUri(), payload,
       targetDbName: source.databaseName, productionDbName: source.databaseName, migration }), /distinta/);

@@ -5,6 +5,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { parseEncryptionKey, readBackupFile } from "./backup-lib.mjs";
 import { rehearseMulticlub, rehearseRollback } from "./rehearse-multiclub-lib.mjs";
 import { smokeRestoredPilot } from "./smoke-restored-pilot.mjs";
+import { smokeModeSwitch } from "./smoke-mode-switch.mjs";
 
 const args = process.argv.slice(2);
 const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : ""; };
@@ -28,11 +29,13 @@ try {
     organizationSlug: migration.organizationSlug, venueSlug: migration.venueSlug });
   const rollback = await rehearseRollback({ uri: mongo.getUri(), payload,
     targetDbName: "padelbook_pilot_rollback_qa", migratedDbName: report.targetDatabase });
-  await writeFile(resolve(output), `${JSON.stringify({ ...report, ...apiSmoke, ...rollback, rehearsedAt: new Date().toISOString() }, null, 2)}\n`);
+  const modeSwitch = await smokeModeSwitch({ uri: mongo.getUri(), legacyDbName: "padelbook_pilot_rollback_qa",
+    multiclubDbName: report.targetDatabase, organizationSlug: migration.organizationSlug, venueSlug: migration.venueSlug });
+  await writeFile(resolve(output), `${JSON.stringify({ ...report, ...apiSmoke, ...rollback, ...modeSwitch, rehearsedAt: new Date().toISOString() }, null, 2)}\n`);
   console.log(JSON.stringify({ verified: report.verified, sourceDatabase: report.sourceDatabase,
     targetDatabase: report.targetDatabase, collections: report.collections, documents: report.documents,
     memberships: report.memberships, indexesCreated: report.indexesCreated,
-    globalIndexesRemoved: report.globalIndexesRemoved, ...apiSmoke, ...rollback }));
+    globalIndexesRemoved: report.globalIndexesRemoved, ...apiSmoke, ...rollback, ...modeSwitch }));
 } finally {
   await mongo.stop();
 }
