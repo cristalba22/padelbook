@@ -148,14 +148,18 @@ export function VenueOverview() {
     <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/reservar`}>
       Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link>
       {canManageBookings && <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/recepcion/reservas`}>Gestionar reservas</Link>}</div>
+    <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/torneos`}>Ver torneos <ArrowRight size={17} /></Link></div>
     {organization?.role === "admin" && organization.venues.some((item) => item.slug === venueSlug) &&
       <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/caja`}>Caja de la sede</Link>
+        <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/profesores`}>Profesorado</Link>
+        <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/torneos/gestionar`}>Gestionar torneos</Link>
         <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/configuracion`}>Configurar sede <ArrowRight size={17} /></Link></div>}
     <section className="org-section" aria-labelledby="venue-courts-title"><div className="org-section__heading"><div><span className="org-eyebrow">Instalaciones</span><h2 id="venue-courts-title">Canchas</h2></div></div>
       {courts.length ? <div className="org-court-list">{courts.map((court) => <article key={court.id}><div><strong>{court.name}</strong><small>{court.surface || court.description || "Cancha de pádel"}</small></div>
         <span>{court.openingTime}–{court.closingTime}</span><b>Desde {money(court.basePrice)} / h</b></article>)}</div>
         : <p className="org-empty">Esta sede todavía no tiene canchas publicadas.</p>}</section>
-    <section className="org-section" aria-labelledby="venue-tournaments-title"><div className="org-section__heading"><div><span className="org-eyebrow">Calendario</span><h2 id="venue-tournaments-title">Próximos torneos</h2></div></div>
+    <section className="org-section" aria-labelledby="venue-tournaments-title"><div className="org-section__heading"><div><span className="org-eyebrow">Calendario</span><h2 id="venue-tournaments-title">Próximos torneos</h2></div>
+      <Link className="org-staff-link" to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/torneos`}>Ver todos <ArrowRight size={16} /></Link></div>
       {upcoming.length ? <div className="org-court-list">{upcoming.map((item) => <article key={item.id}><div><strong>{item.name}</strong><small>{item.category}</small></div>
         <span>{item.date.split("-").reverse().join("/")} · {item.hour}</span></article>)}</div>
         : <p className="org-empty">No hay torneos abiertos en esta sede.</p>}</section>

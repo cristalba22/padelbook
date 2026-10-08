@@ -1,0 +1,19 @@
+.venue-management__layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); align-items: start; gap: 18px; }
+.venue-management__layout .org-section { margin-top: 0; }
+.venue-management__list { display: grid; gap: 10px; }
+.venue-management__row { display: grid; grid-template-columns: minmax(150px, 1fr) 145px 125px auto; align-items: end; gap: 12px; padding: 16px; border: 1px solid #dce6de; border-radius: 12px; background: #fff; }
+.venue-management__row > div { display: grid; gap: 3px; align-self: center; }
+.venue-management__row strong { color: #15271b; }
+.venue-management__row small { color: #69796d; }
+.venue-management__form { display: grid; gap: 13px; }
+.venue-management__row label, .venue-management__form label { display: grid; gap: 5px; color: #435347; font-size: .76rem; font-weight: 750; }
+.venue-management__row input, .venue-management__row select, .venue-management__form input, .venue-management__form select, .venue-management__form textarea { width: 100%; min-height: 42px; padding: 8px 11px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #17291e; font: inherit; }
+.venue-management__form textarea { min-height: 80px; resize: vertical; }
+.venue-management__row button, .venue-management__form button, .venue-management__action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 14px; border: 0; border-radius: 9px; background: #204b34; color: #fff; font-weight: 750; cursor: pointer; }
+.venue-management__row button:disabled, .venue-management__form button:disabled, .venue-management__action:disabled { opacity: .55; cursor: not-allowed; }
+.venue-management__hint { margin: 18px 0 0; color: #607466; font-size: .78rem; line-height: 1.5; }
+.venue-management__hint a { color: #286845; font-weight: 750; }
+.venue-management__notice { padding: 12px 15px; border-radius: 9px; background: #e7f5e8; color: #255438; }
+@media (max-width: 960px) { .venue-management__layout { grid-template-columns: 1fr; } }
+@media (max-width: 650px) { .venue-management__row { grid-template-columns: 1fr 1fr; } .venue-management__row > div { grid-column: 1 / -1; } }
+@media (max-width: 420px) { .venue-management__row { grid-template-columns: 1fr; } .venue-management__row > div { grid-column: auto; } }

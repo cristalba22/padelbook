@@ -199,7 +199,9 @@ export default function Layout({ children }) {
       {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}
-        onLoggedIn={(role) => { closeLogin(); if (operatingMode === "multiclub") navigate(ROUTES.CLUBS); else if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
+        onLoggedIn={(role) => { closeLogin(); if (operatingMode === "multiclub") {
+          if (!isOrganizationsWorkspace) navigate(ROUTES.CLUBS);
+        } else if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
       />}
     </>
   );
