@@ -1,0 +1,15 @@
+.venue-teacher__toolbar { display: flex; align-items: end; gap: 10px; margin-bottom: 20px; }
+.venue-teacher__toolbar label { display: grid; gap: 5px; color: #c9d9cf; font-size: .78rem; font-weight: 750; }
+.venue-teacher__toolbar input, .venue-teacher__toolbar button { min-height: 42px; padding: 0 12px; border: 1px solid #7b9b86; border-radius: 9px; background: #f8faf9; color: #183322; font: inherit; }
+.venue-teacher__toolbar button { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.venue-teacher__classes { display: grid; }
+.venue-teacher__classes article { display: grid; grid-template-columns: 105px 1fr auto; gap: 14px; align-items: center; padding: 16px 0; border-top: 1px solid #e2e9e3; }
+.venue-teacher__classes article:first-child { border-top: 0; }
+.venue-teacher__classes article > div { display: grid; gap: 3px; }
+.venue-teacher__classes strong, .venue-teacher__classes b { color: #1a3322; }
+.venue-teacher__classes small, .venue-teacher__classes span { color: #657469; font-size: .78rem; }
+.venue-teacher__blocks { display: grid; gap: 7px; margin-top: 20px; }
+.venue-teacher__blocks > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-top: 1px solid #e4ebe5; color: #284332; font-size: .85rem; }
+.venue-teacher__blocks button { min-height: 36px; padding: 0 11px; border: 1px solid #c5dbcb; border-radius: 7px; background: #fff; color: #295f3b; cursor: pointer; }
+.venue-teacher__blocks button:disabled { opacity: .5; }
+@media (max-width: 560px) { .venue-teacher__classes article { grid-template-columns: 1fr auto; } .venue-teacher__classes article > div { grid-column: 1 / -1; grid-row: 2; } }

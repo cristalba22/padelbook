@@ -11,7 +11,7 @@ import { isValidDateISO } from "./dateValidation.mjs";
 import { createVenueCourt, updateVenueCourt } from "./venueCourts.mjs";
 import { createVenueBlocks, deleteVenueBlocks, listAdminVenueBlocks, listVenueBlocks } from "./venueBlocks.mjs";
 import { updateVenueSettings } from "./venueSettings.mjs";
-import { createVenueTeacher, listAdminVenueTeachers, updateVenueTeacher } from "./venueTeachers.mjs";
+import { createVenueTeacher, linkVenueTeacher, listAdminVenueTeachers, myVenueTeacherSchedule, updateVenueTeacher } from "./venueTeachers.mjs";
 import { createVenueTournament, deleteVenueTournament, listAdminVenueTournaments, listMyVenueTournaments,
   registerVenueTournament, updateVenueRegistration, updateVenueTournament } from "./venueTournaments.mjs";
 import { createVenueExpense, venueActivity, venueFinanceSummary } from "./venueFinance.mjs";
@@ -47,6 +47,8 @@ venueRouter.get("/:organizationSlug/:venueSlug/teachers", async (req, res) => {
 venueRouter.get("/:organizationSlug/:venueSlug/admin/teachers", requireAuth, requireVenueRole("admin"), listAdminVenueTeachers);
 venueRouter.post("/:organizationSlug/:venueSlug/admin/teachers", requireAuth, requireVenueRole("admin"), createVenueTeacher);
 venueRouter.patch("/:organizationSlug/:venueSlug/admin/teachers/:id", requireAuth, requireVenueRole("admin"), updateVenueTeacher);
+venueRouter.patch("/:organizationSlug/:venueSlug/admin/teachers/:id/link", requireAuth, requireVenueRole("admin"), linkVenueTeacher);
+venueRouter.get("/:organizationSlug/:venueSlug/teacher/me", requireAuth, requireVenueRole("teacher"), myVenueTeacherSchedule);
 
 venueRouter.get("/:organizationSlug/:venueSlug/tournaments", async (req, res) => {
   const tournaments = await Tournament.find(venueScope(req.venueContext)).sort({ date: 1 });

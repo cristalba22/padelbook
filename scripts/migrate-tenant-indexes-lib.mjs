@@ -11,6 +11,8 @@ const specs = [
     partialFilterExpression: { organizationId: { $exists: true }, venueId: { $exists: true } } },
   { collection: "courts", name: "venue_court_id_unique", key: { organizationId: 1, venueId: 1, courtId: 1 },
     oldKey: { courtId: 1 } },
+  { collection: "teachers", name: "venue_teacher_user_unique", key: { organizationId: 1, venueId: 1, userId: 1 },
+    partialFilterExpression: { userId: { $gt: "" } } },
   { collection: "bookings", name: "venue_booking_slot_unique", key: { organizationId: 1, venueId: 1, date: 1, courtId: 1, occupiedSlots: 1 },
     oldKey: { date: 1, courtId: 1, occupiedSlots: 1 }, partialFilterExpression: activeBooking },
   { collection: "bookings", name: "venue_teacher_slot_unique", key: { organizationId: 1, venueId: 1, date: 1, teacherId: 1, occupiedSlots: 1 },

@@ -233,6 +233,9 @@ const teacherSchema = new mongoose.Schema({
   price: { type: Number, default: 30000 },
   userId: { type: String, default: "" },
 }, baseOptions);
+teacherSchema.index({ organizationId: 1, venueId: 1, userId: 1 }, {
+  unique: true, name: "venue_teacher_user_unique", partialFilterExpression: { userId: { $gt: "" } },
+});
 
 const slotClaimSchema = new mongoose.Schema({
   ...scopeFields,

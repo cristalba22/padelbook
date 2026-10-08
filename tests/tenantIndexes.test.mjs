@@ -22,6 +22,7 @@ test("migra índices globales sin perder unicidad dentro de cada sede", async ()
     const bookings = db.collection("bookings");
     const blocks = db.collection("scheduleblocks");
     const claims = db.collection("slotclaims");
+    const teachers = db.collection("teachers");
     await courts.createIndex({ courtId: 1 }, { unique: true });
     await bookings.createIndex({ date: 1, courtId: 1, occupiedSlots: 1 }, { unique: true,
       partialFilterExpression: { occupiedSlots: { $exists: true }, status: { $in: ["pendiente", "confirmado"] } } });
@@ -49,6 +50,7 @@ test("migra índices globales sin perder unicidad dentro de cada sede", async ()
     const preview = await migrateTenantIndexes(db);
     assert.equal(preview.dryRun, true);
     assert.ok(preview.plannedDrops.includes("courts.courtId_1"));
+    assert.ok(preview.plannedCreates.includes("teachers.venue_teacher_user_unique"));
     assert.ok((await courts.indexes()).some((index) => index.name === "courtId_1"));
     const applied = await migrateTenantIndexes(db, { dryRun: false });
     assert.equal(applied.removed.length, 5);
@@ -68,6 +70,11 @@ test("migra índices globales sin perder unicidad dentro de cada sede", async ()
     await bookings.insertOne({ ...scopeB, date: "2026-10-20", courtId: "cancha-1", occupiedSlots: [1140], status: "confirmado" });
     await blocks.insertOne({ ...scopeB, date: "2026-10-20", courtId: "cancha-1", hour: "20:00" });
     await claims.insertOne({ ...scopeB, date: "2026-10-20", courtId: "cancha-1", slot: 1140 });
+    await teachers.insertMany([{ ...scopeA, name: "Profe A", userId: "user-1" },
+      { ...scopeA2, name: "Profe Norte", userId: "user-1" },
+      { ...scopeB, name: "Profe B", userId: "user-1" },
+      { ...scopeA, name: "Perfil sin cuenta", userId: "" }]);
+    await assert.rejects(() => teachers.insertOne({ ...scopeA, name: "Duplicado", userId: "user-1" }), { code: 11000 });
     await bookings.insertOne({ ...scopeA, date: "2026-10-20", courtId: "clase-a", teacherId: "profe-1", type: "class", occupiedSlots: [1080], status: "confirmado" });
     await bookings.insertOne({ ...scopeB, date: "2026-10-20", courtId: "clase-b", teacherId: "profe-1", type: "class", occupiedSlots: [1080], status: "confirmado" });
     await assert.rejects(() => courts.insertOne({ ...scopeB, courtId: "cancha-1" }), { code: 11000 });

@@ -149,6 +149,8 @@ export function VenueOverview() {
       Reservar cancha <ArrowRight size={17} /></Link><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-turnos`}>Mis turnos</Link>
       {canManageBookings && <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/recepcion/reservas`}>Gestionar reservas</Link>}</div>
     <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/torneos`}>Ver torneos <ArrowRight size={17} /></Link></div>
+    {organization?.role === "teacher" && organization.venues.some((item) => item.slug === venueSlug) &&
+      <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/mis-clases`}>Mis clases <ArrowRight size={17} /></Link></div>}
     {organization?.role === "admin" && organization.venues.some((item) => item.slug === venueSlug) &&
       <div className="venue-overview-actions"><Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/caja`}>Caja de la sede</Link>
         <Link to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/${segment(venueSlug)}/profesores`}>Profesorado</Link>

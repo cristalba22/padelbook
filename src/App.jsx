@@ -34,6 +34,7 @@ const VenueFinance = lazy(() => import("./pages/VenueFinance.jsx"));
 const MulticlubAccount = lazy(() => import("./pages/MulticlubAccount.jsx"));
 const VenueTeachers = lazy(() => import("./pages/VenueTeachers.jsx"));
 const VenueTournaments = lazy(() => import("./pages/VenueTournaments.jsx"));
+const VenueTeacherSchedule = lazy(() => import("./pages/VenueTeacherSchedule.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -96,6 +97,7 @@ export default function App() {
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/configuracion`} element={<Suspense fallback={<div className="org-state" role="status">Cargando configuración…</div>}><VenueAdminConfig /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/caja`} element={<Suspense fallback={<div className="org-state" role="status">Cargando caja…</div>}><VenueFinance /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/profesores`} element={<Suspense fallback={<div className="org-state" role="status">Cargando profesores…</div>}><VenueTeachers /></Suspense>} />
+          <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/mis-clases`} element={<Suspense fallback={<div className="org-state" role="status">Cargando clases…</div>}><VenueTeacherSchedule /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/torneos`} element={<Suspense fallback={<div className="org-state" role="status">Cargando torneos…</div>}><VenueTournaments /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug/torneos/gestionar`} element={<Suspense fallback={<div className="org-state" role="status">Cargando torneos…</div>}><VenueTournaments management /></Suspense>} />
 

@@ -1,6 +1,10 @@
 .venue-management__layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); align-items: start; gap: 18px; }
 .venue-management__layout .org-section { margin-top: 0; }
 .venue-management__list { display: grid; gap: 10px; }
+.venue-management__teacher { border: 1px solid #dce6de; border-radius: 12px; background: #fff; }
+.venue-management__teacher .venue-management__row { border: 0; }
+.venue-management__link { display: grid; gap: 6px; margin: 0 16px 16px; padding-top: 12px; border-top: 1px solid #e4eae6; color: #435347; font-size: .76rem; font-weight: 750; }
+.venue-management__link select { width: min(420px, 100%); min-height: 42px; padding: 8px 11px; border: 1px solid #cbd9d0; border-radius: 9px; background: #fff; color: #17291e; font: inherit; }
 .venue-management__row { display: grid; grid-template-columns: minmax(150px, 1fr) 145px 125px auto; align-items: end; gap: 12px; padding: 16px; border: 1px solid #dce6de; border-radius: 12px; background: #fff; }
 .venue-management__row > div { display: grid; gap: 3px; align-self: center; }
 .venue-management__row strong { color: #15271b; }

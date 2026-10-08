@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { z } from "zod";
-import { Booking, Court, ScheduleBlock, SlotClaim, addActivity } from "./db.mjs";
+import { Booking, Court, ScheduleBlock, SlotClaim, Teacher, addActivity } from "./db.mjs";
 import { withAgendaTransaction } from "./agendaTransaction.mjs";
 import { isValidDateISO } from "./dateValidation.mjs";
 import { fitsCourtHours } from "./courtView.mjs";
@@ -37,7 +37,8 @@ export async function listVenueBlocks(req, res) {
 }
 
 export async function listAdminVenueBlocks(req, res) {
-  const blocks = await ScheduleBlock.find(venueScope(req.venueContext)).sort({ date: 1, courtId: 1, hour: 1 }).limit(5000);
+  const own = req.venueMembership.role === "teacher" ? { ownerId: req.user.id, type: "teacher" } : {};
+  const blocks = await ScheduleBlock.find(venueScope(req.venueContext, own)).sort({ date: 1, courtId: 1, hour: 1 }).limit(5000);
   res.json({ blocks: blocks.map((block) => block.toJSON()) });
 }
 
@@ -46,6 +47,9 @@ export async function createVenueBlocks(req, res) {
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos inválidos." });
   const context = req.venueContext;
   const role = req.venueMembership.role;
+  if (role === "teacher" && !await Teacher.exists(venueScope(context, { userId: req.user.id, status: "activo" }))) {
+    return res.status(403).json({ message: "Tu perfil de profesor no está activo en esta sede." });
+  }
   const blocks = parsed.data.blocks.map((item) => ({ ...item,
     organizationId: context.organizationId, venueId: context.venueId,
     ownerId: role === "teacher" ? req.user.id : "",
@@ -105,6 +109,10 @@ export async function createVenueBlocks(req, res) {
 export async function deleteVenueBlocks(req, res) {
   const parsed = deleteInput.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Bloqueos inválidos." });
+  if (req.venueMembership.role === "teacher" && !await Teacher.exists(venueScope(req.venueContext,
+    { userId: req.user.id, status: "activo" }))) {
+    return res.status(403).json({ message: "Tu perfil de profesor no está activo en esta sede." });
+  }
   const keys = parsed.data.keys.map(({ date, courtId, hour }) => ({ date, courtId: canonicalCourtId(courtId), hour }));
   const context = req.venueContext;
   const filter = venueScope(context, { $or: keys,

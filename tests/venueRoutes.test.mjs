@@ -15,7 +15,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
   let server;
   try {
     await mongoose.connect(mongo.getUri(), { dbName: process.env.MONGODB_DB_NAME });
-    await Promise.all([Booking.init(), SlotClaim.init(), Setting.init(), User.init(), Membership.init()]);
+    await Promise.all([Booking.init(), SlotClaim.init(), Setting.init(), User.init(), Membership.init(), Teacher.init()]);
     const [orgA, orgB] = await Organization.create([{ slug: "club-a", name: "Club A" }, { slug: "club-b", name: "Club B" }]);
     const [venueA, venueA2, venueB] = await Venue.create([
       { organizationId: orgA.id, slug: "centro", name: "Centro A" },
@@ -172,6 +172,21 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.deepEqual((await request("/club-a/centro/availability?date=2026-10-20")).data.occupied.map((booking) => booking.courtId), ["court-a"]);
     assert.deepEqual((await request("/club-a/norte/availability?date=2026-10-20")).data.occupied, []);
     assert.deepEqual((await request("/club-a/centro/teachers")).data.teachers.map((teacher) => teacher.name), ["Profe A"]);
+    const linkTeacher = (id, user, userId) => request(`/club-a/centro/admin/teachers/${id}/link`, user,
+      { method: "PATCH", body: { userId } });
+    assert.equal((await request("/club-a/centro/teacher/me?date=2026-10-20", teacherUserA)).status, 404);
+    assert.equal((await linkTeacher(teacherA.id, receptionistA, teacherUserA.id)).status, 403);
+    assert.equal((await linkTeacher(teacherA.id, adminA, receptionistA.id)).status, 400);
+    assert.equal((await linkTeacher(teacherA.id, adminA, adminB.id)).status, 400);
+    assert.equal((await linkTeacher(teacherB.id, adminA, teacherUserA.id)).status, 404);
+    assert.equal((await linkTeacher(teacherA.id, adminA, teacherUserA.id)).status, 200);
+    const duplicateTeacher = await Teacher.create({ organizationId: orgA.id, venueId: venueA.id, name: "Otro Profe A" });
+    assert.equal((await linkTeacher(duplicateTeacher.id, adminA, teacherUserA.id)).status, 409);
+    const ownSchedule = await request("/club-a/centro/teacher/me?date=2026-10-20", teacherUserA);
+    assert.equal(ownSchedule.status, 200);
+    assert.equal(ownSchedule.data.teacher.name, "Profe A");
+    assert.deepEqual(ownSchedule.data.bookings, []);
+    assert.equal((await request("/club-b/centro/teacher/me?date=2026-10-20", teacherUserA)).status, 403);
     const createdTeacher = await request("/club-a/norte/admin/teachers", adminA, { method: "POST",
       body: { name: "Profe Norte", specialty: "Clases individuales", price: 33000 } });
     assert.equal(createdTeacher.status, 201);
@@ -297,6 +312,10 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     const classSlot = { ...slot, time: "09:00", type: "class", teacherId: teacherB.id };
     assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: classSlot })).status, 409);
     assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...classSlot, teacherId: teacherA.id } })).status, 201);
+    const teacherSchedule = await request(`/club-a/centro/teacher/me?date=${slot.date}`, teacherUserA);
+    assert.equal(teacherSchedule.status, 200);
+    assert.deepEqual(teacherSchedule.data.bookings.map((booking) => booking.playerName), [playerA.name]);
+    assert.deepEqual(teacherSchedule.data.courts.map((court) => court.id), ["court-a"]);
     const receptionBooking = await request("/club-a/centro/bookings", receptionistA, { method: "POST",
       body: { ...slot, time: "15:00", playerName: "Jugador por recepción", phone: "3511234567" } });
     assert.equal(receptionBooking.status, 201);
@@ -332,6 +351,7 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     const teacherBlockBody = { blocks: [{ date: slot.date, courtId: "court-a", hour: "10:00", durationMinutes: 60 }] };
     assert.equal((await request("/club-a/norte/admin/blocks/batch", teacherUserA, { method: "POST", body: teacherBlockBody })).status, 403);
     assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA, { method: "POST", body: teacherBlockBody })).status, 201);
+    assert.deepEqual((await request(`/club-a/centro/teacher/me?date=${slot.date}`, teacherUserA)).data.blocks.map((item) => item.hour), ["10:00"]);
     assert.equal((await request("/club-a/centro/bookings", playerA, { method: "POST", body: { ...slot, time: "10:00" } })).status, 409);
     assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA, { method: "DELETE",
       body: { keys: [{ date: slot.date, courtId: "court-a", hour: "10:00" }] } })).data.deleted, 1);
@@ -342,6 +362,10 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
       { method: "DELETE", body: clubBlockKey })).data.deleted, 0);
     assert.equal((await request("/club-a/centro/admin/blocks/batch", adminA,
       { method: "DELETE", body: clubBlockKey })).data.deleted, 1);
+    await Membership.updateOne({ userId: teacherUserA.id, organizationId: orgA.id }, { $set: { active: false } });
+    assert.equal((await request(`/club-a/centro/teacher/me?date=${slot.date}`, teacherUserA)).status, 403);
+    assert.equal((await request("/club-a/centro/admin/blocks/batch", teacherUserA,
+      { method: "POST", body: teacherBlockBody })).status, 403);
     const paymentPath = `/club-a/centro/admin/bookings/${winner.data.booking.id}/payments`;
     const payment = { amount: 5000, method: "transferencia", idempotencyKey: randomUUID() };
     const [paidOnce, paidAgain] = await Promise.all([
