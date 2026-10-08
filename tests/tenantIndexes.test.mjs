@@ -36,6 +36,10 @@ test("migra índices globales sin perder unicidad dentro de cada sede", async ()
     await bookings.insertOne({ ...scopeA, date: "2026-10-20", courtId: "cancha-1", occupiedSlots: [1140], status: "confirmado" });
     await blocks.insertOne({ ...scopeA, date: "2026-10-20", courtId: "cancha-1", hour: "20:00" });
     await claims.insertOne({ ...scopeA, date: "2026-10-20", courtId: "cancha-1", slot: 1140 });
+    await db.collection("activities").insertMany([
+      { organizationId: orgA, type: "staff_created", title: "Equipo" },
+      { type: "user_registered", title: "Cuenta de la plataforma" },
+    ]);
 
     const unscoped = await db.collection("expenses").insertOne({ concept: "Sin sede" });
     await assert.rejects(() => migrateTenantIndexes(db, { dryRun: false }), /expenses: hay documentos sin organización o sede/);

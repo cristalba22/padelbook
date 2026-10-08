@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { MONGODB_DB_NAME, MONGODB_URI } from "./config.mjs";
+import { MONGODB_DB_NAME, MONGODB_URI, PADELBOOK_OPERATING_MODE } from "./config.mjs";
+import { assertTenantIndexesReady } from "../scripts/migrate-tenant-indexes-lib.mjs";
 import { bookingSlotStarts, canonicalCourtId } from "../src/utils/bookingDomain.js";
 import { COURTS as DEFAULT_COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 
@@ -265,7 +266,12 @@ export async function connectDb() {
   if (!MONGODB_URI) {
     throw new Error("Falta MONGODB_URI. Configura MongoDB Atlas o una instancia local en .env.");
   }
+  if (PADELBOOK_OPERATING_MODE === "multiclub") mongoose.set("autoIndex", false);
   await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB_NAME, serverSelectionTimeoutMS: 10000 });
+  if (PADELBOOK_OPERATING_MODE === "multiclub") {
+    await assertTenantIndexesReady(mongoose.connection.db);
+    return;
+  }
   await assertLegacySingleVenue();
   await seedDatabase();
   await seedCourts();

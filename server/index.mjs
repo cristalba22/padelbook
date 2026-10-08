@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import { z } from "zod";
-import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN } from "./config.mjs";
+import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN, PADELBOOK_OPERATING_MODE } from "./config.mjs";
 import { Activity, Booking, Court, Expense, PasswordReset, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { clearSessionCookie, createSession, publicUser, requireAuth, requireRole, sessionCookie } from "./auth.mjs";
 import { requestContextMiddleware } from "./requestContext.mjs";
@@ -97,13 +97,16 @@ app.get("/api", (_req, res) => {
     name: "PadelBook API",
     status: "online",
     database: dbState(),
-    endpoints: ["/api/health", "/api/auth/login", "/api/bookings", "/api/blocks", "/api/tournaments", "/api/settings", "/api/finance/summary"],
+    mode: PADELBOOK_OPERATING_MODE,
+    endpoints: PADELBOOK_OPERATING_MODE === "multiclub"
+      ? ["/api/health", "/api/auth/login", "/api/auth/organizations", "/api/organizations", "/api/venues"]
+      : ["/api/health", "/api/auth/login", "/api/bookings", "/api/blocks", "/api/tournaments", "/api/settings", "/api/finance/summary"],
   });
 });
 
 app.get("/api/health", (_req, res) => {
   const connected = dbState() === "connected";
-  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
+  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), mode: PADELBOOK_OPERATING_MODE, timestamp: new Date().toISOString() });
 });
 
 app.use("/api/venues", venueRouter);
@@ -252,6 +255,11 @@ app.patch("/api/auth/password", authLimiter, requireAuth, async (req, res) => {
   await account.save();
   res.setHeader("Set-Cookie", clearSessionCookie());
   res.status(204).end();
+});
+
+app.use("/api", (_req, res, next) => {
+  if (PADELBOOK_OPERATING_MODE === "multiclub") return res.status(404).json({ message: "Ruta anterior no disponible en multiclub." });
+  next();
 });
 
 app.get("/api/admin/staff", requireAuth, requireRole("admin"), async (_req, res) => {

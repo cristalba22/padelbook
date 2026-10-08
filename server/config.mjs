@@ -8,6 +8,7 @@ export const COOKIE_SAME_SITE = process.env.COOKIE_SAME_SITE || (process.env.NOD
 export const API_PROXY_SECRET = process.env.API_PROXY_SECRET || "";
 export const MONGODB_URI = process.env.MONGODB_URI || "";
 export const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "padelbook";
+export const PADELBOOK_OPERATING_MODE = process.env.PADELBOOK_OPERATING_MODE || "legacy";
 export const PUBLIC_APP_ORIGIN = process.env.PUBLIC_APP_ORIGIN || CLIENT_ORIGIN;
 export const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 export const RESEND_API_URL = process.env.RESEND_API_URL || "https://api.resend.com/emails";
@@ -25,6 +26,10 @@ function secureOrigin(value) {
 
 if (!/^[a-zA-Z0-9_-]{3,64}$/.test(MONGODB_DB_NAME)) {
   throw new Error("MONGODB_DB_NAME debe tener entre 3 y 64 caracteres: letras, números, guion o guion bajo.");
+}
+
+if (!["legacy", "multiclub"].includes(PADELBOOK_OPERATING_MODE)) {
+  throw new Error("PADELBOOK_OPERATING_MODE debe ser legacy o multiclub.");
 }
 
 if (!["lax", "strict", "none"].includes(COOKIE_SAME_SITE)) {

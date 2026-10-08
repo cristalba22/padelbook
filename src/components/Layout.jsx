@@ -13,7 +13,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, apiReady, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { user, logout, showLogin, apiReady, operatingMode, openLogin: openGlobalLogin, closeLogin } = useAuth();
   const { organizations = [] } = useOptionalOrganizations() || {};
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,7 +38,7 @@ export default function Layout({ children }) {
 
   const renderNavLinks = (extraClasses = "") => (
     <>
-      {isOrganizationsWorkspace ? <NavLink to={ROUTES.CLUBS} onClick={closeMobile}
+      {operatingMode === "multiclub" || isOrganizationsWorkspace ? <NavLink to={ROUTES.CLUBS} onClick={closeMobile}
         className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Mis clubes</NavLink> : <>
       {navItems.map((item) => (
         <NavLink
@@ -199,7 +199,7 @@ export default function Layout({ children }) {
       {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}
-        onLoggedIn={(role) => { closeLogin(); if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
+        onLoggedIn={(role) => { closeLogin(); if (operatingMode === "multiclub") navigate(ROUTES.CLUBS); else if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
       />}
     </>
   );

@@ -4,6 +4,8 @@ Reservas y gestión diaria para clubes de pádel. Un jugador consulta la disponi
 
 **Web:** [padelbook.crisalbavideografo.workers.dev](https://padelbook.crisalbavideografo.workers.dev) · **Estado:** preparación del primer piloto en un club de Córdoba. Cada instalación opera un club; los cobros se registran manualmente.
 
+La evolución multiclub se desarrolla en la rama `codex/multisite-foundation` y permanece sin desplegar. El [plan multiclub](docs/PLAN_MULTISEDE_MULTICLUB.md) detalla el aislamiento, la migración y los criterios para habilitar varias organizaciones.
+
 ## Producto
 
 | Área | Qué permite hacer |

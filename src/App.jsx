@@ -31,6 +31,7 @@ import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
 const VenueAdminConfig = lazy(() => import("./pages/VenueAdminConfig.jsx"));
 const OrganizationStaff = lazy(() => import("./pages/OrganizationStaff.jsx"));
 const VenueFinance = lazy(() => import("./pages/VenueFinance.jsx"));
+const MulticlubAccount = lazy(() => import("./pages/MulticlubAccount.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -65,6 +66,11 @@ function PlayerRoute({ children }) {
 
 export default function App() {
   const location = useLocation();
+  const { operatingMode } = useAuth();
+  if (operatingMode === "multiclub" && location.pathname !== ROUTES.CLUBS && !location.pathname.startsWith(`${ROUTES.CLUBS}/`) &&
+    location.pathname !== ROUTES.ACCOUNT && location.pathname !== ROUTES.RESET_PASSWORD) {
+    return <Navigate to={ROUTES.CLUBS} replace />;
+  }
   return (
     <div className={`app-shell ${location.pathname === ROUTES.HOME ? "home-experience" : ""}`}>
       <Layout>
@@ -75,7 +81,7 @@ export default function App() {
           <Route path={ROUTES.MY_BOOKINGS} element={<MyBookings />} />
           <Route path={ROUTES.TOURNAMENTS} element={<Tournaments />} />
           <Route path={ROUTES.COMMUNITY} element={<Comunidad />} />
-          <Route path={ROUTES.ACCOUNT} element={<Account />} />
+          <Route path={ROUTES.ACCOUNT} element={operatingMode === "multiclub" ? <Suspense fallback={<div className="org-state" role="status">Cargando cuenta…</div>}><MulticlubAccount /></Suspense> : <Account />} />
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
           <Route path={ROUTES.CLUBS} element={<Organizations />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug`} element={<OrganizationDashboard />} />
@@ -170,7 +176,7 @@ export default function App() {
         </Routes>
       </Layout>
 
-      {!location.pathname.startsWith("/admin") && !location.pathname.startsWith(ROUTES.CLUBS) && <Footer />}
+      {operatingMode !== "multiclub" && !location.pathname.startsWith("/admin") && !location.pathname.startsWith(ROUTES.CLUBS) && <Footer />}
     </div>
   );
 }

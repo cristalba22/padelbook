@@ -1,0 +1,10 @@
+.multiclub-account__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.multiclub-account__grid .org-section { margin-top: 0; }
+.multiclub-account form { display: grid; gap: 14px; }
+.multiclub-account label { display: grid; gap: 6px; color: #344753; font-size: .82rem; font-weight: 700; }
+.multiclub-account input { width: 100%; min-height: 43px; padding: 8px 11px; border: 1px solid #cbd8d4; border-radius: 8px; background: #fff; color: #15261b; font: inherit; }
+.multiclub-account form button { min-height: 43px; border: 1px solid #20573b; border-radius: 8px; background: #20573b; color: #fff; font-size: .85rem; font-weight: 750; cursor: pointer; }
+.multiclub-account button:disabled { opacity: .55; cursor: not-allowed; }
+.multiclub-account__notice { padding: 13px 16px; border: 1px solid #add2af; border-radius: 9px; background: #eaf5e9; color: #20573b; font-size: .84rem; }
+.multiclub-account input:focus-visible, .multiclub-account button:focus-visible { outline: 3px solid #a6db91; outline-offset: 2px; }
+@media (max-width: 760px) { .multiclub-account__grid { grid-template-columns: 1fr; } }

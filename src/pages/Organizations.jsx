@@ -20,9 +20,9 @@ function StatePanel({ title, detail, retry }) {
 }
 
 export function Organizations() {
-  const { user } = useAuth();
+  const { user, openLogin } = useAuth();
   const { organizations, loading, error, refresh } = useOrganizations();
-  if (!user) return <StatePanel title="Ingresá para ver tus clubes" detail="Tu cuenta muestra las organizaciones y sedes a las que tenés acceso." />;
+  if (!user) return <section className="org-state"><h1>Ingresá para ver tus clubes</h1><p>Tu cuenta muestra las organizaciones y sedes a las que tenés acceso.</p><button type="button" onClick={openLogin}>Ingresar</button></section>;
   if (loading) return <StatePanel title="Consultando tus clubes" detail="Estamos verificando tus permisos." />;
   if (error) return <StatePanel title="No pudimos cargar tus clubes" detail={error} retry={refresh} />;
   return <main className="org-page">

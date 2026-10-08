@@ -3,6 +3,12 @@ const activeTeacherBooking = { type: "class", status: { $in: ["pendiente", "conf
   teacherId: { $type: "string" }, occupiedSlots: { $exists: true } };
 
 const specs = [
+  { collection: "organizations", name: "slug_1", key: { slug: 1 } },
+  { collection: "venues", name: "organizationId_1_slug_1", key: { organizationId: 1, slug: 1 } },
+  { collection: "memberships", name: "organizationId_1_userId_1", key: { organizationId: 1, userId: 1 } },
+  { collection: "users", name: "email_1", key: { email: 1 } },
+  { collection: "settings", name: "organizationId_1_venueId_1", key: { organizationId: 1, venueId: 1 },
+    partialFilterExpression: { organizationId: { $exists: true }, venueId: { $exists: true } } },
   { collection: "courts", name: "venue_court_id_unique", key: { organizationId: 1, venueId: 1, courtId: 1 },
     oldKey: { courtId: 1 } },
   { collection: "bookings", name: "venue_booking_slot_unique", key: { organizationId: 1, venueId: 1, date: 1, courtId: 1, occupiedSlots: 1 },
@@ -15,7 +21,7 @@ const specs = [
     oldKey: { date: 1, courtId: 1, slot: 1 } },
 ];
 
-const scopedCollections = ["courts", "bookings", "tournaments", "settings", "activities", "expenses", "scheduleblocks", "teachers", "slotclaims"];
+const scopedCollections = ["courts", "bookings", "tournaments", "settings", "expenses", "scheduleblocks", "teachers", "slotclaims"];
 const sameKey = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 async function indexesOrEmpty(collection) {
   try { return await collection.indexes(); } catch (error) { if (error.code === 26) return []; throw error; }
@@ -41,6 +47,16 @@ async function assertScopedData(db) {
       throw new Error(`${name}: hay documentos asignados a una sede de otra organización.`);
     }
   }
+  const activities = db.collection("activities");
+  const unscopedActivity = await activities.findOne({ organizationId: null,
+    type: { $nin: ["user_registered", "password_reset"] } }, { projection: { _id: 1 } });
+  if (unscopedActivity) throw new Error("activities: hay actividad de club sin organización.");
+  const activityPairs = await activities.aggregate([{ $match: { organizationId: { $ne: null } } },
+    { $group: { _id: { organizationId: "$organizationId", venueId: "$venueId" } } }]).toArray();
+  if (activityPairs.some(({ _id }) => !organizationIds.has(String(_id.organizationId)) ||
+    (_id.venueId != null && venueOrganizations.get(String(_id.venueId)) !== String(_id.organizationId)))) {
+    throw new Error("activities: hay actividad asignada a otra organización o sede.");
+  }
 }
 
 export async function migrateTenantIndexes(db, { dryRun = true } = {}) {
@@ -65,11 +81,26 @@ export async function migrateTenantIndexes(db, { dryRun = true } = {}) {
     if (!dryRun && (!replacement?.unique || !sameKey(replacement.key, spec.key))) {
       throw new Error(`${spec.collection}: no se verificó el índice nuevo ${spec.name}.`);
     }
-    const old = before.find((item) => item.unique && sameKey(item.key, spec.oldKey));
+    const old = spec.oldKey && before.find((item) => item.unique && sameKey(item.key, spec.oldKey));
     if (old) {
       if (!dryRun) await collection.dropIndex(old.name);
       report[dryRun ? "plannedDrops" : "removed"].push(`${spec.collection}.${old.name}`);
     }
   }
   return report;
+}
+
+export async function assertTenantIndexesReady(db) {
+  await assertScopedData(db);
+  for (const spec of specs) {
+    const indexes = await indexesOrEmpty(db.collection(spec.collection));
+    const current = indexes.find((item) => item.name === spec.name);
+    if (!current?.unique || !sameKey(current.key, spec.key) ||
+      !sameKey(current.partialFilterExpression || null, spec.partialFilterExpression || null)) {
+      throw new Error(`${spec.collection}: falta verificar el índice por sede ${spec.name}.`);
+    }
+    if (spec.oldKey && indexes.some((item) => item.unique && sameKey(item.key, spec.oldKey))) {
+      throw new Error(`${spec.collection}: permanece un índice único global; ejecutá la migración de índices en una copia.`);
+    }
+  }
 }

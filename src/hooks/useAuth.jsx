@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
   const [showLogin, setShowLogin] = useState(false);
   const [apiOnline, setApiOnline] = useState(false);
   const [apiReady, setApiReady] = useState(false);
+  const [operatingMode, setOperatingMode] = useState("legacy");
   const [apiError, setApiError] = useState(false);
 
   const initialize = useCallback(async (isActive) => {
@@ -54,7 +55,9 @@ export function AuthProvider({ children }) {
     let online = false;
     const attempts = configuredApi ? 3 : 1;
     for (let attempt = 0; attempt < attempts && isActive(); attempt += 1) {
-      online = await checkApiHealth(configuredApi ? 30000 : 5000);
+      const health = await checkApiHealth(configuredApi ? 30000 : 5000);
+      online = health.ok;
+      if (online) setOperatingMode(health.mode);
       if (online || !isActive()) break;
       if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 1500));
     }
@@ -220,7 +223,7 @@ export function AuthProvider({ children }) {
     return true;
   }
 
-  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
+  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, operatingMode, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady, operatingMode]);
   return <AuthContext.Provider value={value}>{apiReady ? children : <ConnectionScreen home={pathname === "/"} error={apiError} retry={retryApi} />}</AuthContext.Provider>;
 }
 

@@ -6,7 +6,7 @@ import App from "./App.jsx";
 import "./index.css";
 import "./styles/interior.css";
 
-import { AuthProvider } from "./hooks/useAuth.jsx";
+import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
 import { BookingProvider } from "./hooks/useBooking.jsx";
 import { PricingProvider } from "./context/PricingContext.jsx";
 import { ClubSettingsProvider } from "./context/ClubSettingsContext.jsx";
@@ -17,11 +17,10 @@ import { TeachersProvider } from "./hooks/useTeachers.jsx";
 import { CourtConfigProvider } from "./context/CourtConfigContext.jsx";
 import { OrganizationsProvider } from "./hooks/useOrganizations.jsx";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <OrganizationsProvider>
+function ProductProviders() {
+  const { operatingMode } = useAuth();
+  if (operatingMode === "multiclub") return <OrganizationsProvider><ToastProvider><App /></ToastProvider></OrganizationsProvider>;
+  return <OrganizationsProvider>
         <BookingProvider>
           <PricingProvider>
             <ClubSettingsProvider>
@@ -39,7 +38,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             </ClubSettingsProvider>
           </PricingProvider>
         </BookingProvider>
-        </OrganizationsProvider>
+        </OrganizationsProvider>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <ProductProviders />
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
