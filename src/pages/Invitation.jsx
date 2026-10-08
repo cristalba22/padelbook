@@ -37,7 +37,7 @@ export default function Invitation() {
     } finally { setBusy(false); }
   }
 
-  return <main className="org-page"><section className="org-section" style={{ maxWidth: 680, margin: "4rem auto" }}>
+  return <main className="org-page org-invitation"><section className="org-section">
     <div className="org-section__heading"><div><span className="org-eyebrow">Acceso al club</span><h1>Tu invitación</h1></div></div>
     {state.loading ? <p role="status">Consultando la invitación…</p> : state.invitation ? <>
       <p>Te invitaron a <strong>{state.invitation.clubName}</strong> para trabajar en {roleName[state.invitation.role]}.</p>
@@ -48,7 +48,7 @@ export default function Invitation() {
         : user.email.toLowerCase() !== state.invitation.email ? <p role="alert">Ingresaste como {user.email}. Cerrá sesión e ingresá con el email invitado.</p>
           : <button type="button" className="org-staff-create-button" disabled={busy} onClick={accept}>{busy ? "Activando acceso…" : "Aceptar invitación"}</button>}
     </> : null}
-    {state.error && <p className="org-staff-notice" role="alert">{state.error}</p>}
+    {state.error && <p className="org-staff-notice org-staff-notice--error" role="alert">{state.error}</p>}
     <p><Link to="/clubes">Ir a mis clubes</Link></p>
   </section></main>;
 }
