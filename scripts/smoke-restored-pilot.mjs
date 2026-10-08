@@ -30,7 +30,7 @@ async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilo
     await page.getByLabel("Fecha del turno").fill(date);
     await page.getByRole("combobox", { name: "Cancha" }).selectOption({ label: pilotCourtName });
     await page.getByText(`Horarios de ${pilotCourtName}`, { exact: true }).waitFor();
-    await page.getByRole("link", { name: "Mis clubes" }).click();
+    await page.locator(".site-brand").click();
     await page.getByRole("link", { name: /Club QA/i }).click();
     await page.getByRole("heading", { name: "Sede QA" }).waitFor();
     await page.getByText("Cancha QA", { exact: true }).waitFor();
