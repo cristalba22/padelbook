@@ -17,26 +17,22 @@ try {
   await client.connect();
   const db = client.db(process.env.MONGODB_DB_NAME);
   const oid = () => new mongoose.Types.ObjectId();
-  const orgA = oid(), orgB = oid(), venueA = oid(), venueA2 = oid(), venueB = oid();
+  const orgA = oid(), venueA = oid(), venueA2 = oid();
   const [adminA, receptionA, player, adminB] = [oid(), oid(), oid(), oid()];
-  await db.collection("organizations").insertMany([
+  await db.collection("organizations").insertOne(
     { _id: orgA, slug: "club-cordoba", name: "Club Córdoba", status: "active" },
-    { _id: orgB, slug: "club-sierras", name: "Club Sierras", status: "active" },
-  ]);
+  );
   await db.collection("venues").insertMany([
     { _id: venueA, organizationId: orgA, slug: "centro", name: "Centro", address: "Centro, Córdoba", active: true },
     { _id: venueA2, organizationId: orgA, slug: "norte", name: "Norte", address: "Zona norte, Córdoba", active: true },
-    { _id: venueB, organizationId: orgB, slug: "villa-allende", name: "Villa Allende", address: "Villa Allende, Córdoba", active: true },
   ]);
   await db.collection("courts").insertMany([
     { organizationId: orgA, venueId: venueA, courtId: "court1", name: "Cancha Centro", active: true, basePrice: 18000, nightPrice: 24000 },
     { organizationId: orgA, venueId: venueA2, courtId: "court1", name: "Cancha Norte", active: true, basePrice: 21000, nightPrice: 27000 },
-    { organizationId: orgB, venueId: venueB, courtId: "court1", name: "Cancha Sierras", active: true, basePrice: 25000, nightPrice: 30000 },
   ]);
   await db.collection("settings").insertMany([
     { organizationId: orgA, venueId: venueA, clubName: "Club Córdoba · Centro", address: "Centro, Córdoba" },
     { organizationId: orgA, venueId: venueA2, clubName: "Club Córdoba · Norte", address: "Zona norte, Córdoba" },
-    { organizationId: orgB, venueId: venueB, clubName: "Club Sierras · Villa Allende", address: "Villa Allende, Córdoba" },
   ]);
   const passwordHash = await bcrypt.hash("PadelQa2026!", 12);
   await db.collection("users").insertMany([
@@ -49,9 +45,19 @@ try {
     { userId: adminA, organizationId: orgA, role: "admin", venueIds: [venueA, venueA2], active: true },
     { userId: receptionA, organizationId: orgA, role: "receptionist", venueIds: [venueA], active: true },
     { userId: player, organizationId: orgA, role: "player", venueIds: [], active: true },
-    { userId: player, organizationId: orgB, role: "player", venueIds: [], active: true },
-    { userId: adminB, organizationId: orgB, role: "admin", venueIds: [venueB], active: true },
   ]);
+  const { provisionClub } = await import("./provision-club.mjs");
+  const secondClub = { organizationSlug: "club-sierras", organizationName: "Club Sierras",
+    venueSlug: "villa-allende", venueName: "Villa Allende", venueAddress: "Villa Allende, Córdoba",
+    ownerEmail: "duena-sierras@qa.invalid" };
+  if (!(await provisionClub({ ...secondClub, dryRun: true })).ready) throw new Error("El alta del segundo club no pasó la prevalidación.");
+  if (!(await provisionClub({ ...secondClub, confirm: secondClub.organizationSlug })).created) throw new Error("No se creó el segundo club.");
+  const organizationB = await db.collection("organizations").findOne({ slug: secondClub.organizationSlug });
+  const venueB = await db.collection("venues").findOne({ organizationId: organizationB._id, slug: secondClub.venueSlug });
+  await db.collection("courts").insertOne({ organizationId: organizationB._id, venueId: venueB._id,
+    courtId: "court1", name: "Cancha Sierras", active: true, basePrice: 25000, nightPrice: 30000 });
+  await db.collection("memberships").insertOne({ userId: player, organizationId: organizationB._id,
+    role: "player", venueIds: [], active: true });
   await migrateTenantIndexes(db, { dryRun: false });
   const [{ connectDb }, { app }] = await Promise.all([import("../server/db.mjs"), import("../server/index.mjs")]);
   await connectDb();
