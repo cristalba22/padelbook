@@ -6,7 +6,7 @@ Este procedimiento es para el primer cambio de la base del piloto. La rama multi
 
 1. Elegir una ventana de mantenimiento anunciada al club y una persona responsable de decidir continuar o volver atrás.
 2. Registrar el commit de la API y del Worker actuales, sus variables de entorno, la base y el dominio publicados. Tener disponible un despliegue de staging del commit multiclub y una base vacía de staging.
-3. Confirmar que el correo de invitaciones sale de un remitente verificado y que el propietario puede ingresar. Crear el segundo club de ensayo con `club:provision` solo en staging.
+3. Verificar un dominio remitente propio en Resend y enviar invitaciones de prueba a dos direcciones distintas del propietario; el remitente de prueba `onboarding@resend.dev` fue rechazado para un segundo destinatario con HTTP 403. Confirmar que el propietario puede ingresar. Crear el segundo club de ensayo con `club:provision` solo en staging.
 4. Ejecutar `npm test`, `npm run build`, la auditoría de dependencias y el workflow manual de respaldo sobre el commit que se quiere publicar. Verificar el informe de restauración, API, navegador y retorno de modo.
 5. Definir cuánto tiempo puede durar la pausa, cómo avisar a los usuarios y cómo registrar cualquier reserva recibida por teléfono durante ella.
 
