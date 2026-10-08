@@ -127,7 +127,14 @@ Después de revisar el inventario y el backup, aplicar sobre esa misma copia:
 npm run db:migrate:multisite -- --target-db padelbook_multisite_qa --confirm-db padelbook_multisite_qa --apply --organization-slug club-cordoba --organization-name "Club Córdoba" --venue-slug sede-centro --venue-name "Sede Centro"
 ```
 
-El comando exige una confirmación adicional para escribir en `MONGODB_DB_NAME`; este plan aún no autoriza ese paso. Los índices globales heredados de cancha y franja se conservan, por lo que todavía no se pueden operar dos sedes independientes con el mismo identificador de cancha. Cambiarlos corresponde a la etapa 2, junto con filtros y permisos completos.
+El comando exige una confirmación adicional para escribir en `MONGODB_DB_NAME`; este plan aún no autoriza ese paso. Tras migrar una copia, `db:migrate:tenant-indexes` revisa que todos los datos operativos tengan organización y sede válidas, crea y verifica los índices únicos por sede y recién después retira los índices únicos globales. Es idempotente; no se ejecutó en la base del piloto.
+
+```powershell
+npm run db:migrate:tenant-indexes -- --target-db padelbook_multisite_qa
+npm run db:migrate:tenant-indexes -- --target-db padelbook_multisite_qa --confirm-db padelbook_multisite_qa --apply
+```
+
+La primera orden solo previsualiza. La segunda se usa **únicamente en la copia de prueba**, después del backup y la migración de documentos. La prueba automatizada verifica que dos sedes pueden reutilizar `courtId`, fecha y franja mientras una misma sede sigue rechazando duplicados de cancha, reserva, bloqueo y reclamo. No habilitar una segunda organización en producción por el solo hecho de cambiar índices: las rutas globales siguen activas.
 
 ## Etapa 2: primera barrera de seguridad
 
@@ -155,4 +162,4 @@ El propietario dispone de `/clubes/:organizationSlug/equipo` para crear cuentas 
 
 La caja de cada sede está disponible en `/clubes/:organizationSlug/:venueSlug/caja`. Muestra cobros, saldos y egresos acotados a esa sede y permite registrar gastos; el tablero del propietario conserva la suma de su organización. Ambas vistas identifican los importes como registros manuales, sin afirmar conciliación bancaria.
 
-**Pendiente antes de activar multiclub en producción:** conectar canchas, ajustes, profesorado, torneos, personal y caja del frontend a las rutas nuevas; migrar el piloto en una copia y probar restauración, concurrencia y navegación completa en móvil; sustituir el contrato monoclub heredado y su guardián de arranque; definir onboarding de nuevas organizaciones. La seña online y la conciliación de pagos no están implementadas. Ningún cambio de esta rama debe desplegarse sobre el piloto actual hasta completar esa transición.
+**Pendiente antes de activar multiclub en producción:** completar profesorado y torneos en el frontend; migrar el piloto en una copia y probar restauración, índices, concurrencia y navegación completa en móvil; sustituir el contrato monoclub heredado y su guardián de arranque; definir onboarding de nuevas organizaciones. La seña online y la conciliación de pagos no están implementadas. Ningún cambio de esta rama debe desplegarse sobre el piloto actual hasta completar esa transición.

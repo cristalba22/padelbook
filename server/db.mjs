@@ -77,7 +77,7 @@ passwordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const courtSchema = new mongoose.Schema({
   ...scopeFields,
-  courtId: { type: String, required: true, unique: true, trim: true },
+  courtId: { type: String, required: true, trim: true },
   name: { type: String, required: true, trim: true },
   description: { type: String, default: "", trim: true },
   tag: { type: String, default: "", trim: true },
@@ -91,6 +91,9 @@ const courtSchema = new mongoose.Schema({
   nightPrice: { type: Number, default: 24000 },
   weekendExtra: { type: Number, default: 3000 },
 }, baseOptions);
+courtSchema.index({ organizationId: 1, venueId: 1, courtId: 1 }, {
+  unique: true, name: "venue_court_id_unique",
+});
 
 const bookingSchema = new mongoose.Schema({
   ...scopeFields,
@@ -119,13 +122,13 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ["pendiente", "confirmado", "cancelado"], default: "pendiente" },
 }, baseOptions);
 
-bookingSchema.index({ date: 1, time: 1, courtId: 1, status: 1 });
-bookingSchema.index({ date: 1, courtId: 1, occupiedSlots: 1 }, {
-  unique: true,
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, time: 1, courtId: 1, status: 1 });
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, occupiedSlots: 1 }, {
+  unique: true, name: "venue_booking_slot_unique",
   partialFilterExpression: { occupiedSlots: { $exists: true }, status: { $in: ["pendiente", "confirmado"] } },
 });
-bookingSchema.index({ date: 1, teacherId: 1, occupiedSlots: 1 }, {
-  unique: true,
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, teacherId: 1, occupiedSlots: 1 }, {
+  unique: true, name: "venue_teacher_slot_unique",
   partialFilterExpression: { type: "class", status: { $in: ["pendiente", "confirmado"] }, teacherId: { $type: "string" }, occupiedSlots: { $exists: true } },
 });
 
@@ -218,7 +221,7 @@ const scheduleBlockSchema = new mongoose.Schema({
   type: { type: String, enum: ["block", "teacher"], default: "block" },
   ownerId: { type: String, default: "" },
 }, baseOptions);
-scheduleBlockSchema.index({ date: 1, courtId: 1, hour: 1 }, { unique: true });
+scheduleBlockSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, hour: 1 }, { unique: true, name: "venue_block_hour_unique" });
 
 const teacherSchema = new mongoose.Schema({
   ...scopeFields,
@@ -238,7 +241,9 @@ const slotClaimSchema = new mongoose.Schema({
   ownerType: { type: String, enum: ["booking", "block"], required: true },
   ownerId: { type: String, required: true },
 }, { versionKey: false });
-slotClaimSchema.index({ date: 1, courtId: 1, slot: 1 }, { unique: true });
+slotClaimSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, slot: 1 }, {
+  unique: true, name: "venue_slot_all_unique",
+});
 slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 
 export const Organization = mongoose.model("Organization", organizationSchema);
