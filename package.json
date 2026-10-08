@@ -9,6 +9,7 @@
     "build": "vite build",
     "deploy:cloudflare": "npm run build && wrangler deploy",
     "test": "node --test tests/*.test.mjs",
+    "qa:two-clubs": "node scripts/qa-two-clubs.mjs",
     "db:backup": "node scripts/backup.mjs",
     "db:restore": "node scripts/restore.mjs",
     "db:rehearse:multiclub": "node scripts/rehearse-multiclub.mjs",
