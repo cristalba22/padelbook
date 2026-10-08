@@ -5,29 +5,29 @@ import Layout from "./components/Layout.jsx";
 import Footer from "./components/Footer.jsx";
 
 import Home from "./pages/Home.jsx";
-import Booking from "./pages/Booking.jsx";
-import MyBookings from "./pages/MyBookings.jsx";
-import Tournaments from "./pages/Tournaments.jsx";
-import Comunidad from "./pages/Comunidad.jsx";
-
-import PlayerDashboard from "./pages/PlayerDashboard.jsx";
-import Account from "./pages/Account.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
-import TeacherDashboard from "./pages/TeacherDashboard.jsx";
-
-import Admin from "./pages/Admin.jsx";
-import AdminCalendar from "./pages/AdminCalendar.jsx";
-import AdminTeachers from "./pages/AdminTeachers.jsx";
-import AdminBookings from "./pages/AdminBookings.jsx";
-import AdminFinance from "./pages/AdminFinance.jsx";
-import AdminTournaments from "./pages/AdminTournaments.jsx";
-import AdminConfig from "./pages/AdminConfig.jsx";
-import AdminStaff from "./pages/AdminStaff.jsx";
-import NotFound from "./pages/NotFound.jsx";
-import { Organizations, OrganizationDashboard, VenueOverview } from "./pages/Organizations.jsx";
-import VenueBooking from "./pages/VenueBooking.jsx";
-import VenueMyBookings from "./pages/VenueMyBookings.jsx";
-import VenueAdminBookings from "./pages/VenueAdminBookings.jsx";
+const Booking = lazy(() => import("./pages/Booking.jsx"));
+const MyBookings = lazy(() => import("./pages/MyBookings.jsx"));
+const Tournaments = lazy(() => import("./pages/Tournaments.jsx"));
+const Comunidad = lazy(() => import("./pages/Comunidad.jsx"));
+const PlayerDashboard = lazy(() => import("./pages/PlayerDashboard.jsx"));
+const Account = lazy(() => import("./pages/Account.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard.jsx"));
+const Admin = lazy(() => import("./pages/Admin.jsx"));
+const AdminCalendar = lazy(() => import("./pages/AdminCalendar.jsx"));
+const AdminTeachers = lazy(() => import("./pages/AdminTeachers.jsx"));
+const AdminBookings = lazy(() => import("./pages/AdminBookings.jsx"));
+const AdminFinance = lazy(() => import("./pages/AdminFinance.jsx"));
+const AdminTournaments = lazy(() => import("./pages/AdminTournaments.jsx"));
+const AdminConfig = lazy(() => import("./pages/AdminConfig.jsx"));
+const AdminStaff = lazy(() => import("./pages/AdminStaff.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+const OrganizationsPage = lazy(() => import("./pages/Organizations.jsx").then(({ Organizations }) => ({ default: Organizations })));
+const OrganizationDashboard = lazy(() => import("./pages/Organizations.jsx").then(({ OrganizationDashboard: page }) => ({ default: page })));
+const VenueOverview = lazy(() => import("./pages/Organizations.jsx").then(({ VenueOverview: page }) => ({ default: page })));
+const VenueBooking = lazy(() => import("./pages/VenueBooking.jsx"));
+const VenueMyBookings = lazy(() => import("./pages/VenueMyBookings.jsx"));
+const VenueAdminBookings = lazy(() => import("./pages/VenueAdminBookings.jsx"));
 const VenueAdminConfig = lazy(() => import("./pages/VenueAdminConfig.jsx"));
 const OrganizationStaff = lazy(() => import("./pages/OrganizationStaff.jsx"));
 const VenueFinance = lazy(() => import("./pages/VenueFinance.jsx"));
@@ -77,7 +77,7 @@ export default function App() {
   return (
     <div className={`app-shell ${location.pathname === ROUTES.HOME ? "home-experience" : ""}`}>
       <Layout>
-        <Routes>
+        <Suspense fallback={<main className="org-state" role="status">Cargando página…</main>}><Routes>
           <Route path="/" element={<Home />} />
           <Route path={ROUTES.BOOKING} element={<Booking />} />
           <Route path={ROUTES.BOOKING_LEGACY} element={<Navigate to={ROUTES.BOOKING} replace />} />
@@ -86,7 +86,7 @@ export default function App() {
           <Route path={ROUTES.COMMUNITY} element={<Comunidad />} />
           <Route path={ROUTES.ACCOUNT} element={operatingMode === "multiclub" ? <Suspense fallback={<div className="org-state" role="status">Cargando cuenta…</div>}><MulticlubAccount /></Suspense> : <Account />} />
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
-          <Route path={ROUTES.CLUBS} element={<Organizations />} />
+          <Route path={ROUTES.CLUBS} element={<OrganizationsPage />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug`} element={<OrganizationDashboard />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/equipo`} element={<Suspense fallback={<div className="org-state" role="status">Cargando equipo…</div>}><OrganizationStaff /></Suspense>} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/:venueSlug`} element={<VenueOverview />} />
@@ -180,7 +180,7 @@ export default function App() {
           <Route path={ROUTES.ADMIN_STAFF} element={<AdminRoute><AdminStaff /></AdminRoute>} />
 
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </Routes></Suspense>
       </Layout>
 
       {operatingMode !== "multiclub" && !location.pathname.startsWith("/admin") && !location.pathname.startsWith(ROUTES.CLUBS) && <Footer />}

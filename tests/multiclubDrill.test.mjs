@@ -49,7 +49,11 @@ test("ensayo integral: backup, restauración, datos conservados y migración ais
       "--venue-name", migration.venueName], { cwd: process.cwd(), env: { ...process.env,
       MONGODB_URI: "mongodb://127.0.0.1:1/should-not-connect",
       BACKUP_ENCRYPTION_KEY: encryptionKey.toString("hex") } });
-    assert.equal(JSON.parse(await readFile(reportPath, "utf8")).verified, true);
+    const encryptedDrill = JSON.parse(await readFile(reportPath, "utf8"));
+    assert.equal(encryptedDrill.verified, true);
+    assert.equal(encryptedDrill.apiSmokeVerified, true);
+    assert.equal(encryptedDrill.realCourtBookable, true);
+    assert.equal(encryptedDrill.crossOrganizationAdminDenied, true);
 
     await assert.rejects(() => rehearseMulticlub({ uri: mongo.getUri(), payload,
       targetDbName: source.databaseName, productionDbName: source.databaseName, migration }), /distinta/);

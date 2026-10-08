@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { parseEncryptionKey, readBackupFile } from "./backup-lib.mjs";
 import { rehearseMulticlub } from "./rehearse-multiclub-lib.mjs";
+import { smokeRestoredPilot } from "./smoke-restored-pilot.mjs";
 
 const args = process.argv.slice(2);
 const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : ""; };
@@ -23,11 +24,13 @@ const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
 try {
   const report = await rehearseMulticlub({ uri: mongo.getUri(), payload,
     targetDbName: "padelbook_pilot_restore_qa", productionDbName: payload.database, migration });
-  await writeFile(resolve(output), `${JSON.stringify({ ...report, rehearsedAt: new Date().toISOString() }, null, 2)}\n`);
+  const apiSmoke = await smokeRestoredPilot({ uri: mongo.getUri(), dbName: report.targetDatabase,
+    organizationSlug: migration.organizationSlug, venueSlug: migration.venueSlug });
+  await writeFile(resolve(output), `${JSON.stringify({ ...report, ...apiSmoke, rehearsedAt: new Date().toISOString() }, null, 2)}\n`);
   console.log(JSON.stringify({ verified: report.verified, sourceDatabase: report.sourceDatabase,
     targetDatabase: report.targetDatabase, collections: report.collections, documents: report.documents,
     memberships: report.memberships, indexesCreated: report.indexesCreated,
-    globalIndexesRemoved: report.globalIndexesRemoved }));
+    globalIndexesRemoved: report.globalIndexesRemoved, ...apiSmoke }));
 } finally {
   await mongo.stop();
 }
