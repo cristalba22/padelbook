@@ -34,10 +34,14 @@ jobs:
           path: padelbook-backup.pbk
           retention-days: 30
           if-no-files-found: error
+      - name: Install browser for isolated QA
+        if: github.event_name == 'workflow_dispatch'
+        run: npx playwright install --with-deps chromium
       - name: Rehearse restore and multiclub migration
         if: github.event_name == 'workflow_dispatch'
         env:
           MONGODB_URI: ""
+          PADELBOOK_BROWSER_SMOKE: "true"
         run: >-
           npm run db:rehearse:from-backup --
           --input padelbook-backup.pbk

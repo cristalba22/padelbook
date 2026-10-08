@@ -7,6 +7,40 @@ function expect(condition, message) {
   if (!condition) throw new Error(`Ensayo API del respaldo: ${message}`);
 }
 
+async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilotCourtName, date }) {
+  process.env.VITE_API_URL = apiBase;
+  const [{ createServer }, { chromium }] = await Promise.all([import("vite"), import("playwright")]);
+  const vite = await createServer({ server: { host: "127.0.0.1", port: 5173, strictPort: true } });
+  let browser;
+  try {
+    await vite.listen();
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto("http://127.0.0.1:5173/clubes", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Ingresar" }).first().click();
+    await page.locator('input[type="email"]').fill("restored-player@qa.invalid");
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole("button", { name: "Entrar al panel" }).click();
+    await page.getByRole("link", { name: new RegExp(pilotName, "i") }).waitFor();
+    await page.getByRole("link", { name: /Club QA/i }).waitFor();
+    await page.getByRole("link", { name: new RegExp(pilotName, "i") }).click();
+    await page.getByRole("heading", { name: pilotVenueName }).waitFor();
+    await page.getByRole("link", { name: "Reservar cancha" }).click();
+    await page.getByRole("heading", { name: "Reservá tu cancha" }).waitFor();
+    await page.getByLabel("Fecha del turno").fill(date);
+    await page.getByText(pilotCourtName, { exact: true }).first().waitFor();
+    await page.getByRole("link", { name: "Mis clubes" }).click();
+    await page.getByRole("link", { name: /Club QA/i }).click();
+    await page.getByRole("heading", { name: "Sede QA" }).waitFor();
+    await page.getByText("Cancha QA", { exact: true }).waitFor();
+    return { browserSmokeVerified: true, browserMobileWidth: 390 };
+  } finally {
+    if (browser) await browser.close();
+    await vite.close();
+    delete process.env.VITE_API_URL;
+  }
+}
+
 export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueSlug }) {
   if (!uri || !/^padelbook_[A-Za-z0-9_-]{1,50}_qa$/.test(dbName)) {
     throw new Error("El ensayo HTTP exige una MongoDB temporal de QA.");
@@ -111,8 +145,11 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
       secondMine.body.bookings.some((booking) => booking.id === second.body.booking.id) &&
       !pilotMine.body.bookings.some((booking) => booking.id === second.body.booking.id),
     "mis turnos debe mantener las reservas separadas");
+    const browserSmoke = process.env.PADELBOOK_BROWSER_SMOKE === "true"
+      ? await smokeBrowser({ apiBase: base, password, pilotName: pilot.name, pilotVenueName: pilotVenue.name,
+        pilotCourtName: pilotCourt.name, date }) : {};
     return { apiSmokeVerified: true, realCourtBookable: true, sameVenueConflictRejected: true,
-      crossOrganizationSlotReused: true, crossOrganizationAdminDenied: true };
+      crossOrganizationSlotReused: true, crossOrganizationAdminDenied: true, ...browserSmoke };
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
