@@ -28,7 +28,8 @@ async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilo
     await page.getByRole("link", { name: "Reservar cancha" }).click();
     await page.getByRole("heading", { name: "Reservá tu cancha" }).waitFor();
     await page.getByLabel("Fecha del turno").fill(date);
-    await page.getByText(pilotCourtName, { exact: true }).first().waitFor();
+    await page.getByRole("combobox", { name: "Cancha" }).selectOption({ label: pilotCourtName });
+    await page.getByText(`Horarios de ${pilotCourtName}`, { exact: true }).waitFor();
     await page.getByRole("link", { name: "Mis clubes" }).click();
     await page.getByRole("link", { name: /Club QA/i }).click();
     await page.getByRole("heading", { name: "Sede QA" }).waitFor();
