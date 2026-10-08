@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { argentinaDateISO, canonicalCourtId } from "../src/utils/bookingDomain.js";
@@ -7,7 +7,7 @@ function expect(condition, message) {
   if (!condition) throw new Error(`Ensayo API del respaldo: ${message}`);
 }
 
-async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilotCourtName, date }) {
+async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilotCourtName, inviteToken, date }) {
   process.env.VITE_API_URL = apiBase;
   const [{ createServer }, { chromium }] = await Promise.all([import("vite"), import("playwright")]);
   const vite = await createServer({ server: { host: "127.0.0.1", port: 5173, strictPort: true } });
@@ -34,7 +34,12 @@ async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilo
     await page.getByRole("link", { name: /Club QA/i }).click();
     await page.getByRole("heading", { name: "Sede QA" }).waitFor();
     await page.getByText("Cancha QA", { exact: true }).waitFor();
-    return { browserSmokeVerified: true, browserMobileWidth: 390 };
+    await page.goto(`http://127.0.0.1:5173/invitacion#token=${inviteToken}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: "Tu invitación" }).waitFor();
+    await page.getByRole("button", { name: "Aceptar invitación" }).click();
+    await page.getByRole("heading", { name: "Mis clubes" }).waitFor();
+    await page.getByRole("link", { name: new RegExp(pilotName, "i") }).waitFor();
+    return { browserSmokeVerified: true, browserMobileWidth: 390, browserInvitationVerified: true };
   } finally {
     if (browser) await browser.close();
     await vite.close();
@@ -87,6 +92,10 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
       { organizationId: secondOrg, userId: playerId, role: "player", venueIds: [], active: true },
       { organizationId: secondOrg, userId: adminId, role: "admin", venueIds: [secondVenue], active: true },
     ]);
+    const inviteToken = randomBytes(32).toString("base64url");
+    await db.collection("invitations").insertOne({ organizationId: pilot._id, email: "restored-player@qa.invalid",
+      role: "receptionist", venueIds: [pilotVenue._id], tokenHash: createHash("sha256").update(inviteToken).digest("hex"),
+      status: "pending", expiresAt: new Date(Date.now() + 60 * 60 * 1000), invitedBy: adminId });
 
     server = app.listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
@@ -148,7 +157,7 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
     "mis turnos debe mantener las reservas separadas");
     const browserSmoke = process.env.PADELBOOK_BROWSER_SMOKE === "true"
       ? await smokeBrowser({ apiBase: base, password, pilotName: pilot.name, pilotVenueName: pilotVenue.name,
-        pilotCourtName: pilotCourt.name, date }) : {};
+        pilotCourtName: pilotCourt.name, inviteToken, date }) : {};
     return { apiSmokeVerified: true, realCourtBookable: true, sameVenueConflictRejected: true,
       crossOrganizationSlotReused: true, crossOrganizationAdminDenied: true, ...browserSmoke };
   } finally {

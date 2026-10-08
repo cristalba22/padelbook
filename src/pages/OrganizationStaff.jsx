@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, KeyRound, Save, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, UserPlus } from "lucide-react";
 import { useOrganizations } from "../hooks/useOrganizations.jsx";
 import { apiRequest } from "../utils/apiClient.js";
-import { generateSecurePassword } from "../utils/password.js";
 import "./organizations.css";
 import "./organizationStaff.css";
 
 const segment = (value) => encodeURIComponent(String(value || ""));
-const blank = () => ({ name: "", email: "", phone: "", password: "", role: "receptionist", venueIds: [] });
+const blank = () => ({ email: "", role: "receptionist", venueIds: [] });
 const roleLabel = (role) => role === "teacher" ? "Profesorado" : "Recepción";
 
 function VenueChoices({ venues, selected, onChange, name }) {
@@ -21,6 +20,9 @@ function StaffCard({ employee, venues, busy, onSave, onToggle }) {
   const [role, setRole] = useState(employee.role);
   const [venueIds, setVenueIds] = useState(employee.venueIds);
   const changed = role !== employee.role || JSON.stringify([...venueIds].sort()) !== JSON.stringify([...employee.venueIds].sort());
+  if (employee.role === "admin") return <article className="org-staff-card"><div className="org-staff-card__head"><div><strong>{employee.name}</strong><small>{employee.email} · Administración</small></div>
+    <span className={employee.active ? "org-staff-badge" : "org-staff-badge org-staff-badge--off"}>{employee.active ? "Activo" : "Sin acceso"}</span></div>
+    <div className="org-staff-card__actions"><button type="button" className="org-staff-secondary" disabled={Boolean(busy)} onClick={() => onToggle(employee)}>{employee.active ? "Desactivar acceso" : "Activar acceso"}</button></div></article>;
   return <article className="org-staff-card"><div className="org-staff-card__head"><div><strong>{employee.name}</strong><small>{employee.email}</small></div>
     <span className={employee.active ? "org-staff-badge" : "org-staff-badge org-staff-badge--off"}>{employee.active ? "Activo" : "Sin acceso"}</span></div>
     <div className="org-staff-form-grid"><label>Función<select value={role} onChange={(event) => setRole(event.target.value)}><option value="receptionist">Recepción</option><option value="teacher">Profesorado</option></select></label></div>
@@ -38,10 +40,8 @@ export default function OrganizationStaff() {
   const { organizations, loading: permissionsLoading, error: permissionsError } = useOrganizations();
   const organization = organizations.find((item) => item.slug === organizationSlug && item.role === "admin");
   const root = `/organizations/${segment(organizationSlug)}`;
-  const [state, setState] = useState({ loading: true, error: "", venues: [], staff: [] });
+  const [state, setState] = useState({ loading: true, error: "", venues: [], staff: [], invitations: [] });
   const [form, setForm] = useState(blank);
-  const [showPassword, setShowPassword] = useState(false);
-  const [createdPassword, setCreatedPassword] = useState(null);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [reload, setReload] = useState(0);
@@ -52,22 +52,31 @@ export default function OrganizationStaff() {
     const controller = new AbortController();
     setState((current) => ({ ...current, loading: true, error: "" }));
     Promise.all([apiRequest(`${root}/venues`, { signal: controller.signal }),
-      apiRequest(`${root}/admin/staff`, { signal: controller.signal })]).then(([venues, staff]) => {
-      if (active) setState({ loading: false, error: "", venues: venues.venues, staff: staff.staff });
+      apiRequest(`${root}/admin/staff`, { signal: controller.signal }),
+      apiRequest(`${root}/admin/invitations`, { signal: controller.signal })]).then(([venues, staff, invitations]) => {
+      if (active) setState({ loading: false, error: "", venues: venues.venues, staff: staff.staff, invitations: invitations.invitations });
     }).catch((error) => { if (active) setState((current) => ({ ...current, loading: false, error: error.message })); });
     return () => { active = false; controller.abort(); };
   }, [root, organization?.slug, reload]);
 
-  async function createEmployee(event) {
+  async function inviteEmployee(event) {
     event.preventDefault();
-    if (!form.venueIds.length) { setNotice("Seleccioná al menos una sede."); return; }
-    setBusy("create"); setNotice(""); setCreatedPassword(null);
+    if (form.role !== "admin" && !form.venueIds.length) { setNotice("Seleccioná al menos una sede."); return; }
+    setBusy("invite"); setNotice("");
     try {
-      const { employee } = await apiRequest(`${root}/admin/staff`, { method: "POST", body: JSON.stringify(form) });
-      setState((current) => ({ ...current, staff: [...current.staff, employee].sort((a, b) => a.name.localeCompare(b.name, "es")) }));
-      setCreatedPassword({ name: employee.name, password: form.password });
-      setForm(blank()); setShowPassword(false);
-      setNotice(`Acceso creado para ${employee.name}.`);
+      const { invitation } = await apiRequest(`${root}/admin/invitations`, { method: "POST", body: JSON.stringify(form) });
+      setState((current) => ({ ...current, invitations: [invitation, ...current.invitations] }));
+      setForm(blank());
+      setNotice(`Enviamos la invitación a ${invitation.email}.`);
+    } catch (error) { setNotice(error.message); } finally { setBusy(""); }
+  }
+
+  async function revoke(invitation) {
+    setBusy(invitation.id); setNotice("");
+    try {
+      await apiRequest(`${root}/admin/invitations/${segment(invitation.id)}`, { method: "DELETE" });
+      setState((current) => ({ ...current, invitations: current.invitations.filter((item) => item.id !== invitation.id) }));
+      setNotice(`Invitación a ${invitation.email} cancelada.`);
     } catch (error) { setNotice(error.message); } finally { setBusy(""); }
   }
 
@@ -92,19 +101,14 @@ export default function OrganizationStaff() {
           <div className="org-staff-list">{state.staff.map((person) => <StaffCard key={person.id} employee={person} venues={state.venues} busy={busy} onSave={updateEmployee} onToggle={(employee) => updateEmployee(employee, { active: !employee.active })} />)}</div>
           {!state.staff.length && <p className="org-empty">Todavía no hay personal asignado.</p>}</section>
           <section className="org-section"><div className="org-section__heading"><div><span className="org-eyebrow">Nuevo acceso</span><h2>Agregar persona</h2></div></div>
-            <p className="org-staff-intro">Creá una cuenta individual y compartí su clave inicial por un canal privado. Las cuentas que ya existen requieren un flujo de invitación, todavía pendiente.</p>
-            <form onSubmit={createEmployee} className="org-staff-create"><div className="org-staff-form-grid"><label>Nombre<input required minLength={2} maxLength={100} autoComplete="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-              <label>Email<input required type="email" maxLength={254} autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-              <label>Teléfono<input maxLength={40} autoComplete="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label>
-              <label>Función<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })}><option value="receptionist">Recepción</option><option value="teacher">Profesorado</option></select></label></div>
-              <VenueChoices venues={state.venues} selected={form.venueIds} onChange={(venueIds) => setForm({ ...form, venueIds })} name="new-venues" />
-              <label className="org-staff-password">Contraseña inicial<span><input required type={showPassword ? "text" : "password"} minLength={12} maxLength={72} autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-                <button type="button" aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
-              <button className="org-staff-generate" type="button" onClick={() => { setForm({ ...form, password: generateSecurePassword() }); setShowPassword(true); }}><KeyRound size={16} /> Generar contraseña segura</button>
-              <button className="org-staff-create-button" type="submit" disabled={Boolean(busy) || !form.venueIds.length}><UserPlus size={17} /> {busy === "create" ? "Creando…" : "Crear acceso"}</button></form></section></div>
+            <p className="org-staff-intro">La persona recibe un enlace de un solo uso. Puede ingresar con su cuenta actual o crear una nueva; vos no ves ni elegís su contraseña.</p>
+            <form onSubmit={inviteEmployee} className="org-staff-create"><div className="org-staff-form-grid"><label>Email<input required type="email" maxLength={254} autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
+              <label>Función<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value, venueIds: event.target.value === "admin" ? [] : form.venueIds })}><option value="receptionist">Recepción</option><option value="teacher">Profesorado</option><option value="admin">Administración</option></select></label></div>
+              {form.role !== "admin" && <VenueChoices venues={state.venues} selected={form.venueIds} onChange={(venueIds) => setForm({ ...form, venueIds })} name="new-venues" />}
+              <button className="org-staff-create-button" type="submit" disabled={Boolean(busy) || (form.role !== "admin" && !form.venueIds.length)}><UserPlus size={17} /> {busy === "invite" ? "Enviando…" : "Enviar invitación"}</button></form>
+            {state.invitations.length > 0 && <div className="org-staff-list"><h3>Invitaciones pendientes</h3>{state.invitations.map((item) => <article className="org-staff-card" key={item.id}><div className="org-staff-card__head"><div><strong>{item.email}</strong><small>{item.role === "admin" ? "Administración" : roleLabel(item.role)} · Vence {new Date(item.expiresAt).toLocaleDateString("es-AR")}</small></div><button type="button" className="org-staff-secondary" disabled={Boolean(busy)} onClick={() => revoke(item)}>Cancelar</button></div></article>)}</div>}
+          </section></div>
           {notice && <p className="org-staff-notice" role="status">{notice}</p>}
-          {createdPassword && <section className="org-staff-secret" aria-label="Contraseña inicial"><strong>Clave inicial de {createdPassword.name}</strong><p>Copiala ahora y compartila por un canal privado. Al cerrar este aviso, no volverá a mostrarse.</p><code>{createdPassword.password}</code>
-            <button type="button" onClick={() => setCreatedPassword(null)}>Ya la guardé</button></section>}
         </>}
   </main>;
 }

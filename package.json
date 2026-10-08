@@ -12,6 +12,7 @@
     "qa:two-clubs": "node scripts/qa-two-clubs.mjs",
     "db:backup": "node scripts/backup.mjs",
     "db:restore": "node scripts/restore.mjs",
+    "club:provision": "node scripts/provision-club.mjs",
     "db:rehearse:multiclub": "node scripts/rehearse-multiclub.mjs",
     "db:rehearse:from-backup": "node scripts/rehearse-encrypted-backup.mjs",
     "db:migrate:multisite": "node scripts/migrate-legacy-club.mjs",

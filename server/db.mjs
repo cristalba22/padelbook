@@ -51,6 +51,22 @@ const membershipSchema = new mongoose.Schema({
 }, baseOptions);
 membershipSchema.index({ organizationId: 1, userId: 1 }, { unique: true });
 
+const invitationSchema = new mongoose.Schema({
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
+  role: { type: String, enum: ["admin", "receptionist", "teacher"], required: true },
+  venueIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  tokenHash: { type: String, required: true, unique: true },
+  status: { type: String, enum: ["pending", "accepted", "revoked"], default: "pending" },
+  expiresAt: { type: Date, required: true },
+  acceptedAt: { type: Date, default: null },
+  invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+}, baseOptions);
+invitationSchema.index({ organizationId: 1, email: 1, status: 1 }, {
+  unique: true, partialFilterExpression: { status: "pending" }, name: "pending_org_email_invite_unique",
+});
+invitationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 const scopeFields = {
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
   venueId: { type: mongoose.Schema.Types.ObjectId, ref: "Venue" },
@@ -253,6 +269,7 @@ slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 export const Organization = mongoose.model("Organization", organizationSchema);
 export const Venue = mongoose.model("Venue", venueSchema);
 export const Membership = mongoose.model("Membership", membershipSchema);
+export const Invitation = mongoose.model("Invitation", invitationSchema);
 export const User = mongoose.model("User", userSchema);
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 export const Court = mongoose.model("Court", courtSchema);

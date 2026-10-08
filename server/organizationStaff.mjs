@@ -1,23 +1,15 @@
 import express from "express";
-import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { z } from "zod";
 import { Membership, Organization, User, Venue, addActivity } from "./db.mjs";
 import { requireAuth } from "./auth.mjs";
 import { organizationActivity, organizationFinanceSummary } from "./venueFinance.mjs";
+import { createInvitation, listInvitations, revokeInvitation } from "./invitations.mjs";
 
 export const organizationStaffRouter = express.Router();
 const objectId = z.string().refine((value) => mongoose.Types.ObjectId.isValid(value));
 const staffRole = z.enum(["receptionist", "teacher"]);
 const venueIdsField = z.array(objectId).min(1).max(30).refine((ids) => new Set(ids).size === ids.length);
-const createStaffInput = z.object({
-  name: z.string().trim().min(2).max(100),
-  email: z.email().max(254),
-  password: z.string().min(12).max(72),
-  phone: z.string().trim().max(40).optional().default(""),
-  role: staffRole,
-  venueIds: venueIdsField,
-}).strict();
 const updateStaffInput = z.object({
   role: staffRole.optional(),
   venueIds: venueIdsField.optional(),
@@ -66,10 +58,13 @@ organizationStaffRouter.get("/:organizationSlug/venues", async (req, res) => {
 });
 organizationStaffRouter.get("/:organizationSlug/admin/finance/summary", organizationFinanceSummary);
 organizationStaffRouter.get("/:organizationSlug/admin/activity", organizationActivity);
+organizationStaffRouter.get("/:organizationSlug/admin/invitations", listInvitations);
+organizationStaffRouter.post("/:organizationSlug/admin/invitations", createInvitation);
+organizationStaffRouter.delete("/:organizationSlug/admin/invitations/:id", revokeInvitation);
 
 organizationStaffRouter.get("/:organizationSlug/admin/staff", async (req, res) => {
   const memberships = await Membership.find({ organizationId: req.organization._id,
-    role: { $in: ["receptionist", "teacher"] } }).lean();
+    role: { $in: ["admin", "receptionist", "teacher"] }, userId: { $ne: req.user.id } }).lean();
   const users = await User.find({ _id: { $in: memberships.map((membership) => membership.userId) } }).lean();
   const byId = new Map(users.map((user) => [String(user._id), user]));
   const staff = memberships.filter((membership) => byId.has(String(membership.userId)))
@@ -78,32 +73,8 @@ organizationStaffRouter.get("/:organizationSlug/admin/staff", async (req, res) =
   res.json({ staff });
 });
 
-organizationStaffRouter.post("/:organizationSlug/admin/staff", async (req, res) => {
-  const parsed = createStaffInput.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Datos de personal inválidos." });
-  if (!await validVenues(req.organization._id, parsed.data.venueIds)) {
-    return res.status(400).json({ message: "Seleccioná sedes activas de esta organización." });
-  }
-  const email = parsed.data.email.trim().toLowerCase();
-  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-  const session = await mongoose.startSession();
-  let created;
-  try {
-    created = await session.withTransaction(async () => {
-      const [user] = await User.create([{ name: parsed.data.name, email, passwordHash,
-        phone: parsed.data.phone, role: "player", active: true }], { session });
-      const [membership] = await Membership.create([{ userId: user._id, organizationId: req.organization._id,
-        role: parsed.data.role, venueIds: parsed.data.venueIds, active: true }], { session });
-      return { user, membership };
-    });
-  } catch (error) {
-    if (error.code === 11000) return res.status(409).json({ message: "Ya existe una cuenta con ese email." });
-    throw error;
-  } finally {
-    await session.endSession();
-  }
-  await audit(req, "staff_created", created.user.name);
-  res.status(201).json({ employee: staffView(created.user, created.membership) });
+organizationStaffRouter.post("/:organizationSlug/admin/staff", (_req, res) => {
+  res.status(410).json({ message: "El alta directa fue reemplazada por invitaciones por correo." });
 });
 
 organizationStaffRouter.patch("/:organizationSlug/admin/staff/:id", async (req, res) => {
@@ -113,9 +84,14 @@ organizationStaffRouter.patch("/:organizationSlug/admin/staff/:id", async (req, 
   if (parsed.data.venueIds && !await validVenues(req.organization._id, parsed.data.venueIds)) {
     return res.status(400).json({ message: "Seleccioná sedes activas de esta organización." });
   }
-  const membership = await Membership.findOneAndUpdate({ userId: req.params.id,
-    organizationId: req.organization._id, role: { $in: ["receptionist", "teacher"] } },
-  { $set: parsed.data }, { returnDocument: "after", runValidators: true });
+  const current = await Membership.findOne({ userId: req.params.id, organizationId: req.organization._id,
+    role: { $in: ["admin", "receptionist", "teacher"] } });
+  if (String(req.params.id) === String(req.user.id) || !current) return res.status(404).json({ message: "Personal no encontrado." });
+  if (current.role === "admin" && (parsed.data.role !== undefined || parsed.data.venueIds !== undefined)) {
+    return res.status(400).json({ message: "El acceso de administración solo puede activarse o desactivarse." });
+  }
+  const membership = await Membership.findOneAndUpdate({ _id: current._id },
+    { $set: parsed.data }, { returnDocument: "after", runValidators: true });
   if (!membership) return res.status(404).json({ message: "Personal no encontrado." });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Personal no encontrado." });

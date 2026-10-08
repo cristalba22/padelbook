@@ -24,6 +24,7 @@ import { parseSettingsPatch } from "./settingsInput.mjs";
 import { tournamentFields, registrationStatusFields, tournamentSignupFields } from "./tournamentInput.mjs";
 import { venueRouter } from "./venueRoutes.mjs";
 import { organizationStaffRouter } from "./organizationStaff.mjs";
+import { invitationRouter } from "./invitations.mjs";
 import { buildFinanceSummary } from "./financeSummary.mjs";
 import { listMyOrganizations } from "./organizationPortfolio.mjs";
 
@@ -111,6 +112,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/venues", venueRouter);
 app.use("/api/organizations", organizationStaffRouter);
+app.use("/api/invitations", invitationRouter);
 app.get("/api/auth/organizations", requireAuth, listMyOrganizations);
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {

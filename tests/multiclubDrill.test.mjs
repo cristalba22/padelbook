@@ -54,6 +54,10 @@ test("ensayo integral: backup, restauración, datos conservados y migración ais
     assert.equal(encryptedDrill.apiSmokeVerified, true);
     assert.equal(encryptedDrill.realCourtBookable, true);
     assert.equal(encryptedDrill.crossOrganizationAdminDenied, true);
+    if (process.env.PADELBOOK_BROWSER_SMOKE === "true") {
+      assert.equal(encryptedDrill.browserSmokeVerified, true);
+      assert.equal(encryptedDrill.browserInvitationVerified, true);
+    }
     assert.equal(encryptedDrill.rollbackCopyVerified, true);
     assert.equal(encryptedDrill.rollbackDocuments, 11);
 

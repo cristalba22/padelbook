@@ -105,31 +105,23 @@ test("las rutas de sede aíslan agenda y reservas de dos clubes y usan la membre
     assert.equal((await organizationRequest("/club-a/venues", adminB)).status, 404);
     assert.equal((await organizationRequest("/club-a/admin/staff", adminA)).data.staff.length, 2);
     assert.equal((await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
-      name: "Recepción ajena", email: "ajena@test.local", password: "clave-muy-larga-123",
-      role: "receptionist", venueIds: [venueB.id],
-    } })).status, 400);
-    const createdStaff = await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
       name: "Recepción Norte", email: "norte@test.local", password: "clave-muy-larga-123",
       role: "receptionist", venueIds: [venueA.id],
-    } });
-    assert.equal(createdStaff.status, 201);
-    assert.equal((await organizationRequest("/club-a/admin/staff", adminA, { method: "POST", body: {
-      name: "Cuenta existente", email: "jugador-b@test.local", password: "clave-muy-larga-123",
-      role: "teacher", venueIds: [venueA.id],
-    } })).status, 409);
-    const staffUser = await User.findById(createdStaff.data.employee.id);
+    } })).status, 410);
+    const staffUser = await User.create({ name: "Recepción Norte", email: "norte@test.local", passwordHash: "test-hash", role: "player" });
+    await Membership.create({ userId: staffUser.id, organizationId: orgA.id, role: "receptionist", venueIds: [venueA.id] });
     assert.equal(staffUser.role, "player");
     assert.equal((await organizationRequest("/club-a/admin/staff", adminA)).data.staff.length, 3);
     assert.equal((await organizationRequest("/club-b/admin/staff", adminB)).data.staff.length, 0);
     assert.equal((await request("/club-a/centro/admin/bookings", staffUser)).status, 200);
     assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 403);
-    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminB,
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${staffUser.id}`, adminB,
       { method: "PATCH", body: { active: false } })).status, 404);
-    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminA,
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${staffUser.id}`, adminA,
       { method: "PATCH", body: { venueIds: [venueA2.id] } })).status, 200);
     assert.equal((await request("/club-a/centro/admin/bookings", staffUser)).status, 403);
     assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 200);
-    assert.equal((await organizationRequest(`/club-a/admin/staff/${createdStaff.data.employee.id}`, adminA,
+    assert.equal((await organizationRequest(`/club-a/admin/staff/${staffUser.id}`, adminA,
       { method: "PATCH", body: { active: false } })).status, 200);
     assert.equal((await request("/club-a/norte/admin/bookings", staffUser)).status, 403);
     assert.equal((await request("/club-a/centro/admin/finance/summary", receptionistA)).status, 403);

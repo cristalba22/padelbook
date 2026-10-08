@@ -35,6 +35,7 @@ const MulticlubAccount = lazy(() => import("./pages/MulticlubAccount.jsx"));
 const VenueTeachers = lazy(() => import("./pages/VenueTeachers.jsx"));
 const VenueTournaments = lazy(() => import("./pages/VenueTournaments.jsx"));
 const VenueTeacherSchedule = lazy(() => import("./pages/VenueTeacherSchedule.jsx"));
+const Invitation = lazy(() => import("./pages/Invitation.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -71,7 +72,7 @@ export default function App() {
   const location = useLocation();
   const { operatingMode } = useAuth();
   if (operatingMode === "multiclub" && location.pathname !== ROUTES.CLUBS && !location.pathname.startsWith(`${ROUTES.CLUBS}/`) &&
-    location.pathname !== ROUTES.ACCOUNT && location.pathname !== ROUTES.RESET_PASSWORD) {
+    location.pathname !== ROUTES.ACCOUNT && location.pathname !== ROUTES.RESET_PASSWORD && location.pathname !== ROUTES.INVITATION) {
     return <Navigate to={ROUTES.CLUBS} replace />;
   }
   return (
@@ -86,6 +87,7 @@ export default function App() {
           <Route path={ROUTES.COMMUNITY} element={<Comunidad />} />
           <Route path={ROUTES.ACCOUNT} element={operatingMode === "multiclub" ? <Suspense fallback={<div className="org-state" role="status">Cargando cuenta…</div>}><MulticlubAccount /></Suspense> : <Account />} />
           <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+          <Route path={ROUTES.INVITATION} element={<Invitation />} />
           <Route path={ROUTES.CLUBS} element={<OrganizationsPage />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug`} element={<OrganizationDashboard />} />
           <Route path={`${ROUTES.CLUBS}/:organizationSlug/equipo`} element={<Suspense fallback={<div className="org-state" role="status">Cargando equipo…</div>}><OrganizationStaff /></Suspense>} />
