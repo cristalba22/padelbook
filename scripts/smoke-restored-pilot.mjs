@@ -39,7 +39,37 @@ async function smokeBrowser({ apiBase, password, pilotName, pilotVenueName, pilo
     await page.getByRole("button", { name: "Aceptar invitación" }).click();
     await page.getByRole("heading", { name: "Mis clubes" }).waitFor();
     await page.getByRole("link", { name: new RegExp(pilotName, "i") }).waitFor();
-    return { browserSmokeVerified: true, browserMobileWidth: 390, browserInvitationVerified: true };
+    await page.getByRole("link", { name: new RegExp(pilotName, "i") }).click();
+    await page.getByRole("heading", { name: pilotVenueName }).waitFor();
+    await page.getByRole("link", { name: "Gestionar reservas" }).click();
+    await page.getByRole("heading", { name: "Reservas del club" }).waitFor();
+    await page.getByLabel("Fecha").fill(date);
+    const booking = page.locator(".venue-admin-list article").filter({ hasText: "Jugador QA" });
+    await booking.getByRole("button", { name: "Confirmar" }).click();
+    await booking.getByText("confirmado", { exact: true }).waitFor();
+    await page.goto("http://127.0.0.1:5173/clubes/qa-segundo-club/qa-segunda-sede/recepcion/reservas");
+    await page.getByRole("heading", { name: "Sin acceso a recepción" }).waitFor();
+
+    const ownerPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await ownerPage.goto("http://127.0.0.1:5173/clubes", { waitUntil: "domcontentloaded" });
+    await ownerPage.getByRole("button", { name: "Ingresar" }).first().click();
+    await ownerPage.locator('input[type="email"]').fill("restored-owner@qa.invalid");
+    await ownerPage.locator('input[type="password"]').fill(password);
+    await ownerPage.getByRole("button", { name: "Entrar al panel" }).click();
+    await ownerPage.getByRole("heading", { name: "Mis clubes" }).waitFor();
+    await ownerPage.getByRole("link", { name: new RegExp(pilotName, "i") }).waitFor();
+    if (await ownerPage.getByRole("link", { name: /Club QA/i }).count()) throw new Error("El propietario ve un club ajeno");
+    await ownerPage.getByRole("link", { name: new RegExp(pilotName, "i") }).click();
+    await ownerPage.getByRole("heading", { name: pilotName, exact: true }).waitFor();
+    await ownerPage.getByRole("heading", { name: "Resumen de este mes" }).waitFor();
+    await ownerPage.getByRole("heading", { name: "Sedes" }).waitFor();
+    await ownerPage.getByRole("link", { name: "Gestionar equipo" }).click();
+    await ownerPage.getByRole("heading", { name: "Equipo y accesos" }).waitFor();
+    await ownerPage.getByText("restored-player@qa.invalid").waitFor();
+    await ownerPage.goto("http://127.0.0.1:5173/clubes/qa-segundo-club");
+    await ownerPage.getByRole("heading", { name: "No tenés acceso a este panel" }).waitFor();
+    return { browserSmokeVerified: true, browserMobileWidth: 390, browserInvitationVerified: true,
+      browserReceptionVerified: true, browserOwnerVerified: true, browserCrossOrganizationDenied: true };
   } finally {
     if (browser) await browser.close();
     await vite.close();
@@ -75,6 +105,7 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
     const secondVenue = new mongoose.Types.ObjectId();
     const playerId = new mongoose.Types.ObjectId();
     const adminId = new mongoose.Types.ObjectId();
+    const ownerId = new mongoose.Types.ObjectId();
     const password = randomBytes(24).toString("base64url");
     const passwordHash = await bcrypt.hash(password, 10);
     await db.collection("organizations").insertOne({ _id: secondOrg, slug: "qa-segundo-club", name: "Club QA", status: "active" });
@@ -86,16 +117,18 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
     await db.collection("users").insertMany([
       { _id: playerId, name: "Jugador QA", email: "restored-player@qa.invalid", passwordHash, role: "player", active: true },
       { _id: adminId, name: "Admin QA", email: "restored-admin@qa.invalid", passwordHash, role: "player", active: true },
+      { _id: ownerId, name: "Propietario QA", email: "restored-owner@qa.invalid", passwordHash, role: "player", active: true },
     ]);
     await db.collection("memberships").insertMany([
       { organizationId: pilot._id, userId: playerId, role: "player", venueIds: [], active: true },
       { organizationId: secondOrg, userId: playerId, role: "player", venueIds: [], active: true },
       { organizationId: secondOrg, userId: adminId, role: "admin", venueIds: [secondVenue], active: true },
+      { organizationId: pilot._id, userId: ownerId, role: "admin", venueIds: [pilotVenue._id], active: true },
     ]);
     const inviteToken = randomBytes(32).toString("base64url");
     await db.collection("invitations").insertOne({ organizationId: pilot._id, email: "restored-player@qa.invalid",
       role: "receptionist", venueIds: [pilotVenue._id], tokenHash: createHash("sha256").update(inviteToken).digest("hex"),
-      status: "pending", expiresAt: new Date(Date.now() + 60 * 60 * 1000), invitedBy: adminId });
+      status: "pending", expiresAt: new Date(Date.now() + 60 * 60 * 1000), invitedBy: ownerId });
 
     server = app.listen(0, "127.0.0.1");
     await new Promise((resolve) => server.once("listening", resolve));
@@ -158,6 +191,16 @@ export async function smokeRestoredPilot({ uri, dbName, organizationSlug, venueS
     const browserSmoke = process.env.PADELBOOK_BROWSER_SMOKE === "true"
       ? await smokeBrowser({ apiBase: base, password, pilotName: pilot.name, pilotVenueName: pilotVenue.name,
         pilotCourtName: pilotCourt.name, inviteToken, date }) : {};
+    if (browserSmoke.browserReceptionVerified) {
+      const confirmed = await request(`${pilotPath}/admin/bookings?date=${date}`, { headers: await login("restored-owner@qa.invalid") });
+      expect(confirmed.status === 200 && confirmed.body.bookings.some((booking) =>
+        booking.id === first.body.booking.id && booking.status === "confirmado"),
+      "la confirmación de recepción debe persistirse en el club correcto");
+      const other = await request(`${secondPath}/admin/bookings?date=${date}`, { headers: adminHeaders });
+      expect(other.status === 200 && other.body.bookings.some((booking) =>
+        booking.id === second.body.booking.id && booking.status !== "confirmado"),
+      "la confirmación del piloto no debe modificar el otro club");
+    }
     return { apiSmokeVerified: true, realCourtBookable: true, sameVenueConflictRejected: true,
       crossOrganizationSlotReused: true, crossOrganizationAdminDenied: true, ...browserSmoke };
   } finally {

@@ -11,6 +11,11 @@ import "./venueBooking.css";
 
 const money = (value) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(value || 0));
 const segment = (value) => encodeURIComponent(String(value || ""));
+const activityDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
 function StatePanel({ title, detail, retry }) {
   return <section className="org-state" role={retry ? "alert" : "status"}>
@@ -104,7 +109,8 @@ export function OrganizationDashboard() {
       <section className="org-section" aria-labelledby="org-activity-title"><div className="org-section__heading"><div><span className="org-eyebrow">Registro</span><h2 id="org-activity-title">Actividad reciente</h2></div></div>
         {state.data.activity.length ? <ol className="org-activity">{state.data.activity.slice(0, 6).map((item) => <li key={item.id}>
           <span className="org-activity__dot" aria-hidden="true" /><div><strong>{item.title}</strong><small>{item.detail || item.actor}</small></div>
-          <time dateTime={item.createdAt}>{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short" }).format(new Date(item.createdAt))}</time></li>)}</ol>
+          {activityDate(item.createdAt) ? <time dateTime={item.createdAt}>{new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short" }).format(activityDate(item.createdAt))}</time>
+            : <span>Sin fecha</span>}</li>)}</ol>
           : <p className="org-empty">Todavía no hay movimientos registrados.</p>}</section>
       <section className="org-section" aria-labelledby="org-team-title"><div className="org-section__heading"><div><span className="org-eyebrow">Equipo</span><h2 id="org-team-title">Personal</h2></div><Link className="org-staff-link" to={`${ROUTES.CLUBS}/${segment(organizationSlug)}/equipo`}>Gestionar equipo <ArrowRight size={16} /></Link></div>
         <p className="org-team-count"><strong>{state.data.staff.filter((person) => person.active).length}</strong> personas con acceso activo</p>
