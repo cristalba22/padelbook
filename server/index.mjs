@@ -52,6 +52,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "32kb", strict: true }));
 app.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
+app.use("/api", (req, res, next) => {
+  if (process.env.PADELBOOK_MAINTENANCE_MODE !== "true" || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  res.setHeader("Retry-After", "300");
+  return res.status(503).json({ message: "Las operaciones están pausadas por mantenimiento. Volvé a intentar en unos minutos." });
+});
 
 const cleanEmail = (email = "") => String(email).toLowerCase().trim();
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
@@ -107,7 +112,8 @@ app.get("/api", (_req, res) => {
 
 app.get("/api/health", (_req, res) => {
   const connected = dbState() === "connected";
-  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), mode: PADELBOOK_OPERATING_MODE, timestamp: new Date().toISOString() });
+  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), mode: PADELBOOK_OPERATING_MODE,
+    writable: process.env.PADELBOOK_MAINTENANCE_MODE !== "true", timestamp: new Date().toISOString() });
 });
 
 app.use("/api/venues", venueRouter);

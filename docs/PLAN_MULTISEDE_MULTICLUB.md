@@ -172,6 +172,8 @@ La prueba local en navegador usó dos organizaciones con el mismo identificador 
 
 **Pendiente antes de activar multiclub en producción:** ensayar la ventana de cambio de infraestructura y versión con reversión; validar el correo de invitación con remitente real, el recorrido web completo de dueño y recepción y el alta controlada con un segundo club real. La seña online y la conciliación de pagos no están implementadas. Ningún cambio de esta rama debe desplegarse sobre el piloto actual hasta completar esa transición.
 
+La secuencia operativa y el límite de la reversión después de admitir nuevas reservas están detallados en [`CAMBIO_MULTICLUB.md`](CAMBIO_MULTICLUB.md). La API ofrece `PADELBOOK_MAINTENANCE_MODE=true` para pausar escrituras durante la copia y el cambio; `/api/health` informa `writable:false` y las escrituras reciben 503 con `Retry-After`.
+
 ## Ensayo de restauración y migración
 
 El 7 de octubre de 2026 se agregó `npm run db:rehearse:multiclub` y una prueba integral con MongoDB aislado. La prueba crea un respaldo cifrado de un club de ensayo, lo verifica, lo restaura en otra base y migra documentos e índices. Compara cada campo original de cada documento (incluidos importes y pagos registrados), los conteos, las membresías y los índices. Comprueba que el origen no cambia y que una base de destino ocupada se rechaza.
