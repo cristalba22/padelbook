@@ -1,7 +1,5 @@
-/* Tailwind */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 /* Base y colores */
 :root{

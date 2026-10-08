@@ -1,29 +1,27 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout.jsx";
 import Footer from "./components/Footer.jsx";
 
 import Home from "./pages/Home.jsx";
-import Booking from "./pages/Booking.jsx";
-import MyBookings from "./pages/MyBookings.jsx";
-import Tournaments from "./pages/Tournaments.jsx";
-import Comunidad from "./pages/Comunidad.jsx";
-
-import PlayerDashboard from "./pages/PlayerDashboard.jsx";
-import Account from "./pages/Account.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
-import TeacherDashboard from "./pages/TeacherDashboard.jsx";
-
-import Admin from "./pages/Admin.jsx";
-import AdminCalendar from "./pages/AdminCalendar.jsx";
-import AdminTeachers from "./pages/AdminTeachers.jsx";
-import AdminBookings from "./pages/AdminBookings.jsx";
-import AdminFinance from "./pages/AdminFinance.jsx";
-import AdminTournaments from "./pages/AdminTournaments.jsx";
-import AdminConfig from "./pages/AdminConfig.jsx";
-import AdminStaff from "./pages/AdminStaff.jsx";
-import NotFound from "./pages/NotFound.jsx";
+const Booking = lazy(() => import("./pages/Booking.jsx"));
+const MyBookings = lazy(() => import("./pages/MyBookings.jsx"));
+const Tournaments = lazy(() => import("./pages/Tournaments.jsx"));
+const Comunidad = lazy(() => import("./pages/Comunidad.jsx"));
+const PlayerDashboard = lazy(() => import("./pages/PlayerDashboard.jsx"));
+const Account = lazy(() => import("./pages/Account.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard.jsx"));
+const Admin = lazy(() => import("./pages/Admin.jsx"));
+const AdminCalendar = lazy(() => import("./pages/AdminCalendar.jsx"));
+const AdminTeachers = lazy(() => import("./pages/AdminTeachers.jsx"));
+const AdminBookings = lazy(() => import("./pages/AdminBookings.jsx"));
+const AdminFinance = lazy(() => import("./pages/AdminFinance.jsx"));
+const AdminTournaments = lazy(() => import("./pages/AdminTournaments.jsx"));
+const AdminConfig = lazy(() => import("./pages/AdminConfig.jsx"));
+const AdminStaff = lazy(() => import("./pages/AdminStaff.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 import { useAuth } from "./hooks/useAuth.jsx";
 import { ROUTES } from "./constants/routes.js";
@@ -61,7 +59,7 @@ export default function App() {
   return (
     <div className={`app-shell ${location.pathname === ROUTES.HOME ? "home-experience" : ""}`}>
       <Layout>
-        <Routes>
+        <Suspense fallback={<main className="connection-page" role="status">Cargando página…</main>}><Routes>
           <Route path="/" element={<Home />} />
           <Route path={ROUTES.BOOKING} element={<Booking />} />
           <Route path={ROUTES.BOOKING_LEGACY} element={<Navigate to={ROUTES.BOOKING} replace />} />
@@ -150,7 +148,7 @@ export default function App() {
           <Route path={ROUTES.ADMIN_STAFF} element={<AdminRoute><AdminStaff /></AdminRoute>} />
 
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </Routes></Suspense>
       </Layout>
 
       {!location.pathname.startsWith("/admin") && <Footer />}
