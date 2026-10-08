@@ -74,3 +74,28 @@ export async function rehearseMulticlub({ uri, payload, targetDbName, production
     await client.close();
   }
 }
+
+export async function rehearseRollback({ uri, payload, targetDbName, migratedDbName }) {
+  if (!uri || !validDbName(targetDbName) || targetDbName === payload?.database || targetDbName === migratedDbName) {
+    throw new Error("La reversión exige una base temporal de QA distinta del origen y de la copia migrada.");
+  }
+  const client = new mongoose.mongo.MongoClient(uri, { serverSelectionTimeoutMS: 10000 });
+  await client.connect();
+  try {
+    const db = client.db(targetDbName);
+    if ((await db.listCollections({}, { nameOnly: true }).toArray()).length) {
+      throw new Error("La base temporal de reversión debe estar vacía.");
+    }
+    const restored = await restoreBackup({ uri, targetDbName, payload });
+    const verified = await verifyDocuments(db, payload);
+    if (!isDeepStrictEqual(restored, verified)) throw new Error("La reversión no conserva los conteos originales.");
+    if ((await db.listCollections({ name: "organizations" }, { nameOnly: true }).toArray()).length ||
+        (await db.listCollections({ name: "memberships" }, { nameOnly: true }).toArray()).length) {
+      throw new Error("La reversión conservó datos del esquema multiclub.");
+    }
+    return { rollbackCopyVerified: true, rollbackCollections: payload.collections.length,
+      rollbackDocuments: Object.values(verified).reduce((sum, count) => sum + count, 0) };
+  } finally {
+    await client.close();
+  }
+}

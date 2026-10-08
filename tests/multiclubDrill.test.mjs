@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { createBackupFile, readBackupFile } from "../scripts/backup-lib.mjs";
-import { rehearseMulticlub } from "../scripts/rehearse-multiclub-lib.mjs";
+import { rehearseMulticlub, rehearseRollback } from "../scripts/rehearse-multiclub-lib.mjs";
 
 const migration = { organizationSlug: "club-cordoba", organizationName: "Club Córdoba",
   venueSlug: "sede-centro", venueName: "Sede Centro" };
@@ -54,9 +54,13 @@ test("ensayo integral: backup, restauración, datos conservados y migración ais
     assert.equal(encryptedDrill.apiSmokeVerified, true);
     assert.equal(encryptedDrill.realCourtBookable, true);
     assert.equal(encryptedDrill.crossOrganizationAdminDenied, true);
+    assert.equal(encryptedDrill.rollbackCopyVerified, true);
+    assert.equal(encryptedDrill.rollbackDocuments, 11);
 
     await assert.rejects(() => rehearseMulticlub({ uri: mongo.getUri(), payload,
       targetDbName: source.databaseName, productionDbName: source.databaseName, migration }), /distinta/);
+    await assert.rejects(() => rehearseRollback({ uri: mongo.getUri(), payload,
+      targetDbName: source.databaseName, migratedDbName: "padelbook_multiclub_qa" }), /distinta/);
     const existing = client.db("padelbook_occupied_qa");
     await existing.collection("sentinel").insertOne({ keep: true });
     await assert.rejects(() => rehearseMulticlub({ uri: mongo.getUri(), payload,
