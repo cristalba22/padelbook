@@ -34,3 +34,23 @@ jobs:
           path: padelbook-backup.pbk
           retention-days: 30
           if-no-files-found: error
+      - name: Rehearse restore and multiclub migration
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          MONGODB_URI: ""
+        run: >-
+          npm run db:rehearse:from-backup --
+          --input padelbook-backup.pbk
+          --report multiclub-drill-report.json
+          --organization-slug club-piloto
+          --organization-name "Club piloto"
+          --venue-slug sede-principal
+          --venue-name "Sede principal"
+      - name: Store migration drill report
+        if: github.event_name == 'workflow_dispatch' && success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: padelbook-multiclub-drill-${{ github.run_id }}
+          path: multiclub-drill-report.json
+          retention-days: 30
+          if-no-files-found: error

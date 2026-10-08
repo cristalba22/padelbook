@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { createBackupFile, readBackupFile } from "../scripts/backup-lib.mjs";
@@ -11,6 +13,7 @@ import { rehearseMulticlub } from "../scripts/rehearse-multiclub-lib.mjs";
 
 const migration = { organizationSlug: "club-cordoba", organizationName: "Club Córdoba",
   venueSlug: "sede-centro", venueName: "Sede Centro" };
+const execFileAsync = promisify(execFile);
 
 test("ensayo integral: backup, restauración, datos conservados y migración aislada", async () => {
   const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
@@ -39,6 +42,14 @@ test("ensayo integral: backup, restauración, datos conservados y migración ais
     const encryptionKey = randomBytes(32);
     await createBackupFile({ uri: mongo.getUri(), dbName: source.databaseName, output, encryptionKey });
     const payload = await readBackupFile({ input: output, encryptionKey });
+    const reportPath = join(folder, "report.json");
+    await execFileAsync(process.execPath, ["scripts/rehearse-encrypted-backup.mjs", "--input", output,
+      "--report", reportPath, "--organization-slug", migration.organizationSlug,
+      "--organization-name", migration.organizationName, "--venue-slug", migration.venueSlug,
+      "--venue-name", migration.venueName], { cwd: process.cwd(), env: { ...process.env,
+      MONGODB_URI: "mongodb://127.0.0.1:1/should-not-connect",
+      BACKUP_ENCRYPTION_KEY: encryptionKey.toString("hex") } });
+    assert.equal(JSON.parse(await readFile(reportPath, "utf8")).verified, true);
 
     await assert.rejects(() => rehearseMulticlub({ uri: mongo.getUri(), payload,
       targetDbName: source.databaseName, productionDbName: source.databaseName, migration }), /distinta/);
