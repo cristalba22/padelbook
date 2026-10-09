@@ -11,12 +11,14 @@ const value = (name) => { const index = process.argv.indexOf(name); return index
 const uriFile = value("--uri-file");
 const uri = uriFile ? (await readFile(uriFile, "utf8")).trim() : "";
 const output = value("--credentials-file");
-const expectedHost = "cluster0.yl9iyq0.mongodb.net";
-if (!uri || !output) throw new Error("El alta exige conexión y archivo privado explícitos.");
+const expectedHost = value("--expected-host");
+if (!uri || !output || !/^[a-z0-9-]+\.mongodb\.net$/.test(expectedHost)) {
+  throw new Error("El alta exige conexión, host de Atlas y archivo privado explícitos.");
+}
 const parsed = new URL(uri);
 if (parsed.protocol !== "mongodb+srv:" || parsed.hostname !== expectedHost ||
   decodeURIComponent(parsed.username) !== "padelbook_staging") {
-  throw new Error("La conexión debe usar el usuario restringido padelbook_staging en Cluster0.");
+  throw new Error("La conexión debe usar el usuario restringido padelbook_staging en el host de Atlas indicado.");
 }
 if (!/[/\\]padelbook-staging-credentials\.json$/i.test(output)) {
   throw new Error("El archivo de credenciales debe llamarse padelbook-staging-credentials.json.");
