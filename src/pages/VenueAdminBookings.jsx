@@ -133,7 +133,9 @@ export default function VenueAdminBookings() {
               return <article key={booking.id}><div className="venue-admin-list__time"><strong>{booking.time}</strong><small>{booking.endTime}</small></div>
                 <div className="venue-admin-list__main"><strong>{booking.playerName}</strong><span>{booking.courtName} · {booking.type === "class" ? "Clase" : "Cancha"}</span>
                   <small>{booking.phone || "Sin teléfono"}</small></div>
-                <div className="venue-admin-list__money"><strong>{money(booking.price)}</strong><small>Saldo {money(balance.due)}</small></div>
+                <div className="venue-admin-list__money"><strong>{money(booking.price)}</strong><small>{booking.status === "cancelado" ?
+                  balance.paid > 0 ? `Cobrado ${money(balance.paid)} · revisar devolución` : "Sin cobros registrados" :
+                  `Saldo ${money(balance.due)}`}</small></div>
                 <div className="venue-admin-list__actions"><span className={`venue-admin-status venue-admin-status--${booking.status}`}>{booking.status}</span>
                   {booking.status === "pendiente" && <button type="button" disabled={busyId === booking.id}
                     onClick={() => updateStatus(booking, "confirmado")}>Confirmar</button>}
