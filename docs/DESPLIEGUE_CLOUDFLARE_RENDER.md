@@ -67,6 +67,12 @@ MongoDB Atlas es adecuada para el modelo actual: `SlotClaim` usa índices único
 - QA sobre el build productivo: API retenida, API con 503, recuperación por reintento, entrada directa a `/admin` sin sesión y pantalla móvil de 390 × 844 sin desborde. Build, 20 pruebas existentes y validación de despliegue pasaron.
 - Esta corrección elimina la espera para ver el inicio; no elimina la suspensión de Render ni permite reservar sin conexión. Para evitar espera en operaciones, usar una instancia que permanezca activa.
 
+### Medición de latencia (08/10/2026)
+
+Desde el mismo cliente, el HTML de Cloudflare respondió en 0,29 s. La primera llamada a `/api/health` tardó 32,93 s y la segunda 0,37 s. Esto apunta a un arranque en frío del servicio de API, no a una consulta lenta permanente de MongoDB; una única medición no identifica por sí sola el plan exacto de Render. La [documentación de Render](https://render.com/docs/free) confirma que una instancia Free se suspende tras 15 minutos sin tráfico y tarda en reactivarse. Comprobar el plan del servicio en Render antes de atribuirle definitivamente esta causa.
+
+El frontend de la rama multiclub ahora carga las páginas por ruta. El paquete JS inicial bajó de aproximadamente 135 KB a 66 KB comprimidos en la compilación local, y las rutas de acceso, sede y agenda siguieron funcionando en el navegador de QA. Esta optimización acelera la descarga inicial; no puede eliminar los 33 s medidos en la primera petición a una API suspendida. Para el piloto con usuarios reales, cambiar **solo el servicio de API** a un plan de cómputo sin suspensión, tras revisar su costo en el panel de Render, y repetir la medición tras 20 minutos de inactividad. Mantener Cloudflare y Atlas como están.
+
 - Verificar la disponibilidad real, el precio y el SLA del proveedor antes de abrir el piloto. Evitar servicios discontinuados aunque su documentación antigua siga indexada.
 - Cloudflare aloja el frontend y actúa como proxy seguro. Express se ejecuta en Render y se conecta a Atlas.
 - El plan gratuito de Render puede suspender el contenedor por inactividad y agregar unos 50 segundos al primer pedido. Para una prueba con clientes se recomienda una instancia sin suspensión.

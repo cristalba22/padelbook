@@ -1,0 +1,26 @@
+.venue-config-page { max-width: 1140px; }
+.venue-config-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.venue-config-grid label { display: flex; flex-direction: column; gap: 7px; color: #334553; font-size: .82rem; font-weight: 700; }
+.venue-config-grid input, .venue-config-grid select { width: 100%; min-height: 43px; padding: 8px 11px; border: 1px solid #cbd6d5; border-radius: 9px; background: #fff; color: #14221e; font: inherit; font-weight: 500; }
+.venue-config-grid input:focus-visible, .venue-config-grid select:focus-visible, .venue-config-page button:focus-visible { outline: 3px solid #a6dc8a; outline-offset: 2px; }
+.venue-config-save, .venue-config-add { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 16px; border: 1px solid #255a3d; border-radius: 9px; background: #205137; color: #fff; font-size: .85rem; font-weight: 750; cursor: pointer; }
+.venue-config-save { margin-top: 20px; }
+.venue-config-add { background: #fff; color: #205137; }
+.venue-config-save:hover { background: #153e2a; }
+.venue-config-add:hover { background: #e8f4e9; }
+.venue-config-page button:disabled { opacity: .55; cursor: not-allowed; }
+.venue-config-notice { padding: 13px 17px; border: 1px solid #9cc8a0; border-radius: 10px; background: #eaf6e9; color: #194a2c; font-size: .88rem; font-weight: 650; }
+.venue-config-help { margin: -5px 0 21px; color: #607083; font-size: .84rem; line-height: 1.5; }
+.venue-config-courts { display: grid; gap: 15px; }
+.venue-config-card { padding: 21px; border: 1px solid #d9e3e1; border-radius: 13px; background: #fff; }
+.venue-config-card__top { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 20px; }
+.venue-config-card__top > div { display: flex; flex-direction: column; gap: 2px; }
+.venue-config-card__top strong { color: #14251d; font-size: 1.08rem; }
+.venue-config-card__top small { color: #607083; font-size: .75rem; }
+.venue-config-switch { display: inline-flex; align-items: center; gap: 7px; color: #255a3d; font-size: .8rem; font-weight: 750; }
+.venue-config-switch input, .venue-config-durations input { width: 17px; height: 17px; accent-color: #277443; }
+.venue-config-durations { margin: 19px 0 0; padding: 0; border: 0; }
+.venue-config-durations legend { margin-bottom: 9px; color: #334553; font-size: .82rem; font-weight: 700; }
+.venue-config-durations > div { display: flex; flex-wrap: wrap; gap: 9px; }
+.venue-config-durations label { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #d4e0d5; border-radius: 8px; color: #23362e; font-size: .82rem; }
+@media (max-width: 660px) { .venue-config-grid { grid-template-columns: 1fr; } .venue-config-card { padding: 16px; } .venue-config-card__top { align-items: flex-start; } .venue-config-page .org-section__heading { align-items: stretch; } .venue-config-add { align-self: flex-start; } }

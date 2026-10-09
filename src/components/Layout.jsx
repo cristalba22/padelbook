@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 import LoginModal from "./LoginModal.jsx";
 import { ROUTES, routeForRole } from "../constants/routes.js";
+import { useOptionalOrganizations } from "../hooks/useOrganizations.jsx";
 
 const navItems = [
   { to: ROUTES.BOOKING, label: "Reservar" },
@@ -12,10 +13,12 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, apiReady, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { user, logout, showLogin, apiReady, operatingMode, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { organizations = [] } = useOptionalOrganizations() || {};
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminWorkspace = location.pathname.startsWith("/admin");
+  const isOrganizationsWorkspace = location.pathname === ROUTES.CLUBS || location.pathname.startsWith(`${ROUTES.CLUBS}/`);
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -35,6 +38,8 @@ export default function Layout({ children }) {
 
   const renderNavLinks = (extraClasses = "") => (
     <>
+      {operatingMode === "multiclub" || isOrganizationsWorkspace ? <NavLink to={ROUTES.CLUBS} onClick={closeMobile}
+        className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Mis clubes</NavLink> : <>
       {navItems.map((item) => (
         <NavLink
           key={item.to}
@@ -71,6 +76,9 @@ export default function Layout({ children }) {
       )}
       {user?.role === "teacher" && <NavLink to={ROUTES.TEACHER} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Panel profe</NavLink>}
       {user?.role === "player" && <NavLink to={ROUTES.PLAYER} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Mi panel</NavLink>}
+      {organizations.some((organization) => organization.role === "admin") &&
+        <NavLink to={ROUTES.CLUBS} onClick={closeMobile} className={({ isActive }) => `text-sm font-medium transition-colors hover:text-lime-300 ${isActive ? "text-lime-300" : "text-slate-100"} ${extraClasses}`}>Mis clubes</NavLink>}
+      </>}
     </>
   );
 
@@ -83,7 +91,7 @@ export default function Layout({ children }) {
             <button
               type="button"
               onClick={() => {
-                navigate(ROUTES.HOME);
+                navigate(isOrganizationsWorkspace ? ROUTES.CLUBS : ROUTES.HOME);
                 closeMobile();
               }}
               className="site-brand flex items-center gap-1 text-base font-black tracking-tight text-white"
@@ -191,7 +199,9 @@ export default function Layout({ children }) {
       {apiReady && <LoginModal
         isOpen={showLogin}
         onClose={closeLogin}
-        onLoggedIn={(role) => { closeLogin(); navigate(routeForRole(role)); }}
+        onLoggedIn={(role) => { closeLogin(); if (operatingMode === "multiclub") {
+          if (!isOrganizationsWorkspace) navigate(ROUTES.CLUBS);
+        } else if (!isOrganizationsWorkspace) navigate(routeForRole(role)); }}
       />}
     </>
   );

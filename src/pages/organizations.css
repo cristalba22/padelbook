@@ -1,0 +1,86 @@
+.org-page {
+  --org-ink: #101928;
+  --org-muted: #607083;
+  --org-line: #dce3e8;
+  --org-accent: #427d52;
+  width: min(1320px, calc(100% - 32px));
+  margin: 42px auto 90px;
+  color: var(--org-ink);
+}
+
+.org-heading { margin-bottom: 32px; }
+.org-heading h1 { margin: 6px 0 7px; color: #f8f9f8; font-size: clamp(2.4rem, 5vw, 4.5rem); line-height: 1.04; letter-spacing: -.055em; }
+.org-heading p { display: flex; align-items: center; gap: 7px; margin: 0; color: #aebdc5; font-size: .98rem; }
+.org-heading--dashboard { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.org-eyebrow { display: block; color: #a8d5ae; font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.org-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 25px; color: #d5e1dd; font-size: .88rem; text-decoration: none; }
+.org-back:hover { color: #c2efae; }
+.org-refresh, .org-state button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 40px; padding: 0 16px; border: 1px solid #517e67; border-radius: 10px; background: #173b2b; color: #ecf8e6; font-size: .85rem; font-weight: 750; cursor: pointer; }
+.org-refresh:hover, .org-state button:hover { background: #21553c; }
+
+.org-section { margin-top: 26px; padding: clamp(20px, 3vw, 32px); border: 1px solid var(--org-line); border-radius: 18px; background: #f8faf9; box-shadow: 0 22px 60px rgba(0, 0, 0, .16), 0 1px 2px rgba(0, 0, 0, .05); }
+.org-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 21px; }
+.org-section__heading h2 { margin: 5px 0 0; color: var(--org-ink); font-size: clamp(1.3rem, 2.4vw, 1.85rem); line-height: 1.1; letter-spacing: -.035em; }
+.org-section__heading .org-eyebrow { color: var(--org-accent); }
+.org-section__heading > small { color: var(--org-muted); text-align: right; }
+.org-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.org-metric { display: flex; min-height: 154px; flex-direction: column; justify-content: space-between; gap: 8px; padding: 19px; border: 1px solid #e0e6e8; border-radius: 13px; background: #fff; }
+.org-metric--primary { border-color: #2e6746; background: linear-gradient(145deg, #122b23, #1e503a); color: #fff; box-shadow: 0 12px 22px rgba(25, 73, 45, .15); }
+.org-metric > span { font-size: .78rem; font-weight: 750; }
+.org-metric strong { overflow-wrap: anywhere; font-size: clamp(1.4rem, 2.2vw, 2rem); letter-spacing: -.045em; }
+.org-metric small { color: var(--org-muted); font-size: .72rem; }
+.org-metric--primary small { color: #c2dcc9; }
+.org-finance-note { margin: 18px 0 0; color: var(--org-muted); font-size: .85rem; line-height: 1.5; }
+.org-finance-note strong { color: #223e31; }
+
+.org-venue-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.org-venue-card { display: flex; min-height: 210px; flex-direction: column; padding: 20px; border: 1px solid #dbe5dd; border-radius: 14px; background: #fff; color: var(--org-ink); text-decoration: none; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.org-venue-card:hover { transform: translateY(-3px); border-color: #83af8c; box-shadow: 0 12px 28px rgba(28, 66, 39, .11); }
+.org-venue-card__top { display: flex; justify-content: space-between; color: #377350; }
+.org-venue-card__index { color: #6f8e75; font-size: .8rem; font-weight: 800; letter-spacing: .1em; }
+.org-venue-card > strong { margin-top: 13px; font-size: 1.4rem; letter-spacing: -.035em; }
+.org-venue-card__status { align-self: flex-start; margin-top: 7px; padding: 3px 8px; border-radius: 5px; background: #e5f4e8; color: #30683f; font-size: .68rem; font-weight: 750; }
+.org-venue-card__figures { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 22px; }
+.org-venue-card__figures span { display: flex; flex-direction: column; gap: 2px; }
+.org-venue-card__figures small { color: var(--org-muted); font-size: .68rem; }
+.org-venue-card__figures b { font-size: .95rem; }
+
+.org-bottom-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+.org-activity, .org-team-list { margin: 0; padding: 0; list-style: none; }
+.org-activity li { display: flex; align-items: start; gap: 13px; padding: 13px 0; border-top: 1px solid #e6ebed; }
+.org-activity li:first-child, .org-team-list li:first-child { border-top: 0; }
+.org-activity__dot { width: 7px; height: 7px; flex: none; margin-top: 8px; border-radius: 50%; background: #68a16d; }
+.org-activity li div { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.org-activity strong, .org-team-list span { font-size: .85rem; }
+.org-activity small, .org-team-list small { color: var(--org-muted); font-size: .73rem; }
+.org-activity time { color: var(--org-muted); font-size: .7rem; white-space: nowrap; }
+.org-team-count { margin: 0 0 15px; color: #445464; font-size: .9rem; }
+.org-team-count strong { margin-right: 5px; color: #234b36; font-size: 1.8rem; }
+.org-team-list li { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid #e6ebed; }
+.org-staff-link { display: inline-flex; align-items: center; gap: 6px; color: #286541; font-size: .8rem; font-weight: 750; text-decoration: none; }
+.org-staff-link:hover { text-decoration: underline; }
+.org-empty { margin: 0; color: var(--org-muted); font-size: .88rem; }
+
+.org-list { display: grid; gap: 12px; max-width: 760px; }
+.org-list-card { display: flex; align-items: center; gap: 16px; padding: 20px; border: 1px solid #dde5e2; border-radius: 15px; background: #f8faf9; color: var(--org-ink); text-decoration: none; box-shadow: 0 12px 32px rgba(0, 0, 0, .12); transition: transform .2s ease, border-color .2s ease; }
+.org-list-card:hover { transform: translateY(-2px); border-color: #8ab598; }
+.org-list-card__icon { display: grid; width: 46px; height: 46px; flex: none; place-items: center; border-radius: 11px; background: #e4f0e7; color: #307346; }
+.org-list-card__copy { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.org-list-card__copy strong { font-size: 1.1rem; }
+.org-list-card__copy small { color: var(--org-muted); }
+.org-state { width: min(540px, calc(100% - 32px)); margin: 13vh auto; padding: 30px; border: 1px solid #456257; border-radius: 16px; background: #f8faf9; color: var(--org-ink); text-align: center; box-shadow: 0 25px 65px rgba(0,0,0,.2); }
+.org-state h1 { margin: 0 0 8px; font-size: 1.5rem; }
+.org-state p { margin: 0 0 18px; color: var(--org-muted); }
+.org-venue-info { display: flex; flex-wrap: wrap; gap: 10px; }
+.org-venue-info span { display: inline-flex; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid #416956; border-radius: 9px; background: #122b23; color: #e8f3e9; font-size: .84rem; }
+.org-court-list article { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 0; border-top: 1px solid #e4e9e8; }
+.org-court-list article:first-child { border-top: 0; }
+.org-court-list article div { display: flex; flex-direction: column; gap: 2px; }
+.org-court-list article strong { font-size: .95rem; }
+.org-court-list article small, .org-court-list article > span { color: var(--org-muted); font-size: .78rem; }
+.org-court-list article b { font-size: .86rem; white-space: nowrap; }
+
+@media (max-width: 1000px) { .org-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .org-venue-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .org-page { margin-top: 28px; } .org-bottom-grid, .org-venue-grid { grid-template-columns: 1fr; } .org-heading--dashboard { align-items: start; flex-direction: column; } .org-section__heading { align-items: start; flex-direction: column; } .org-section__heading > small { text-align: left; } .org-court-list article { align-items: start; flex-wrap: wrap; } }
+@media (max-width: 480px) { .org-metrics { grid-template-columns: 1fr; } .org-metric { min-height: 115px; } .org-team-list li { flex-direction: column; gap: 1px; } }
+@media (prefers-reduced-motion: reduce) { .org-list-card, .org-venue-card { transition: none; } .org-list-card:hover, .org-venue-card:hover { transform: none; } }

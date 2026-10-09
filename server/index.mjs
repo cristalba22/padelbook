@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import mongoose from "mongoose";
 import { z } from "zod";
-import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN } from "./config.mjs";
+import { CLIENT_ORIGIN, PORT, PUBLIC_APP_ORIGIN, PADELBOOK_OPERATING_MODE } from "./config.mjs";
 import { Activity, Booking, Court, Expense, PasswordReset, ScheduleBlock, Setting, SlotClaim, Teacher, Tournament, User, addActivity, connectDb, dbState } from "./db.mjs";
 import { clearSessionCookie, createSession, publicUser, requireAuth, requireRole, sessionCookie } from "./auth.mjs";
 import { requestContextMiddleware } from "./requestContext.mjs";
@@ -14,9 +14,19 @@ import { CLASS_HOURS } from "../src/data/bookingConfig.js";
 import { lastReversiblePayment, paymentSummary, PAYMENT_METHODS } from "../src/utils/paymentDomain.js";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { accountingDate, shiftClubDate, startOfClubMonth, startOfClubWeek, startOfClubYear } from "../src/utils/clubDate.js";
 import { API_PROXY_SECRET } from "./config.mjs";
 import { passwordEmailConfigured, sendBookingEmail, sendPasswordResetEmail } from "./email.mjs";
+import { addMinutesToHour, fitsCourtHours, publicCourt, validCourtSchedule } from "./courtView.mjs";
+import { courtFields } from "./courtInput.mjs";
+import { isValidDateISO } from "./dateValidation.mjs";
+import { withAgendaTransaction } from "./agendaTransaction.mjs";
+import { parseSettingsPatch } from "./settingsInput.mjs";
+import { tournamentFields, registrationStatusFields, tournamentSignupFields } from "./tournamentInput.mjs";
+import { venueRouter } from "./venueRoutes.mjs";
+import { organizationStaffRouter } from "./organizationStaff.mjs";
+import { invitationRouter } from "./invitations.mjs";
+import { buildFinanceSummary } from "./financeSummary.mjs";
+import { listMyOrganizations } from "./organizationPortfolio.mjs";
 
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("padelbook-login-timing-placeholder", 12);
@@ -42,6 +52,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "32kb", strict: true }));
 app.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
+app.use("/api", (req, res, next) => {
+  if (process.env.PADELBOOK_MAINTENANCE_MODE !== "true" || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  res.setHeader("Retry-After", "300");
+  return res.status(503).json({ message: "Las operaciones están pausadas por mantenimiento. Volvé a intentar en unos minutos." });
+});
 
 const cleanEmail = (email = "") => String(email).toLowerCase().trim();
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
@@ -70,82 +85,6 @@ function isPastDate(date) {
   return String(date || "") < todayString();
 }
 
-function isValidDateISO(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-function addDaysString(days) {
-  return shiftClubDate(days);
-}
-
-function startOfWeekString() {
-  return startOfClubWeek();
-}
-
-function startOfMonthString() {
-  return startOfClubMonth();
-}
-
-function startOfYearString() {
-  return startOfClubYear();
-}
-
-function moneyBucket(items, from, getDate, getValue) {
-  return items
-    .filter((item) => String(getDate(item) || "") >= from)
-    .reduce((acc, item) => acc + Number(getValue(item) || 0), 0);
-}
-
-function minutesFromHour(hour = "00:00") {
-  const [hh = "0", mm = "0"] = String(hour).split(":");
-  return Number(hh) * 60 + Number(mm);
-}
-
-function addMinutesToHour(hour, minutes) {
-  const total = minutesFromHour(hour) + Number(minutes || 0);
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-}
-
-function isClockTime(value) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || ""));
-}
-
-function courtHours(court) {
-  if (!isClockTime(court.openingTime) || !isClockTime(court.closingTime)) return [];
-  const start = minutesFromHour(court.openingTime);
-  const end = minutesFromHour(court.closingTime);
-  const interval = Number(court.slotIntervalMinutes || 30);
-  if (start < 0 || end > 24 * 60 || end <= start || ![30, 60].includes(interval)) return [];
-  return Array.from({ length: Math.ceil((end - start) / interval) }, (_, index) => addMinutesToHour(court.openingTime, index * interval))
-    .filter((hour) => minutesFromHour(hour) < end);
-}
-
-function fitsCourtHours(court, hour, durationMinutes) {
-  return courtHours(court).includes(hour) && minutesFromHour(hour) + Number(durationMinutes || 0) <= minutesFromHour(court.closingTime);
-}
-
-function publicCourt(court) {
-  const item = court.toJSON ? court.toJSON() : court;
-  return {
-    id: item.courtId,
-    name: item.name,
-    description: item.description,
-    tag: item.tag,
-    active: item.active !== false,
-    sortOrder: Number(item.sortOrder || 0),
-    openingTime: item.openingTime,
-    closingTime: item.closingTime,
-    slotIntervalMinutes: Number(item.slotIntervalMinutes || 30),
-    allowedDurations: (item.allowedDurations || []).map(Number),
-    basePrice: Number(item.basePrice || 0),
-    nightPrice: Number(item.nightPrice || 0),
-    weekendExtra: Number(item.weekendExtra || 0),
-    hours: courtHours(item),
-  };
-}
-
 function queueBookingEmail(booking, action) {
   if (!booking?.userEmail) return;
   void Setting.findOne().lean()
@@ -164,14 +103,23 @@ app.get("/api", (_req, res) => {
     name: "PadelBook API",
     status: "online",
     database: dbState(),
-    endpoints: ["/api/health", "/api/auth/login", "/api/bookings", "/api/blocks", "/api/tournaments", "/api/settings", "/api/finance/summary"],
+    mode: PADELBOOK_OPERATING_MODE,
+    endpoints: PADELBOOK_OPERATING_MODE === "multiclub"
+      ? ["/api/health", "/api/auth/login", "/api/auth/organizations", "/api/organizations", "/api/venues"]
+      : ["/api/health", "/api/auth/login", "/api/bookings", "/api/blocks", "/api/tournaments", "/api/settings", "/api/finance/summary"],
   });
 });
 
 app.get("/api/health", (_req, res) => {
   const connected = dbState() === "connected";
-  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), timestamp: new Date().toISOString() });
+  res.status(connected ? 200 : 503).json({ ok: connected, name: "PadelBook API", database: dbState(), mode: PADELBOOK_OPERATING_MODE,
+    writable: process.env.PADELBOOK_MAINTENANCE_MODE !== "true", timestamp: new Date().toISOString() });
 });
+
+app.use("/api/venues", venueRouter);
+app.use("/api/organizations", organizationStaffRouter);
+app.use("/api/invitations", invitationRouter);
+app.get("/api/auth/organizations", requireAuth, listMyOrganizations);
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
   const schema = z.object({ email: z.string().email().max(254), password: z.string().min(1).max(72) }).strict();
@@ -317,6 +265,11 @@ app.patch("/api/auth/password", authLimiter, requireAuth, async (req, res) => {
   res.status(204).end();
 });
 
+app.use("/api", (_req, res, next) => {
+  if (PADELBOOK_OPERATING_MODE === "multiclub") return res.status(404).json({ message: "Ruta anterior no disponible en multiclub." });
+  next();
+});
+
 app.get("/api/admin/staff", requireAuth, requireRole("admin"), async (_req, res) => {
   const staff = await User.find({ role: "receptionist" }).sort({ name: 1 });
   res.json({ staff: staff.map(publicUser) });
@@ -363,26 +316,6 @@ app.get("/api/admin/courts", requireAuth, requireRole("admin"), async (_req, res
   const courts = await Court.find().sort({ sortOrder: 1, name: 1 });
   res.json({ courts: courts.map(publicCourt) });
 });
-
-const courtFields = z.object({
-  name: z.string().trim().min(2).max(100),
-  description: z.string().trim().max(160).optional().default(""),
-  tag: z.string().trim().max(120).optional().default(""),
-  active: z.boolean().optional().default(true),
-  sortOrder: z.number().int().min(0).max(1000).optional().default(0),
-  openingTime: z.string().regex(/^\d{2}:\d{2}$/),
-  closingTime: z.string().regex(/^\d{2}:\d{2}$/),
-  slotIntervalMinutes: z.union([z.literal(30), z.literal(60)]).optional().default(30),
-  allowedDurations: z.array(z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(150)])).min(1).max(4),
-  basePrice: z.number().int().min(0).max(100_000_000),
-  nightPrice: z.number().int().min(0).max(100_000_000),
-  weekendExtra: z.number().int().min(0).max(100_000_000).optional().default(0),
-}).strict();
-
-function validCourtSchedule(court) {
-  return isClockTime(court.openingTime) && isClockTime(court.closingTime) &&
-    minutesFromHour(court.openingTime) < minutesFromHour(court.closingTime) && courtHours(court).length > 0;
-}
 
 app.post("/api/admin/courts", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = courtFields.safeParse(req.body);
@@ -740,15 +673,6 @@ function claimsFor({ date, courtId, time, durationMinutes }, ownerType, ownerId)
   return bookingSlotStarts(time, durationMinutes).map((slot) => ({ date, courtId, slot, ownerType, ownerId: String(ownerId) }));
 }
 
-async function withAgendaTransaction(work) {
-  const session = await mongoose.startSession();
-  try {
-    return await session.withTransaction(() => work(session));
-  } finally {
-    await session.endSession();
-  }
-}
-
 app.get("/api/tournaments", async (_req, res) => {
   const tournaments = await Tournament.find().sort({ date: 1 });
   res.json({ tournaments: tournaments.map(publicTournament) });
@@ -767,15 +691,6 @@ app.get("/api/tournaments/mine", requireAuth, async (req, res) => {
 app.get("/api/admin/tournaments", requireAuth, requireRole("admin"), async (_req, res) => {
   const tournaments = await Tournament.find().sort({ date: 1 });
   res.json({ tournaments: tournaments.map((tournament) => tournament.toJSON()) });
-});
-
-const tournamentFields = z.object({
-  name: z.string().trim().min(2).max(120), date: z.string(), hour: z.string(),
-  status: z.enum(["abierto", "lleno", "en_curso", "finalizado", "cancelado"]),
-  category: z.string().trim().max(80), surface: z.string().trim().max(80),
-  pricePerPlayer: z.number().int().min(0).max(100_000_000), seededPlayers: z.number().int().min(0),
-  maxPlayers: z.number().int().min(1), prize: z.string().trim().max(120),
-  description: z.string().trim().max(1000),
 });
 
 app.post("/api/admin/tournaments", requireAuth, requireRole("admin"), async (req, res) => {
@@ -812,8 +727,7 @@ app.delete("/api/admin/tournaments/:id", requireAuth, requireRole("admin"), asyn
 
 app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAuth, requireRole("admin"), async (req, res) => {
   if (!isValidObjectId(req.params.id) || !isValidObjectId(req.params.registrationId)) return res.status(400).json({ message: "ID inválido." });
-  const parsed = z.object({ status: z.enum(["pendiente", "confirmado", "cancelado"]).optional(),
-    paymentStatus: z.enum(["pendiente", "pagado", "sin_cargo"]).optional() }).strict().safeParse(req.body);
+  const parsed = registrationStatusFields.safeParse(req.body);
   if (!parsed.success || !Object.keys(parsed.data).length) return res.status(400).json({ message: "Estado inválido." });
   const tournament = await Tournament.findById(req.params.id);
   if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
@@ -836,8 +750,7 @@ app.patch("/api/admin/tournaments/:id/registrations/:registrationId", requireAut
 
 app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
   if (!isValidObjectId(req.params.id)) return res.status(400).json({ message: "ID de torneo inválido." });
-  const schema = z.object({ partnerName: z.string().trim().max(100).optional().default(""), partnerPhone: z.string().trim().max(40).optional().default("") }).strict();
-  const parsed = schema.safeParse(req.body);
+  const parsed = tournamentSignupFields.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Datos invalidos." });
   const tournament = await Tournament.findById(req.params.id);
   if (!tournament) return res.status(404).json({ message: "Torneo no encontrado." });
@@ -874,132 +787,22 @@ app.get("/api/settings", async (_req, res) => {
 });
 
 app.put("/api/settings", requireAuth, requireRole("admin"), async (req, res) => {
-  const schema = z.object({
-    clubName: z.string().trim().min(2).max(120).optional(),
-    clubShortName: z.string().trim().min(2).max(40).optional(),
-    address: z.string().trim().max(200).optional(),
-    mapsQuery: z.string().trim().max(200).optional(),
-    whatsapp: z.string().trim().max(40).optional(),
-    instagram: z.string().trim().max(80).optional(),
-    openingHours: z.string().trim().max(100).optional(),
-    clubStatus: z.string().trim().max(160).optional(),
-    homeHeadline: z.string().trim().max(180).optional(),
-    homeSubtitle: z.string().trim().max(500).optional(),
-    promoText: z.string().trim().max(160).optional(),
-    courtPrice: z.number().or(z.string()).transform(Number).optional(),
-    nightPrice: z.number().or(z.string()).transform(Number).optional(),
-    weekendExtra: z.number().or(z.string()).transform(Number).optional(),
-    classPrice: z.number().or(z.string()).transform(Number).optional(),
-    tournamentPrice: z.number().or(z.string()).transform(Number).optional(),
-    teacherCommissionPercent: z.number().or(z.string()).transform(Number).optional(),
-  }).strict();
-
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: "Datos de configuracion invalidos." });
-
-  const numericKeys = ["courtPrice", "nightPrice", "weekendExtra", "classPrice", "tournamentPrice", "teacherCommissionPercent"];
-  for (const key of numericKeys) {
-    if (parsed.data[key] !== undefined && (!Number.isFinite(parsed.data[key]) || Number(parsed.data[key]) < 0 || Number(parsed.data[key]) > (key === "teacherCommissionPercent" ? 100 : 100_000_000))) {
-      return res.status(400).json({ message: "Los precios deben ser numeros positivos." });
-    }
-  }
-  if (parsed.data.teacherCommissionPercent > 100) return res.status(400).json({ message: "La comisión debe estar entre 0 y 100%." });
-
-  const patch = {
-    ...parsed.data,
-    whatsapp: parsed.data.whatsapp ? String(parsed.data.whatsapp).replace(/\D/g, "") : parsed.data.whatsapp,
-    instagram: parsed.data.instagram ? String(parsed.data.instagram).replace(/^@/, "").trim() : parsed.data.instagram,
-  };
-
-  Object.keys(patch).forEach((key) => patch[key] === undefined && delete patch[key]);
+  const patch = parseSettingsPatch(req.body);
+  if (!patch) return res.status(400).json({ message: "Datos de configuración inválidos." });
   const settings = await Setting.findOneAndUpdate({}, { $set: patch }, { returnDocument: "after", upsert: true, setDefaultsOnInsert: true });
   await addActivity({ type: "settings_updated", title: "Configuracion actualizada", detail: "Precios y datos del club", actor: req.user.name });
   res.json({ settings: settings.toJSON() });
 });
 
 app.get("/api/finance/summary", requireAuth, requireRole("admin"), async (_req, res) => {
-  const [bookings, expenses, settingsDoc, tournaments] = await Promise.all([
+  const [bookings, expenses, settings, tournaments] = await Promise.all([
     Booking.find().sort({ date: -1, time: -1 }),
     Expense.find().sort({ date: -1, createdAt: -1 }).limit(80),
     Setting.findOne().sort({ createdAt: 1 }),
     Tournament.find().select("name registrations pricePerPlayer"),
   ]);
-
-  const settings = settingsDoc?.toJSON?.() || {};
-  const commissionPercent = Number(settings.teacherCommissionPercent ?? 50);
-  const allBookings = bookings.map((booking) => booking.toJSON());
-  const activeBookings = allBookings.filter((booking) => booking.status !== "cancelado");
-  const expenseRows = expenses.map((expense) => expense.toJSON());
-  const collectedBookings = allBookings.filter((booking) => paymentSummary(booking).paid > 0);
-  const pendingBookings = activeBookings.filter((booking) => paymentSummary(booking).due > 0).map((booking) => ({ ...booking, amountDue: paymentSummary(booking).due }));
-  const tournamentIncomeRows = tournaments.flatMap((tournament) => tournament.registrations.flatMap((registration) => (registration.paymentEntries || [])
-    .map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: "tournament", label: tournament.name }))));
-  const incomeRows = [...allBookings.flatMap((booking) => {
-    const entries = booking.paymentEntries || [];
-    return entries.length ? entries.map((entry) => ({ date: accountingDate(entry.at), amount: Number(entry.amount || 0), type: booking.type, label: booking.courtName }))
-      : paymentSummary(booking).paid > 0 ? [{ date: accountingDate(booking.updatedAt || booking.date), amount: paymentSummary(booking).paid, type: booking.type, label: booking.courtName }] : [];
-  }), ...tournamentIncomeRows];
-
-  const teacherCommissions = collectedBookings
-    .filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName)
-    .flatMap((booking) => {
-      const entries = booking.paymentEntries?.length ? booking.paymentEntries : [{ amount: paymentSummary(booking).paid, at: booking.updatedAt || booking.date }];
-      return entries.map((entry) => ({
-        date: accountingDate(entry.at), teacherName: booking.teacherName || "Profesor", bookingId: booking.id,
-        gross: Number(entry.amount || 0), amount: Math.round((Number(entry.amount || 0) * commissionPercent) / 100), percent: commissionPercent,
-      }));
-    });
-
-  const expenseTotal = expenseRows.reduce((acc, item) => acc + Number(item.amount || 0), 0);
-  const commissionTotal = teacherCommissions.reduce((acc, item) => acc + Number(item.amount || 0), 0);
-  const periods = {
-    day: todayString(),
-    week: startOfWeekString(),
-    month: startOfMonthString(),
-    year: startOfYearString(),
-  };
-
-  const byPeriod = Object.fromEntries(Object.entries(periods).map(([key, from]) => {
-    const income = moneyBucket(incomeRows, from, (item) => item.date, (item) => item.amount);
-    const expensesAmount = moneyBucket(expenseRows, from, (item) => item.date, (item) => item.amount);
-    const commissions = moneyBucket(teacherCommissions, from, (item) => item.date, (item) => item.amount);
-    return [key, { income, expenses: expensesAmount, commissions, net: income - expensesAmount - commissions }];
-  }));
-
-  const dailyTrend = Array.from({ length: 7 }, (_, index) => {
-    const date = addDaysString(index - 6);
-    const income = moneyBucket(incomeRows, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    const expensesAmount = moneyBucket(expenseRows, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    const commissions = moneyBucket(teacherCommissions, date, (item) => item.date === date ? date : "", (item) => item.amount);
-    return { date, income, expenses: expensesAmount, commissions, net: income - expensesAmount - commissions };
-  });
-
-  const incomeByCategory = [
-    { label: "Cancha", amount: collectedBookings.filter((booking) => booking.type !== "class").reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
-    { label: "Clases", amount: collectedBookings.filter((booking) => booking.type === "class" || booking.teacherId || booking.teacherName).reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) },
-    { label: "Torneos", amount: tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0) },
-  ];
-
-  res.json({
-    summary: {
-      byPeriod,
-      totals: {
-        grossIncome: incomeRows.reduce((acc, item) => acc + Number(item.amount || 0), 0),
-        collected: collectedBookings.reduce((acc, booking) => acc + paymentSummary(booking).paid, 0) + tournamentIncomeRows.reduce((acc, item) => acc + item.amount, 0),
-        pending: pendingBookings.reduce((acc, booking) => acc + booking.amountDue, 0),
-        expenses: expenseTotal,
-        teacherCommissions: commissionTotal,
-      },
-      commissionPercent,
-      dailyTrend,
-      incomeByCategory,
-      teacherCommissions: teacherCommissions.slice(0, 12),
-      expenses: expenseRows.slice(0, 12),
-      pendingPayments: pendingBookings.slice(0, 12),
-    },
-  });
+  res.json({ summary: buildFinanceSummary({ bookings, expenses, settings, tournaments }) });
 });
-
 app.post("/api/expenses", requireAuth, requireRole("admin"), async (req, res) => {
   const schema = z.object({
     date: z.string().min(8).optional().default(todayString()),

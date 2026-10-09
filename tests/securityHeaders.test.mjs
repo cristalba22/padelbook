@@ -31,3 +31,11 @@ test("Cloudflare no sirve el HTML de la SPA cuando la API no está configurada",
   assert.equal(response.status, 503);
   assert.equal((await response.json()).message, "La API del club no está configurada.");
 });
+
+test("solo staging impide la indexación de la página", async () => {
+  const assets = { fetch: async () => new Response("<html></html>", { headers: { "content-type": "text/html" } }) };
+  const staging = await worker.fetch(new Request("https://padelbook-staging.example/clubes"), { ASSETS: assets, PADELBOOK_STAGING: "true" });
+  const production = await worker.fetch(new Request("https://padelbook.example/clubes"), { ASSETS: assets });
+  assert.equal(staging.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+  assert.equal(production.headers.get("x-robots-tag"), null);
+});

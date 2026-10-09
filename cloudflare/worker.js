@@ -23,6 +23,7 @@ export default {
       const responseHeaders = new Headers(upstreamResponse.headers);
       responseHeaders.set("Cache-Control", "no-store");
       responseHeaders.set("X-Content-Type-Options", "nosniff");
+      if (env.PADELBOOK_STAGING === "true") responseHeaders.set("X-Robots-Tag", "noindex, nofollow, noarchive");
       return new Response(upstreamResponse.body, { status: upstreamResponse.status, statusText: upstreamResponse.statusText, headers: responseHeaders });
     }
     const response = await env.ASSETS.fetch(request);
@@ -37,6 +38,7 @@ export default {
     headers.set("Cross-Origin-Resource-Policy", "same-origin");
     headers.set("Origin-Agent-Cluster", "?1");
     headers.set("Strict-Transport-Security", "max-age=31536000");
+    if (env.PADELBOOK_STAGING === "true") headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
     if ((headers.get("content-type") || "").includes("text/html")) headers.set("Cache-Control", "no-store");
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },

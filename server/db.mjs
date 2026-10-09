@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { MONGODB_DB_NAME, MONGODB_URI } from "./config.mjs";
+import { MONGODB_DB_NAME, MONGODB_URI, PADELBOOK_OPERATING_MODE } from "./config.mjs";
+import { assertTenantIndexesReady } from "../scripts/migrate-tenant-indexes-lib.mjs";
 import { bookingSlotStarts, canonicalCourtId } from "../src/utils/bookingDomain.js";
 import { COURTS as DEFAULT_COURTS, DURATION_OPTIONS } from "../src/data/bookingConfig.js";
 
@@ -25,6 +26,52 @@ const baseOptions = {
   },
 };
 
+const organizationSchema = new mongoose.Schema({
+  slug: { type: String, required: true, lowercase: true, trim: true, unique: true },
+  name: { type: String, required: true, trim: true },
+  status: { type: String, enum: ["active", "suspended"], default: "active" },
+}, baseOptions);
+
+const venueSchema = new mongoose.Schema({
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  slug: { type: String, required: true, lowercase: true, trim: true },
+  name: { type: String, required: true, trim: true },
+  address: { type: String, default: "" },
+  timeZone: { type: String, default: "America/Argentina/Cordoba" },
+  active: { type: Boolean, default: true },
+}, baseOptions);
+venueSchema.index({ organizationId: 1, slug: 1 }, { unique: true });
+
+const membershipSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  role: { type: String, enum: ["admin", "receptionist", "teacher", "player"], required: true },
+  venueIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  active: { type: Boolean, default: true },
+}, baseOptions);
+membershipSchema.index({ organizationId: 1, userId: 1 }, { unique: true });
+
+const invitationSchema = new mongoose.Schema({
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
+  role: { type: String, enum: ["admin", "receptionist", "teacher"], required: true },
+  venueIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  tokenHash: { type: String, required: true, unique: true },
+  status: { type: String, enum: ["pending", "accepted", "revoked"], default: "pending" },
+  expiresAt: { type: Date, required: true },
+  acceptedAt: { type: Date, default: null },
+  invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+}, baseOptions);
+invitationSchema.index({ organizationId: 1, email: 1, status: 1 }, {
+  unique: true, partialFilterExpression: { status: "pending" }, name: "pending_org_email_invite_unique",
+});
+invitationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+const scopeFields = {
+  organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization" },
+  venueId: { type: mongoose.Schema.Types.ObjectId, ref: "Venue" },
+};
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -46,7 +93,8 @@ const passwordResetSchema = new mongoose.Schema({
 passwordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const courtSchema = new mongoose.Schema({
-  courtId: { type: String, required: true, unique: true, trim: true },
+  ...scopeFields,
+  courtId: { type: String, required: true, trim: true },
   name: { type: String, required: true, trim: true },
   description: { type: String, default: "", trim: true },
   tag: { type: String, default: "", trim: true },
@@ -60,8 +108,12 @@ const courtSchema = new mongoose.Schema({
   nightPrice: { type: Number, default: 24000 },
   weekendExtra: { type: Number, default: 3000 },
 }, baseOptions);
+courtSchema.index({ organizationId: 1, venueId: 1, courtId: 1 }, {
+  unique: true, name: "venue_court_id_unique",
+});
 
 const bookingSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   time: { type: String, required: true },
   endTime: { type: String, default: "" },
@@ -87,13 +139,13 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ["pendiente", "confirmado", "cancelado"], default: "pendiente" },
 }, baseOptions);
 
-bookingSchema.index({ date: 1, time: 1, courtId: 1, status: 1 });
-bookingSchema.index({ date: 1, courtId: 1, occupiedSlots: 1 }, {
-  unique: true,
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, time: 1, courtId: 1, status: 1 });
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, occupiedSlots: 1 }, {
+  unique: true, name: "venue_booking_slot_unique",
   partialFilterExpression: { occupiedSlots: { $exists: true }, status: { $in: ["pendiente", "confirmado"] } },
 });
-bookingSchema.index({ date: 1, teacherId: 1, occupiedSlots: 1 }, {
-  unique: true,
+bookingSchema.index({ organizationId: 1, venueId: 1, date: 1, teacherId: 1, occupiedSlots: 1 }, {
+  unique: true, name: "venue_teacher_slot_unique",
   partialFilterExpression: { type: "class", status: { $in: ["pendiente", "confirmado"] }, teacherId: { $type: "string" }, occupiedSlots: { $exists: true } },
 });
 
@@ -113,6 +165,7 @@ const registrationSchema = new mongoose.Schema({
 }, { _id: true, versionKey: false, toJSON: { virtuals: true } });
 
 const tournamentSchema = new mongoose.Schema({
+  ...scopeFields,
   name: { type: String, required: true },
   status: { type: String, enum: ["abierto", "lleno", "en_curso", "finalizado", "cancelado"], default: "abierto" },
   date: { type: String, required: true },
@@ -129,6 +182,7 @@ const tournamentSchema = new mongoose.Schema({
 }, { ...baseOptions, versionKey: "__v", optimisticConcurrency: true });
 
 const settingsSchema = new mongoose.Schema({
+  ...scopeFields,
   clubName: { type: String, default: "PadelBook" },
   clubShortName: { type: String, default: "PadelBook" },
   address: { type: String, default: "" },
@@ -147,8 +201,12 @@ const settingsSchema = new mongoose.Schema({
   tournamentPrice: { type: Number, default: 25000 },
   teacherCommissionPercent: { type: Number, default: 50 },
 }, baseOptions);
+settingsSchema.index({ organizationId: 1, venueId: 1 }, {
+  unique: true, partialFilterExpression: { organizationId: { $exists: true }, venueId: { $exists: true } },
+});
 
 const activitySchema = new mongoose.Schema({
+  ...scopeFields,
   type: String,
   title: String,
   detail: String,
@@ -161,6 +219,7 @@ const activitySchema = new mongoose.Schema({
 }, baseOptions);
 
 const expenseSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   concept: { type: String, required: true },
   category: { type: String, default: "operativo" },
@@ -170,6 +229,7 @@ const expenseSchema = new mongoose.Schema({
 }, baseOptions);
 
 const scheduleBlockSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   courtId: { type: String, required: true },
   hour: { type: String, required: true },
@@ -178,9 +238,10 @@ const scheduleBlockSchema = new mongoose.Schema({
   type: { type: String, enum: ["block", "teacher"], default: "block" },
   ownerId: { type: String, default: "" },
 }, baseOptions);
-scheduleBlockSchema.index({ date: 1, courtId: 1, hour: 1 }, { unique: true });
+scheduleBlockSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, hour: 1 }, { unique: true, name: "venue_block_hour_unique" });
 
 const teacherSchema = new mongoose.Schema({
+  ...scopeFields,
   name: { type: String, required: true },
   nickname: { type: String, default: "" },
   specialty: { type: String, default: "Clases de pádel" },
@@ -188,17 +249,27 @@ const teacherSchema = new mongoose.Schema({
   price: { type: Number, default: 30000 },
   userId: { type: String, default: "" },
 }, baseOptions);
+teacherSchema.index({ organizationId: 1, venueId: 1, userId: 1 }, {
+  unique: true, name: "venue_teacher_user_unique", partialFilterExpression: { userId: { $gt: "" } },
+});
 
 const slotClaimSchema = new mongoose.Schema({
+  ...scopeFields,
   date: { type: String, required: true },
   courtId: { type: String, required: true },
   slot: { type: Number, required: true },
   ownerType: { type: String, enum: ["booking", "block"], required: true },
   ownerId: { type: String, required: true },
 }, { versionKey: false });
-slotClaimSchema.index({ date: 1, courtId: 1, slot: 1 }, { unique: true });
+slotClaimSchema.index({ organizationId: 1, venueId: 1, date: 1, courtId: 1, slot: 1 }, {
+  unique: true, name: "venue_slot_all_unique",
+});
 slotClaimSchema.index({ ownerType: 1, ownerId: 1 });
 
+export const Organization = mongoose.model("Organization", organizationSchema);
+export const Venue = mongoose.model("Venue", venueSchema);
+export const Membership = mongoose.model("Membership", membershipSchema);
+export const Invitation = mongoose.model("Invitation", invitationSchema);
 export const User = mongoose.model("User", userSchema);
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 export const Court = mongoose.model("Court", courtSchema);
@@ -215,7 +286,13 @@ export async function connectDb() {
   if (!MONGODB_URI) {
     throw new Error("Falta MONGODB_URI. Configura MongoDB Atlas o una instancia local en .env.");
   }
+  if (PADELBOOK_OPERATING_MODE === "multiclub") mongoose.set("autoIndex", false);
   await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB_NAME, serverSelectionTimeoutMS: 10000 });
+  if (PADELBOOK_OPERATING_MODE === "multiclub") {
+    await assertTenantIndexesReady(mongoose.connection.db);
+    return;
+  }
+  await assertLegacySingleVenue();
   await seedDatabase();
   await seedCourts();
   await Booking.init();
@@ -225,6 +302,39 @@ export async function connectDb() {
   await migrateTournamentPayments();
   await SlotClaim.init();
   await migrateSlotClaims();
+}
+
+export async function assertLegacySingleVenue() {
+  const scopedModels = [Court, Booking, Tournament, Setting, Activity, Expense, ScheduleBlock, Teacher, SlotClaim];
+  const [organizations, venues] = await Promise.all([
+    Organization.find().select("_id").lean().limit(2),
+    Venue.find().select("_id organizationId").lean().limit(2),
+  ]);
+  if (organizations.length > 1 || venues.length > 1 || organizations.length !== venues.length ||
+    (venues.length === 1 && String(venues[0].organizationId) !== String(organizations[0]._id))) {
+    throw new Error("La API actual solo admite una organización y una sede. No se puede iniciar sobre una base multiclub.");
+  }
+  if (!organizations.length) {
+    if (await Membership.exists({})) throw new Error("La base heredada no puede contener membresías sin organización.");
+    for (const model of scopedModels) {
+      if (await model.exists({ $or: [{ organizationId: { $exists: true } }, { venueId: { $exists: true } }] })) {
+        throw new Error(`La base heredada contiene datos de sede sin organización en ${model.modelName}.`);
+      }
+    }
+    return;
+  }
+  const organizationId = organizations[0]._id;
+  const venueId = venues[0]._id;
+  if (await Membership.exists({ organizationId: { $ne: organizationId } })) {
+    throw new Error("La API actual no admite membresías de otra organización.");
+  }
+  for (const model of scopedModels) {
+    const foreign = await model.exists({ $or: [
+      { organizationId: { $exists: true, $nin: [null, organizationId] } },
+      { venueId: { $exists: true, $nin: [null, venueId] } },
+    ] });
+    if (foreign) throw new Error(`La API actual no admite datos de otra sede en ${model.modelName}.`);
+  }
 }
 
 export function dbState() {
@@ -239,10 +349,13 @@ export async function addActivity(item) {
   const { requestContext } = await import("./requestContext.mjs");
   const context = requestContext.getStore() || {};
   await Activity.create({ ...item, actorId: item.actorId || context.actorId || "", actorRole: item.actorRole || context.actorRole || "", requestId: context.requestId || "", ipHash: context.ipHash || "" });
-  const count = await Activity.countDocuments();
+  const scope = item.organizationId
+    ? { organizationId: item.organizationId, ...(item.venueId ? { venueId: item.venueId } : { venueId: { $exists: false } }) }
+    : { organizationId: { $exists: false } };
+  const count = await Activity.countDocuments(scope);
   if (count > 5000) {
-    const old = await Activity.find().sort({ createdAt: -1 }).skip(5000).select("_id");
-    await Activity.deleteMany({ _id: { $in: old.map((item) => item._id) } });
+    const old = await Activity.find(scope).sort({ createdAt: -1 }).skip(5000).select("_id");
+    await Activity.deleteMany({ ...scope, _id: { $in: old.map((item) => item._id) } });
   }
 }
 

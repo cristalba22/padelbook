@@ -26,6 +26,26 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
   if (!response.ok) throw new Error(`Email provider returned ${response.status}`);
 }
 
+export async function sendInvitationEmail({ to, clubName, role, acceptUrl }) {
+  if (!passwordEmailConfigured()) throw new Error("Invitation email is not configured");
+  const roleName = { admin: "administración", receptionist: "recepción", teacher: "profesorado" }[role];
+  if (!roleName) throw new Error("Invitation role is invalid");
+  const response = await fetch(RESEND_API_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: PASSWORD_RESET_FROM,
+      to: [to],
+      ...(PASSWORD_RESET_REPLY_TO ? { reply_to: PASSWORD_RESET_REPLY_TO } : {}),
+      subject: `Invitación a ${clubName} en PadelBook`,
+      text: `Te invitaron a ${clubName} como parte de ${roleName}. Abrí este enlace dentro de las próximas 72 horas: ${acceptUrl}\n\nPodés usar tu cuenta actual de PadelBook o registrarte con este email. Si no esperabas esta invitación, ignorá el mensaje.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#111827"><p style="font-size:12px;font-weight:800;letter-spacing:.18em;color:#4d7c0f">PADELBOOK</p><h1>Te invitaron a ${escapeHtml(clubName)}</h1><p>Tu función será ${escapeHtml(roleName)}. El enlace vence en 72 horas y puede usarse una sola vez.</p><p style="margin:28px 0"><a href="${escapeHtml(acceptUrl)}" style="background:#bef264;color:#111827;padding:14px 22px;border-radius:999px;text-decoration:none;font-weight:800">Aceptar invitación</a></p><p>Si ya tenés cuenta, ingresá con ella. Si no esperabas esta invitación, podés ignorarla.</p></div>`,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`Email provider returned ${response.status}`);
+}
+
 export async function sendBookingEmail({ to, name, action, booking, clubName = "PadelBook" }) {
   if (!passwordEmailConfigured() || !to) return false;
   const labels = {

@@ -1,0 +1,35 @@
+.org-staff-page { max-width: 1240px; }
+.org-staff-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, .9fr); align-items: start; gap: 19px; }
+.org-staff-layout .org-section { margin-top: 0; }
+.org-staff-intro { margin: -4px 0 20px; color: #566778; font-size: .84rem; line-height: 1.5; }
+.org-staff-list { display: grid; gap: 12px; }
+.org-staff-card { padding: 18px; border: 1px solid #dbe4e1; border-radius: 13px; background: #fff; }
+.org-staff-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.org-staff-card__head > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.org-staff-card__head strong { color: #17291d; font-size: 1rem; }
+.org-staff-card__head small { overflow-wrap: anywhere; color: #637486; font-size: .78rem; }
+.org-staff-badge { padding: 5px 8px; border-radius: 6px; background: #e4f3e6; color: #27643b; font-size: .69rem; font-weight: 800; white-space: nowrap; }
+.org-staff-badge--off { background: #f3e9e5; color: #90533c; }
+.org-staff-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.org-staff-form-grid label { display: flex; flex-direction: column; gap: 6px; color: #354755; font-size: .79rem; font-weight: 700; }
+.org-staff-form-grid input, .org-staff-form-grid select { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #cbd8d4; border-radius: 8px; background: #fff; color: #15261b; font: inherit; font-weight: 500; }
+.org-staff-venues { margin: 16px 0; padding: 0; border: 0; }
+.org-staff-venues legend { margin-bottom: 9px; color: #354755; font-size: .79rem; font-weight: 700; }
+.org-staff-venues > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.org-staff-venues label { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid #d5dfdb; border-radius: 8px; background: #fff; color: #203729; font-size: .8rem; }
+.org-staff-venues input { width: 16px; height: 16px; accent-color: #2a7543; }
+.org-staff-card__actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.org-staff-card__actions button, .org-staff-create-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 39px; padding: 0 12px; border: 1px solid #20573b; border-radius: 8px; background: #20573b; color: #fff; font-size: .78rem; font-weight: 750; cursor: pointer; }
+.org-staff-card__actions .org-staff-secondary { border-color: #cbd7d1; background: #fff; color: #26533c; }
+.org-staff-card__actions button:disabled, .org-staff-create-button:disabled { opacity: .5; cursor: not-allowed; }
+.org-staff-create { display: flex; flex-direction: column; }
+.org-staff-create-button { margin-top: 21px; min-height: 43px; }
+.org-staff-notice { padding: 14px 17px; border: 1px solid #acd1af; border-radius: 10px; background: #eaf5e9; color: #16452a; font-size: .86rem; }
+.org-staff-notice--error { border-color: #edc1b9; background: #fff0ed; color: #8b3024; }
+.org-invitation { max-width: 720px; padding-top: clamp(24px, 7vh, 72px); }
+.org-invitation .org-section { display: grid; gap: 14px; }
+.org-invitation .org-section p { margin: 0; line-height: 1.6; }
+.org-invitation .org-staff-create-button { width: fit-content; min-width: 190px; margin-top: 2px; }
+.org-staff-page input:focus-visible, .org-staff-page select:focus-visible, .org-staff-page button:focus-visible { outline: 3px solid #9ed78e; outline-offset: 2px; }
+@media (max-width: 900px) { .org-staff-layout { grid-template-columns: 1fr; } }
+@media (max-width: 550px) { .org-staff-form-grid { grid-template-columns: 1fr; } .org-staff-card__head { flex-wrap: wrap; } }

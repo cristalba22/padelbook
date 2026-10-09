@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "padelbook-staging",
+  "main": "./cloudflare/worker.js",
+  "compatibility_date": "2026-09-18",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": ["/*"]
+  },
+  "vars": { "API_ORIGIN": "https://padelbook-api-staging.onrender.com", "PADELBOOK_STAGING": "true" }
+}
