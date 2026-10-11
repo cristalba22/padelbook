@@ -34,7 +34,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.2",
     "mongodb-memory-server": "^11.2.0",
-    "postcss": "^8.4.47",
+    "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
     "vite": "^8.0.16",
     "wrangler": "^4.148.0"
