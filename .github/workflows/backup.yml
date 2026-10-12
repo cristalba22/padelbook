@@ -20,7 +20,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          # El lockfile actual requiere npm 11; Node 22 instala npm 10 y
+          # rechaza el override de sharp usado por Wrangler/Miniflare.
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Create encrypted backup
