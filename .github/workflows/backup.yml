@@ -18,7 +18,7 @@ jobs:
       BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           # El lockfile actual requiere npm 11; Node 22 instala npm 10 y
           # rechaza el override de sharp usado por Wrangler/Miniflare.
