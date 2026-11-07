@@ -33,11 +33,11 @@ const DEMO_PROFILES = [
 ];
 
 export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
-  const { login, register, requestPasswordReset, apiOnline } = useAuth();
+  const { login, register, requestPasswordReset, apiOnline, apiReady, apiError, configuredApi, retryApi } = useAuth();
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState(apiOnline ? "" : "crisalba@test.com");
-  const [password, setPassword] = useState(apiOnline ? "" : "player123");
+  const [email, setEmail] = useState(configuredApi ? "" : "crisalba@test.com");
+  const [password, setPassword] = useState(configuredApi ? "" : "player123");
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("6ta");
   const [error, setError] = useState("");
@@ -50,6 +50,7 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
     setError("");
     setMessage("");
     setRecoverySent(false);
+    setPassword("");
     if (typeof onClose === "function") onClose();
   };
 
@@ -65,8 +66,8 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
       setPhone("");
       setCategory("Sin categoría");
     } else {
-      setEmail(apiOnline ? "" : "crisalba@test.com");
-      setPassword(apiOnline ? "" : "player123");
+      setEmail(configuredApi ? "" : "crisalba@test.com");
+      setPassword(configuredApi ? "" : "player123");
     }
   };
 
@@ -129,12 +130,16 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {mode === "login"
-              ? apiOnline ? "Ingresá con tu cuenta de PadelBook." : "Podés probar los perfiles disponibles en este navegador."
+              ? configuredApi ? "Ingresá con tu cuenta de PadelBook." : "Podés probar los perfiles disponibles en este navegador."
               : mode === "register" ? "Creá tu cuenta para reservar canchas e inscribirte en torneos." : "Te enviaremos un enlace de un solo uso, válido por 20 minutos."}
           </p>
 
           {mode === "forgot" ? <button type="button" onClick={() => changeMode("login")} className="mt-5 text-xs font-bold text-lime-200 hover:text-lime-100">← Volver al ingreso</button> : <div className="mt-5 grid grid-cols-2 rounded-full border border-white/10 bg-black/30 p-1 text-xs font-bold"><button type="button" onClick={() => changeMode("login")} className={`rounded-full py-2.5 ${mode === "login" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Ingresar</button><button type="button" onClick={() => changeMode("register")} className={`rounded-full py-2.5 ${mode === "register" ? "bg-lime-300 text-black" : "text-slate-300"}`}>Registrarme</button></div>}
 
+          {configuredApi && !apiReady && <div role="status" className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-slate-200">
+            {apiError ? "El club no responde por ahora. Conservamos lo que escribiste para que puedas reintentar." : "Conectando con el club. Podés completar tus datos mientras tanto."}
+            {apiError && <button type="button" onClick={retryApi} className="ml-2 font-bold text-lime-200 hover:text-lime-100">Reintentar conexión</button>}
+          </div>}
           {error && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-100">{error}</div>}
           {mode === "forgot" && recoverySent ? (
             <div role="status" className="mt-5 rounded-3xl border border-lime-300/25 bg-[linear-gradient(145deg,rgba(190,242,100,.14),rgba(45,212,191,.06))] p-5 shadow-[0_18px_55px_rgba(0,0,0,.3)]">
@@ -176,13 +181,13 @@ export default function LoginModal({ isOpen, onClose, onLoggedIn }) {
             </Field>
             {mode !== "forgot" && <PasswordField id="access-password" value={password} onValueChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} required showGenerator={mode === "register"} />}
 
-            <button type="submit" className="btn-primary w-full justify-center py-3">
+            <button type="submit" disabled={configuredApi && !apiReady} className="btn-primary w-full justify-center py-3 disabled:cursor-not-allowed disabled:opacity-50">
               {mode === "login" ? "Entrar al panel" : mode === "register" ? "Crear cuenta de jugador" : "Enviar enlace seguro"}
             </button>
             {mode === "login" && apiOnline && <button type="button" onClick={() => changeMode("forgot")} className="w-full text-center text-xs font-bold text-slate-300 hover:text-lime-200">¿Olvidaste tu contraseña?</button>}
           </form>}
 
-          {!apiOnline && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+          {!configuredApi && <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Acceso de prueba</p>
               <span className="text-[10px] text-slate-400">Elegí un perfil</span>

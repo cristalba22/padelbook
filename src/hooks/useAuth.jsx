@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiRequest, checkApiHealth, setCsrfToken } from "../utils/apiClient.js";
 import { safeRead, safeRemove, safeWrite } from "../utils/storage.js";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ConnectionScreen from "../components/ConnectionScreen.jsx";
+import LoginModal from "../components/LoginModal.jsx";
+import { routeForRole } from "../constants/routes.js";
 
 const AuthContext = createContext(null);
 const AUTH_KEY = "padel_auth_user";
@@ -38,6 +40,7 @@ function publicProfile(user) {
 
 export function AuthProvider({ children }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const hostedVercelDemo = typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
   const demoMode = import.meta.env.VITE_DEMO_MODE === "true" || hostedVercelDemo;
   const configuredApi = Boolean(import.meta.env.VITE_API_URL) || (import.meta.env.PROD && !demoMode);
@@ -54,8 +57,9 @@ export function AuthProvider({ children }) {
     let online = false;
     const attempts = configuredApi ? 3 : 1;
     for (let attempt = 0; attempt < attempts && isActive(); attempt += 1) {
-      online = await checkApiHealth(configuredApi ? 30000 : 5000);
-      if (online || !isActive()) break;
+      const health = await checkApiHealth(configuredApi ? 30000 : 5000);
+      online = health.ok;
+      if (online || health.status === 429 || health.status === 403 || !isActive()) break;
       if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 1500));
     }
     if (!isActive()) return;
@@ -220,8 +224,11 @@ export function AuthProvider({ children }) {
     return true;
   }
 
-  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady]);
-  return <AuthContext.Provider value={value}>{apiReady ? children : <ConnectionScreen home={pathname === "/"} error={apiError} retry={retryApi} />}</AuthContext.Provider>;
+  const value = useMemo(() => ({ user, showLogin, apiOnline, apiReady, apiError, configuredApi, retryApi, openLogin, closeLogin, login, register, requestPasswordReset, updateProfile, changePassword, logout }), [user, showLogin, apiOnline, apiReady, apiError, configuredApi]);
+  return <AuthContext.Provider value={value}>
+    {apiReady ? children : <ConnectionScreen home={pathname === "/"} error={apiError} retry={retryApi} />}
+    <LoginModal isOpen={showLogin} onClose={closeLogin} onLoggedIn={(role) => { closeLogin(); navigate(routeForRole(role)); }} />
+  </AuthContext.Provider>;
 }
 
 export function useAuth() {
