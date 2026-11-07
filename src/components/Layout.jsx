@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
-import LoginModal from "./LoginModal.jsx";
 import { ROUTES, routeForRole } from "../constants/routes.js";
 
 const navItems = [
@@ -12,7 +11,7 @@ const navItems = [
 ];
 
 export default function Layout({ children }) {
-  const { user, logout, showLogin, apiReady, openLogin: openGlobalLogin, closeLogin } = useAuth();
+  const { user, logout, openLogin: openGlobalLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isAdminWorkspace = location.pathname.startsWith("/admin");
@@ -29,7 +28,6 @@ export default function Layout({ children }) {
 
   const openLogin = () => {
     setMobileOpen(false);
-    if (!apiReady) { navigate(ROUTES.ACCOUNT); return; }
     openGlobalLogin();
   };
 
@@ -188,11 +186,6 @@ export default function Layout({ children }) {
         <div id="contenido" className="relative z-10 flex-1">{children}</div>
       </div>
 
-      {apiReady && <LoginModal
-        isOpen={showLogin}
-        onClose={closeLogin}
-        onLoggedIn={(role) => { closeLogin(); navigate(routeForRole(role)); }}
-      />}
     </>
   );
 }

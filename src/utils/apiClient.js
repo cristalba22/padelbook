@@ -37,10 +37,10 @@ export async function checkApiHealth(timeoutMs = 5000) {
   try {
     const response = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(timeoutMs), cache: "no-store", credentials: "include" });
     const contentType = response.headers.get("content-type") || "";
-    if (!response.ok || !contentType.includes("application/json")) return false;
+    if (!response.ok || !contentType.includes("application/json")) return { ok: false, status: response.status };
     const health = await response.json();
-    return health.ok === true && health.database === "connected";
+    return { ok: health.ok === true && health.database === "connected", status: response.status };
   } catch {
-    return false;
+    return { ok: false, status: 0 };
   }
 }
